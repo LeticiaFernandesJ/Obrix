@@ -70,8 +70,8 @@ code { font-size: 12px; }
 }
 .brand-box { padding: 18px 16px 12px; background: #fcfcfa; border-bottom: 3px solid var(--orange); }
 .logo-card { background: transparent; display: block; }
-.logo-crop { display: block; position: relative; width: 100%; aspect-ratio: 1320 / 400; overflow: hidden; }
-.logo-crop img { position: absolute; width: 116.36%; max-width: none; left: -8.33%; top: -67.5%; display: block; }
+.logo-crop { display: block; width: 100%; aspect-ratio: 742 / 309; overflow: hidden; background: #fefdfb; }
+.logo-crop img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .brand-tag { font-size: 10.5px; color: #6b7686; margin: 8px 0 0; letter-spacing: .03em; text-align: center; font-weight: 600; }
 .nav { flex: 1; overflow-y: auto; padding: 8px 10px 14px; }
 .nav-section { padding: 16px 10px 6px; font-size: 10px; font-weight: 700; color: rgba(255, 255, 255, .38); text-transform: uppercase; letter-spacing: .1em; }
@@ -640,5 +640,5 @@ button:focus-visible, a:focus-visible, [role="tab"]:focus-visible { outline: 2px
   .lg-card h1 { font-size: 27px; }
 }
 @media (max-height: 760px) and (min-width: 961px) { .lg-hero p { display: none; } }
-.lg-card { background: rgba(255, 255, 255, .97); }
+.lg-card { background: #fefdfb; }
 @media (max-width: 960px) { .lg-eyebrow { text-align: left; } }

@@ -60,7 +60,7 @@ const CRONO = ['/cronograma', '/painel', '/projeto'];
 export function LogoObrix() {
   return (
     <span className="logo-card" aria-label="Obrix - Gestão inteligente de obras">
-      <span className="logo-crop"><img src={BASE + 'assets/obrix-logo.jpg'} alt="Obrix" /></span>
+      <span className="logo-crop"><img src={BASE + 'assets/obrix-logo-recorte.png'} alt="Obrix" /></span>
     </span>
   );
 }

@@ -106,7 +106,7 @@ function Login() {
         </section>
 
         <form className="lg-card" onSubmit={enviar}>
-          <span className="logo-crop lg-logo"><img src={BASE + 'assets/obrix-logo.jpg'} alt="Obrix - Gestão inteligente de obras" /></span>
+          <span className="logo-crop lg-logo"><img src={BASE + 'assets/obrix-logo-recorte.png'} alt="Obrix - Gestão inteligente de obras" /></span>
           <h1>{t.antes}<em>{t.destaque}</em></h1>
           <p className="lg-sub">{t.sub}</p>
 
@@ -192,7 +192,7 @@ function NovaSenha({ onFim }: { onFim: () => void }) {
       <div className="lg-shade" />
       <div className="lg-inner" style={{ justifyContent: 'center' }}>
         <form className="lg-card" onSubmit={salvar}>
-          <span className="logo-crop lg-logo"><img src={BASE + 'assets/obrix-logo.jpg'} alt="Obrix" /></span>
+          <span className="logo-crop lg-logo"><img src={BASE + 'assets/obrix-logo-recorte.png'} alt="Obrix" /></span>
           <h1>Criar nova senha</h1>
           <p className="lg-sub">Escolha uma nova senha para acessar sua conta.</p>
           <div className="lg-field"><label htmlFor="ns-1">Nova senha</label>

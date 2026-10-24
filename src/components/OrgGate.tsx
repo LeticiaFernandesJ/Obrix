@@ -35,7 +35,7 @@ function CriarEmpresa({ onCriada, onSair }: { onCriada: (id: string) => void; on
   return (
     <Fundo>
       <form className="lg-card" onSubmit={enviar}>
-        <span className="logo-crop lg-logo"><img src={BASE + 'assets/obrix-logo.jpg'} alt="Obrix" /></span>
+        <span className="logo-crop lg-logo"><img src={BASE + 'assets/obrix-logo-recorte.png'} alt="Obrix" /></span>
         <h1>Vamos começar</h1>
         <p className="lg-sub">Dê um nome à sua empresa ou equipe. Depois você poderá convidar outras pessoas para trabalhar nas mesmas obras.</p>
         <div className="lg-field">

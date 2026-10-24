@@ -202,3 +202,45 @@
 .shell .toolbar .btn-icon, .shell .crono-card .btn-icon { width: 36px; padding: 0; }
 .shell .toolbar input[type=date], .shell .toolbar select { height: 36px; border-radius: 11px; box-shadow: none; background-color: var(--gray-light); border-color: transparent; }
 .shell .toolbar { border: 0; }
+
+/* ── tema escuro: campos e botões acompanham a superfície ── */
+:root[data-theme="dark"] .shell input[type=text], :root[data-theme="dark"] .shell input[type=number], :root[data-theme="dark"] .shell input[type=date],
+:root[data-theme="dark"] .shell input[type=email], :root[data-theme="dark"] .shell input[type=password], :root[data-theme="dark"] .shell input:not([type]),
+:root[data-theme="dark"] .shell select, :root[data-theme="dark"] .shell textarea { background-color: var(--surface-2); border-color: var(--input-border); box-shadow: none; }
+:root[data-theme="dark"] .shell .grid td input, :root[data-theme="dark"] .shell .grid td select { background-color: transparent; }
+:root[data-theme="dark"] .shell .btn { box-shadow: none; border: 1px solid var(--gray-border); }
+:root[data-theme="dark"] .shell .btn-primary, :root[data-theme="dark"] .shell .btn-dark { border-color: transparent; color: #fff; }
+:root[data-theme="dark"] .shell .btn-accent, :root[data-theme="dark"] .shell .btn-success { border-color: transparent; }
+:root[data-theme="dark"] .shell .tab-btn:hover:not(.active) { background: rgba(255, 255, 255, .06); }
+:root[data-theme="dark"] .shell .tab-btn.active { box-shadow: none; }
+:root[data-theme="dark"] .shell td { border-bottom-color: var(--gray-border); }
+:root[data-theme="dark"] .shell tbody tr:hover td { background: var(--hover-row); }
+:root[data-theme="dark"] .shell .obra-card:hover, :root[data-theme="dark"] .shell .obra-card.selected { background: var(--surface-2); }
+:root[data-theme="dark"] .shell .metric-bar, :root[data-theme="dark"] .shell .progress, :root[data-theme="dark"] .shell .consumo-bar { background: var(--gray-border); }
+:root[data-theme="dark"] .shell .toolbar input[type=date], :root[data-theme="dark"] .shell .toolbar select { background-color: var(--gray-light); }
+:root[data-theme="dark"] .shell .grid .btn, :root[data-theme="dark"] .shell .toolbar .btn { background: var(--gray-light); border-color: transparent; }
+
+/* ── ajustes de responsividade ── */
+.shell .modal-overlay { grid-template-columns: minmax(0, 1fr); }
+.shell .modal { width: min(580px, 100%); }
+.shell .modal.lg { width: min(720px, 100%); }
+.shell .action-row { flex-wrap: wrap; }
+.shell .action-row:has(.search) { flex-wrap: nowrap; }
+.shell .hist-text { min-width: 0; overflow-wrap: anywhere; }
+.shell .hist-user { display: inline-block; max-width: 100%; overflow-wrap: anywhere; vertical-align: middle; }
+.shell .filter-bar input[type=date] { min-width: 0; }
+@media (max-width: 860px) {
+  .shell .filter-bar { gap: 12px; }
+  .shell .filter-bar .form-group { flex: 1 1 100%; min-width: 0; }
+  .shell .filter-bar .btn { flex: 1 1 100%; }
+  .shell .hist-item { flex-wrap: wrap; gap: 6px 12px; }
+  .shell .hist-time { min-width: 0; flex: 1 1 100%; }
+  .shell .hist-text { flex: 1 1 100%; }
+  .shell .hist-user { margin: 6px 0 0; }
+  .shell .action-row .btn { flex: 1 1 auto; }
+  .shell .action-row:has(.search) .btn { flex: 0 0 auto; }
+  .shell .modal-overlay { padding: 12px; align-items: end; }
+  .shell .modal { padding: 22px 18px; max-height: 92vh; border-radius: 24px 24px 20px 20px; }
+  .shell .modal-footer .btn { flex: 1 1 auto; }
+}
+@media (max-width: 860px) { .shell .hist-user { display: block; width: fit-content; } }

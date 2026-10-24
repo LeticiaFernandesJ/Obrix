@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type DB, dbVazio } from './ac21';
-import { comprasDaNFe, formatarCnpj, lerNFe, notaJaLancada } from './nfe';
+import { comprasDaNFe, formatarCnpj, lerNFe, notaJaLancada, mascaraCnpjCpf } from './nfe';
 
 const CHAVE = ['43', '2510', '12345678000190', '55', '001', '000001234', '1', '00001234', '9'].join('');
 
@@ -90,5 +90,15 @@ describe('lançamento das compras', () => {
     expect(notaJaLancada(db, nf)).toBe(true);
     expect(notaJaLancada(dbVazio(), nf)).toBe(false);
     expect(notaJaLancada(db, { ...nf, numero: '9999' })).toBe(false);
+  });
+});
+
+describe('máscara de CNPJ e CPF', () => {
+  it('formata enquanto digita e limita a 14 dígitos', () => {
+    expect(mascaraCnpjCpf('12345678901')).toBe('123.456.789-01');
+    expect(mascaraCnpjCpf('12345678000190')).toBe('12.345.678/0001-90');
+    expect(mascaraCnpjCpf('12.345.678/0001-90999')).toBe('12.345.678/0001-90');
+    expect(mascaraCnpjCpf('abc')).toBe('');
+    expect(mascaraCnpjCpf('123')).toBe('123');
   });
 });

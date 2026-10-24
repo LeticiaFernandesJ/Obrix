@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Check } from 'lucide-react';
 import { Modal, CampoDinheiro } from './ui';
 import { useApp } from '../store/AppStore';
+import { mascaraCnpjCpf } from '../lib/nfe';
 import { CATS_COMPRA, hojeISO, type Compra, type StatusCompra } from '../lib/ac21';
 
 interface Props { compra: Compra | null; obraId?: number | null; onClose: () => void }
@@ -59,7 +60,7 @@ export function CompraModal({ compra, obraId, onClose }: Props) {
         <div className="form-group"><label htmlFor="compramodal-3">Categoria</label>
           <select id="compramodal-3" value={f.cat} onChange={(e) => set('cat', e.target.value)}>{CATS_COMPRA.map((c) => <option key={c}>{c}</option>)}</select></div>
         <div className="form-group"><label htmlFor="compramodal-4">Fornecedor *</label><input id="compramodal-4" value={f.forn} onChange={(e) => set('forn', e.target.value)} placeholder="Nome do fornecedor" /></div>
-        <div className="form-group"><label htmlFor="compramodal-5">CNPJ / CPF</label><input id="compramodal-5" value={f.cnpj} onChange={(e) => set('cnpj', e.target.value)} placeholder="00.000.000/0000-00" /></div>
+        <div className="form-group"><label htmlFor="compramodal-5">CNPJ / CPF</label><input id="compramodal-5" value={f.cnpj} onChange={(e) => set('cnpj', mascaraCnpjCpf(e.target.value))} inputMode="numeric" placeholder="00.000.000/0000-00" /></div>
         <div className="form-group"><label htmlFor="compramodal-6">Nº NF</label><input id="compramodal-6" value={f.nf} onChange={(e) => set('nf', e.target.value)} placeholder="Ex: NF-0042" /></div>
         <div className="form-group"><label htmlFor="compramodal-7">Data da Compra *</label><input id="compramodal-7" type="date" value={f.data} onChange={(e) => set('data', e.target.value)} /></div>
         <div className="form-group"><label htmlFor="compramodal-venc">Vencimento</label><input id="compramodal-venc" type="date" value={f.venc} onChange={(e) => set('venc', e.target.value)} /></div>

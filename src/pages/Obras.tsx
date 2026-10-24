@@ -8,7 +8,7 @@ import {
   plural,
 } from '../lib/ac21';
 import { useDialogo } from '../components/Dialogo';
-import { Empty, Progress, CampoDinheiro } from '../components/ui';
+import { Empty, Modal, Progress, CampoDinheiro } from '../components/ui';
 import { resumoCrono } from '../lib/schedule';
 import { n2br } from '../lib/dates';
 
@@ -25,14 +25,16 @@ export default function Obras() {
   const nav = useNavigate();
   const [busca, setBusca] = useState('');
   const [editId, setEditId] = useState<number | null>(null); // null = nova
+  const [aberto, setAberto] = useState(false); // formulário visível só ao clicar em Nova Obra ou Editar
   const [f, setF] = useState<Form>(vazio);
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((x) => ({ ...x, [k]: v }));
 
   const q = busca.toLowerCase();
   const lista = q ? db.obras.filter((o) => o.nome.toLowerCase().includes(q) || o.codigo.toLowerCase().includes(q)) : db.obras;
 
-  const nova = () => { setEditId(null); setF(vazio); };
-  const editar = (o: Obra) => { setEditId(o.id); setF(doObra(o)); };
+  const nova = () => { setEditId(null); setF(vazio); setAberto(true); };
+  const editar = (o: Obra) => { setEditId(o.id); setF(doObra(o)); setAberto(true); };
+  const fechar = () => { setAberto(false); setEditId(null); setF(vazio); };
   const salvar = () => {
     const nome = f.nome.trim(); const ac21 = parseFloat(f.ac21) || 0;
     if (!nome) { toast('Informe o nome da obra.'); return; }
@@ -45,12 +47,12 @@ export default function Obras() {
       inicio: f.inicio, fim: f.fim, status: f.status, obs: f.obs.trim(),
     }, editId);
     toast(editId == null ? 'Obra cadastrada.' : 'Obra atualizada.');
-    nova();
+    fechar();
   };
   const excluir = async (o: Obra) => {
     const nc = db.compras.filter((c) => c.obraId === o.id).length;
     if (!(await confirmar(`Excluir a obra "${o.nome}"? Serão removidos também seus ${plural(o.itens.length, 'item', 'itens')} e ${plural(nc, 'compra', 'compras')}. Esta ação não pode ser desfeita.`, { confirmar: 'Excluir obra', perigo: true }))) return;
-    excluirObra(o.id); if (editId === o.id) nova();
+    excluirObra(o.id); if (editId === o.id) fechar();
   };
   const detalhe = (o: Obra) => { setObraAtiva(o.id); nav('/detalhe'); };
 
@@ -62,7 +64,7 @@ export default function Obras() {
         <div className="search"><Search size={15} /><input aria-label="Buscar obra" placeholder="Buscar obra..." value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
       </div>
 
-      <div className={"obras-split" + (podeEditar ? "" : " um")}>
+      <div className="obras-split um">
         <div className="panel">
           <div className="panel-head"><div className="metric-icon mi-blue"><Building2 size={17} /></div>Obras</div>
           <div className="obra-list-pad">
@@ -108,37 +110,31 @@ export default function Obras() {
             })}
           </div>
         </div>
-
-        {podeEditar && <div className="panel">
-          <div className="panel-head">
-            <div className="metric-icon mi-blue">{editId == null ? <Plus size={17} /> : <Pencil size={16} />}</div>
-            {editId == null ? 'Nova Obra' : 'Editar Obra'}
-          </div>
-          <div className="panel-body">
-            <div className="form-grid">
-              <div className="form-group form-full"><label htmlFor="obras-1">Nome da Obra <span className="req">*</span></label>
-                <input id="obras-1" value={f.nome} onChange={(e) => set('nome', e.target.value)} placeholder="Ex: Reforma Sede Porto Alegre" /></div>
-              <div className="form-group"><label htmlFor="obras-2">Código</label><input id="obras-2" value={f.codigo} onChange={(e) => set('codigo', e.target.value)} placeholder="Ex: AC21-POA-001" /></div>
-              <div className="form-group"><label htmlFor="obras-3">Localização</label><input id="obras-3" value={f.local} onChange={(e) => set('local', e.target.value)} placeholder="Cidade, Estado" /></div>
-              <div className="form-group"><label htmlFor="obras-4">Responsável</label><input id="obras-4" value={f.responsavel} onChange={(e) => set('responsavel', e.target.value)} placeholder="Nome do responsável" /></div>
-              <div className="form-group"><label htmlFor="obras-5">Data de Início</label><input id="obras-5" type="date" value={f.inicio} onChange={(e) => set('inicio', e.target.value)} /></div>
-              <div className="form-group"><label htmlFor="obras-6">Previsão de Término</label><input id="obras-6" type="date" value={f.fim} onChange={(e) => set('fim', e.target.value)} /></div>
-              <div className="form-group"><label htmlFor="obras-7">AC21 Aprovado (R$) <span className="req">*</span></label>
-                <CampoDinheiro id="obras-7" value={f.ac21} onChange={(v) => set('ac21', v)} /></div>
-              <div className="form-group"><label htmlFor="obras-8">Status</label>
-                <select id="obras-8" value={f.status} onChange={(e) => set('status', e.target.value as StatusObra)}>
-                  {STATUS_OBRA.map((s) => <option key={s}>{s}</option>)}
-                </select></div>
-              <div className="form-group form-full"><label htmlFor="obras-9">Observações</label>
-                <textarea id="obras-9" value={f.obs} onChange={(e) => set('obs', e.target.value)} placeholder="Anotações gerais sobre a obra..." /></div>
-            </div>
-          </div>
-          <div className="panel-foot">
-            <button className="btn" onClick={nova}>Cancelar</button>
-            <button className="btn btn-primary" onClick={salvar}><Check size={15} /> Salvar Obra</button>
-          </div>
-        </div>}
       </div>
+      {podeEditar && aberto && (
+        <Modal title={editId == null ? 'Nova Obra' : 'Editar Obra'} onClose={fechar} footer={<>
+          <button className="btn" onClick={fechar}>Cancelar</button>
+          <button className="btn btn-primary" onClick={salvar}><Check size={15} /> Salvar Obra</button>
+        </>}>
+              <div className="form-grid">
+                <div className="form-group form-full"><label htmlFor="obras-1">Nome da Obra <span className="req">*</span></label>
+                  <input id="obras-1" value={f.nome} onChange={(e) => set('nome', e.target.value)} placeholder="Ex: Reforma Sede Porto Alegre" /></div>
+                <div className="form-group"><label htmlFor="obras-2">Código</label><input id="obras-2" value={f.codigo} onChange={(e) => set('codigo', e.target.value)} placeholder="Ex: AC21-POA-001" /></div>
+                <div className="form-group"><label htmlFor="obras-3">Localização</label><input id="obras-3" value={f.local} onChange={(e) => set('local', e.target.value)} placeholder="Cidade, Estado" /></div>
+                <div className="form-group"><label htmlFor="obras-4">Responsável</label><input id="obras-4" value={f.responsavel} onChange={(e) => set('responsavel', e.target.value)} placeholder="Nome do responsável" /></div>
+                <div className="form-group"><label htmlFor="obras-5">Data de Início</label><input id="obras-5" type="date" value={f.inicio} onChange={(e) => set('inicio', e.target.value)} /></div>
+                <div className="form-group"><label htmlFor="obras-6">Previsão de Término</label><input id="obras-6" type="date" value={f.fim} onChange={(e) => set('fim', e.target.value)} /></div>
+                <div className="form-group"><label htmlFor="obras-7">AC21 Aprovado (R$) <span className="req">*</span></label>
+                  <CampoDinheiro id="obras-7" value={f.ac21} onChange={(v) => set('ac21', v)} /></div>
+                <div className="form-group"><label htmlFor="obras-8">Status</label>
+                  <select id="obras-8" value={f.status} onChange={(e) => set('status', e.target.value as StatusObra)}>
+                    {STATUS_OBRA.map((s) => <option key={s}>{s}</option>)}
+                  </select></div>
+                <div className="form-group form-full"><label htmlFor="obras-9">Observações</label>
+                  <textarea id="obras-9" value={f.obs} onChange={(e) => set('obs', e.target.value)} placeholder="Anotações gerais sobre a obra..." /></div>
+              </div>
+        </Modal>
+      )}
     </div>
   );
 }

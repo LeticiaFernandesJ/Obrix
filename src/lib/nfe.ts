@@ -23,6 +23,13 @@ export function formatarCnpj(s: string): string {
   return s;
 }
 
+/** Máscara de CNPJ/CPF enquanto a pessoa digita (até 14 dígitos). */
+export function mascaraCnpjCpf(s: string): string {
+  const d = soDigitos(s).slice(0, 14);
+  if (d.length <= 11) return d.replace(/^(\d{3})(\d)/, '$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1-$2');
+  return d.replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2');
+}
+
 export function lerNFe(xmlBruto: string): NFe {
   // tira BOM, comentários e os prefixos de namespace (<nfe:tag> vira <tag>)
   const xml = limparXml(xmlBruto);

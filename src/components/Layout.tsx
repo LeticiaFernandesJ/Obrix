@@ -141,7 +141,7 @@ export default function Layout() {
         {usuario ? (
           <div className="user-box">
             {orgNome && <span className="org-nome" title={orgNome}>{orgNome}</span>}
-            <span className="email" title={nomeUsuario ? `${nomeUsuario} (${usuario})` : usuario}>{nomeUsuario || usuario}{papel && <em className="papel-tag">{papel === 'admin' ? 'admin' : papel === 'editor' ? 'editor' : 'leitor'}</em>}</span>
+            <span className="email" title={nomeUsuario ? `${nomeUsuario} (${usuario})` : usuario}>{nomeUsuario || usuario}{papel && <em className="papel-tag">{papel === 'admin' ? 'admin' : papel === 'editor' ? 'editor' : papel === 'personalizado' ? 'acesso próprio' : 'leitor'}</em>}</span>
             <span className="sync">
               <i className={'sync-dot' + (nuvem === 'salvando' || nuvem === 'carregando' ? ' busy' : nuvem === 'erro' ? ' err' : '')} />
               {nuvem === 'salvo' && <>Salvo na nuvem <button onClick={recarregarNuvem}>atualizar</button></>}

@@ -288,6 +288,15 @@ export function predParse(T: Tarefa[], txt: string, linhaAtual: number): Pred[] 
   return out;
 }
 
+/**
+ * Início de uma tarefa nova: a data que a pessoa digitou. Em branco, vale o dia em que a tarefa é criada
+ * (hoje), a não ser que haja predecessoras: aí o início vem delas. O término sai da duração.
+ */
+export function inicioDaNovaTarefa(digitado: number | null, temPredecessoras: boolean, hoje: number): number | null {
+  if (digitado != null) return digitado;
+  return temPredecessoras ? null : hoje;
+}
+
 /* =========================== EDIÇÃO DE CÉLULA =========================== */
 export type CampoGrade = 'nome' | 'resp' | 'dur' | 'ini' | 'fim' | 'pred' | 'pct' | 'peso' | 'rIni' | 'rFim';
 /** Aplica a edição diretamente em S (que deve ser uma cópia). `calcAnt` = cálculo do estado anterior. */

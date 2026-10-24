@@ -13,7 +13,8 @@ export const LISTA_PAPEIS: Papel[] = ['admin', 'editor', 'leitor', 'personalizad
 
 /* ---------- acesso por área (papel Personalizado) ---------- */
 export type Area = 'obras' | 'compras' | 'cronograma' | 'historico';
-export type Nivel = 'nenhum' | 'ver' | 'editar';
+/** 'minhas': só no cronograma, altera apenas as tarefas em que a pessoa é o responsável. */
+export type Nivel = 'nenhum' | 'ver' | 'minhas' | 'editar';
 export type Permissoes = Partial<Record<Area, Nivel>>;
 
 /** Regra de senha para contas novas e redefinição: 8 caracteres ou mais, com letra e número. Devolve a mensagem de erro, ou null se estiver boa. */
@@ -23,11 +24,11 @@ export function erroDeSenha(senha: string): string | null {
   return null;
 }
 
-export const NIVEIS: Record<Nivel, string> = { nenhum: 'Sem acesso', ver: 'Só ver', editar: 'Ver e alterar' };
+export const NIVEIS: Record<Nivel, string> = { nenhum: 'Sem acesso', ver: 'Só ver', minhas: 'Só as tarefas dela', editar: 'Ver e alterar tudo' };
 export const AREAS: { id: Area; rotulo: string; descricao: string; niveis: Nivel[] }[] = [
   { id: 'obras', rotulo: 'Obras e itens', descricao: 'Cadastro das obras, AC21 e itens orçados', niveis: ['ver', 'editar'] },
   { id: 'compras', rotulo: 'Compras e financeiro', descricao: 'Compras, notas fiscais, contas a pagar e fluxo de caixa', niveis: ['nenhum', 'ver', 'editar'] },
-  { id: 'cronograma', rotulo: 'Cronograma', descricao: 'Cronograma, painel do PMO e dados do projeto', niveis: ['nenhum', 'ver', 'editar'] },
+  { id: 'cronograma', rotulo: 'Cronograma', descricao: 'Cronograma, painel do PMO e dados do projeto. "Só as tarefas dela": altera apenas as tarefas em que é o responsável', niveis: ['nenhum', 'ver', 'minhas', 'editar'] },
   { id: 'historico', rotulo: 'Histórico de alterações', descricao: 'Quem alterou o quê e quando', niveis: ['nenhum', 'ver'] },
 ];
 
@@ -37,15 +38,21 @@ export function nivelDaArea(papel: Papel | null, perm: Permissoes | null | undef
   if (papel === 'editor') return area === 'historico' ? 'ver' : 'editar';
   if (papel === 'leitor') return 'ver';
   const n = perm?.[area];
-  if (n !== 'nenhum' && n !== 'ver' && n !== 'editar') return 'ver';
+  if (n !== 'nenhum' && n !== 'ver' && n !== 'minhas' && n !== 'editar') return 'ver';
+  if (n === 'minhas' && area !== 'cronograma') return 'ver';
   if (area === 'obras' && n === 'nenhum') return 'ver'; // quem é da equipe sempre vê as obras
   if (area === 'historico' && n === 'editar') return 'ver';
   return n;
 }
 export const podeEditarArea = (papel: Papel | null, perm: Permissoes | null | undefined, area: Area) => nivelDaArea(papel, perm, area) === 'editar';
 export const podeVerArea = (papel: Papel | null, perm: Permissoes | null | undefined, area: Area) => nivelDaArea(papel, perm, area) !== 'nenhum';
-/** Altera alguma coisa (obras, compras ou cronograma). */
-export const podeAlterar = (papel: Papel | null, perm?: Permissoes | null) => (['obras', 'compras', 'cronograma'] as Area[]).some((a) => podeEditarArea(papel, perm, a));
+/** Altera só as tarefas em que é o responsável (e nada mais no cronograma). */
+export const soMinhasTarefas = (papel: Papel | null, perm?: Permissoes | null) => nivelDaArea(papel, perm, 'cronograma') === 'minhas';
+/** Altera alguma coisa (obras, compras, cronograma, ou ao menos as próprias tarefas). */
+export const podeAlterar = (papel: Papel | null, perm?: Permissoes | null) => {
+  const crono = nivelDaArea(papel, perm, 'cronograma');
+  return podeEditarArea(papel, perm, 'obras') || podeEditarArea(papel, perm, 'compras') || crono === 'minhas' || crono === 'editar';
+};
 
 /** As quatro áreas de qualquer papel; serve de ponto de partida ao personalizar. */
 export function permissoesDoPapel(papel: Papel, perm?: Permissoes | null): Permissoes {
@@ -58,8 +65,12 @@ export function resumoPermissoes(papel: Papel, perm?: Permissoes | null): string
   if (papel !== 'personalizado') return '';
   const p = permissoesDoPapel(papel, perm);
   const lista = (n: Nivel) => AREAS.filter((a) => p[a.id] === n).map((a) => a.rotulo.toLowerCase());
-  const edita = lista('editar'), sem = lista('nenhum');
-  return [edita.length ? `Altera: ${edita.join(', ')}` : 'Não altera nada', sem.length ? `Sem acesso: ${sem.join(', ')}` : ''].filter(Boolean).join('. ');
+  const edita = lista('editar'), minhas = lista('minhas'), sem = lista('nenhum');
+  return [
+    edita.length ? `Altera: ${edita.join(', ')}` : (minhas.length ? '' : 'Não altera nada'),
+    minhas.length ? `Altera só as próprias tarefas: ${minhas.join(', ')}` : '',
+    sem.length ? `Sem acesso: ${sem.join(', ')}` : '',
+  ].filter(Boolean).join('. ');
 }
 
 export interface Org { id: string; nome: string; papel: Papel; permissoes: Permissoes | null; /** nome completo de quem está logado */ meuNome: string }

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   LISTA_PAPEIS, PAPEIS, capturarConvite, conviteGuardado, limparConvite, nivelDaArea, normalizarPermissoes, permissoesDoPapel, podeAlterar,
-  erroDeSenha, podeEditarArea, podeVerArea, resumoPermissoes, traduzirErro,
+  erroDeSenha, podeEditarArea, podeVerArea, resumoPermissoes, soMinhasTarefas, traduzirErro,
 } from './equipe';
 
 describe('papéis', () => {
@@ -112,5 +112,29 @@ describe('regra de senha', () => {
   });
   it('avisa o limite de organizações', () => {
     expect(traduzirErro('Limite de organizações atingido')).toMatch(/limite de organizações/);
+  });
+});
+
+describe('nível "só as tarefas dela" no cronograma', () => {
+  const minhas = { obras: 'ver', compras: 'editar', cronograma: 'minhas', historico: 'ver' } as const;
+  it('vê o cronograma, não o altera todo, mas conta como quem altera algo', () => {
+    expect(nivelDaArea('personalizado', minhas, 'cronograma')).toBe('minhas');
+    expect(podeVerArea('personalizado', minhas, 'cronograma')).toBe(true);
+    expect(podeEditarArea('personalizado', minhas, 'cronograma')).toBe(false);
+    expect(soMinhasTarefas('personalizado', minhas)).toBe(true);
+    expect(podeAlterar('personalizado', { cronograma: 'minhas' })).toBe(true);
+    expect(podeAlterar('personalizado', { cronograma: 'ver' })).toBe(false);
+  });
+  it('só existe no cronograma: nas outras áreas vira "só ver"', () => {
+    expect(nivelDaArea('personalizado', { compras: 'minhas' }, 'compras')).toBe('ver');
+    expect(nivelDaArea('personalizado', { obras: 'minhas' }, 'obras')).toBe('ver');
+    expect(normalizarPermissoes({ compras: 'minhas', cronograma: 'minhas' })).toEqual({ obras: 'ver', compras: 'ver', cronograma: 'minhas', historico: 'ver' });
+  });
+  it('editor e administrador não são afetados', () => {
+    expect(soMinhasTarefas('editor', null)).toBe(false); expect(soMinhasTarefas('admin', null)).toBe(false); expect(soMinhasTarefas(null, null)).toBe(false);
+  });
+  it('o resumo diz que altera só as próprias tarefas', () => {
+    expect(resumoPermissoes('personalizado', minhas)).toBe('Altera: compras e financeiro. Altera só as próprias tarefas: cronograma');
+    expect(resumoPermissoes('personalizado', { cronograma: 'minhas' })).toBe('Altera só as próprias tarefas: cronograma');
   });
 });

@@ -3,12 +3,13 @@ import {
   type Compra, type DB, type Historico, type Item, type Obra, dbVazio, fmt, novoId, sanitizarDB,
 } from '../lib/ac21';
 import {
-  type Calc, type Cal, type Estado, calcular, desempacotar, makeCal, normalizarEstado, novoEstado,
+  type Calc, type Cal, type Estado, type Tarefa, calcular, desempacotar, makeCal, normalizarEstado, novoEstado,
 } from '../lib/schedule';
 import { supabase } from '../lib/supabase';
 import { useDialogo } from '../components/Dialogo';
 import { ConflitoErro, type Snap, type Tabela, type Versoes, TABELAS, deLinhas, enviarMudancas, lerNuvem, paraLinhas, snapDe, snapVazio, versoesDe } from '../lib/nuvem';
-import { type Area, type Org, type Papel, type Permissoes, podeAlterar, podeEditarArea, podeVerArea } from '../lib/equipe';
+import { type Area, type Org, type Papel, type Permissoes, podeAlterar, podeEditarArea, podeVerArea, soMinhasTarefas } from '../lib/equipe';
+import { validarEdicaoMinhas } from '../lib/minhasTarefas';
 
 const K_DB = 'obrix-ac21-v1';
 const K_CRONO = 'cronograma-obra-v2'; // legado (cronograma único)
@@ -52,6 +53,10 @@ interface Ctx {
   podeEditar: boolean;
   /** pode alterar esta área (obras, compras, cronograma)? */
   podeEditarArea: (area: Area) => boolean;
+  /** só altera as tarefas em que é o responsável (nível "só as tarefas dela" no cronograma) */
+  soMinhas: boolean;
+  /** pode alterar esta tarefa? (tudo, ou só as próprias) */
+  podeEditarTarefa: (t: Tarefa) => boolean;
   /** enxerga esta área? (compras, cronograma e histórico podem ficar escondidos) */
   podeVerArea: (area: Area) => boolean;
   trocarOrg: (id: string) => void;
@@ -121,6 +126,10 @@ export function AppProvider({ children, userId = null, email, nome = '', onSignO
   const podeEditar = !readOnly && podeAlterar(papel, permissoes);
   const editaArea = (a: Area) => !readOnly && podeEditarArea(papel, permissoes, a);
   const veArea = (a: Area) => readOnly || podeVerArea(papel, permissoes, a);
+  const soMinhas = !readOnly && soMinhasTarefas(papel, permissoes);
+  const minhasRef = useRef(false); minhasRef.current = soMinhas;
+  const userRef = useRef<string | null>(null); userRef.current = userId;
+  const podeEditarTarefa = (t: Tarefa) => editaArea('cronograma') || (soMinhas && !!userId && t.respId === userId);
   const roRef = useRef(false);
   roRef.current = !podeEditar;
   const areaRef = useRef(editaArea);
@@ -130,7 +139,7 @@ export function AppProvider({ children, userId = null, email, nome = '', onSignO
   tabelasRef.current = new Set<Tabela>([
     ...(editaArea('obras') ? (['obras', 'itens'] as Tabela[]) : []),
     ...(editaArea('compras') ? (['compras'] as Tabela[]) : []),
-    ...(editaArea('cronograma') ? (['cronogramas', 'tarefas', 'medicoes'] as Tabela[]) : []),
+    ...(editaArea('cronograma') ? (['cronogramas', 'tarefas', 'medicoes'] as Tabela[]) : soMinhas ? (['tarefas'] as Tabela[]) : []),
     ...(podeEditar ? (['historico'] as Tabela[]) : []),
   ]);
   const autorRef = useRef(email ?? 'Gerente');
@@ -464,14 +473,25 @@ export function AppProvider({ children, userId = null, email, nome = '', onSignO
 
   /* ---------- Cronograma ---------- */
   const updateCrono: Ctx['updateCrono'] = useCallback((fn) => {
-    if (roRef.current || !areaRef.current('cronograma')) return;
+    if (roRef.current) return;
     const k = chaveRef.current;
+    if (!areaRef.current('cronograma')) {
+      // só as próprias tarefas: confere antes de aceitar a alteração
+      if (!minhasRef.current) return;
+      const antes: Estado = estadoRef.current.cronos[k] ?? sementeRef.current;
+      const S: Estado = JSON.parse(JSON.stringify(antes));
+      fn(S, calRef.current, calcRef.current);
+      const erro = validarEdicaoMinhas(antes.tarefas, S.tarefas, userRef.current);
+      if (erro) { toast(erro); return; }
+      setCronos((prev) => ({ ...prev, [k]: S }));
+      return;
+    }
     setCronos((prev) => {
       const S: Estado = JSON.parse(JSON.stringify(prev[k] ?? sementeRef.current));
       fn(S, calRef.current, calcRef.current);
       return { ...prev, [k]: S };
     });
-  }, []);
+  }, [toast]);
   const carregarCrono = useCallback((obj: Partial<Estado> | null) => {
     if (roRef.current || !areaRef.current('cronograma')) return;
     const est = normalizarEstado(obj);
@@ -482,7 +502,7 @@ export function AppProvider({ children, userId = null, email, nome = '', onSignO
     db, obraAtivaId, obraAtual, cronos, exportarTudo, setObraAtiva, salvarObra, excluirObra, salvarItem, excluirItem, salvarCompra, excluirCompra,
     registrarHistorico, importarDB,
     crono, cal, calc, updateCrono, carregarCrono, readOnly,
-    userId, orgId, orgNome: orgAtual?.nome ?? '', orgs, papel, permissoes, podeEditar, podeEditarArea: editaArea, podeVerArea: veArea,
+    userId, orgId, orgNome: orgAtual?.nome ?? '', orgs, papel, permissoes, podeEditar, podeEditarArea: editaArea, podeVerArea: veArea, soMinhas, podeEditarTarefa,
     trocarOrg: trocarOrg ?? (() => undefined), recarregarOrgs: recarregarOrgs ?? (() => undefined),
     usuario: email, nomeUsuario: nome, sair: onSignOut ? sairSeguro : null, nuvem, recarregarNuvem: () => { void carregarNuvem(); }, tentarSincronizar: () => { void salvarAgora(); },
     tema, alternarTema: () => setTema((t) => (t === 'dark' ? 'light' : 'dark')),

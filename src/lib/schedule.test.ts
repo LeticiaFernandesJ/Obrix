@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { iso2n, n2br, parseData } from './dates';
 import {
-  aplicarCampo, calcular, difUtil, exemplo, importarTexto, makeCal, normalizarEstado, novaTarefa, novoEstado, pctRealAtual,
+  aplicarCampo, calcular, inicioDaNovaTarefa, difUtil, exemplo, importarTexto, makeCal, normalizarEstado, novaTarefa, novoEstado, pctRealAtual,
   predParse, predTexto, somaUtil,
 } from './schedule';
 
@@ -143,5 +143,25 @@ describe('responsável da equipe', () => {
     aplicarCampo(S, cal, [], 0, 'resp', 'Ana'); expect(S.tarefas[0].respId).toBe('u-1'); // mesmo nome: continua
     aplicarCampo(S, cal, [], 0, 'resp', 'Seu José'); expect(S.tarefas[0].respId).toBeNull();
     expect(S.tarefas[0].resp).toBe('Seu José');
+  });
+});
+
+describe('início da tarefa nova', () => {
+  const HOJE = iso2n('2026-10-24')!; // sábado
+  it('a data digitada manda; em branco vale hoje; com predecessoras o início vem delas', () => {
+    const digitada = iso2n('2026-11-10');
+    expect(inicioDaNovaTarefa(digitada, false, HOJE)).toBe(digitada);
+    expect(inicioDaNovaTarefa(digitada, true, HOJE)).toBe(digitada);
+    expect(inicioDaNovaTarefa(null, false, HOJE)).toBe(HOJE);
+    expect(inicioDaNovaTarefa(null, true, HOJE)).toBeNull();
+  });
+  it('tarefas criadas em dias diferentes não herdam a data uma da outra: cada uma começa no próprio início e termina pela duração', () => {
+    const S = novoEstado(); S.meta.inicio = '2026-10-07'; // o projeto começou antes
+    const a = novaTarefa({ id: 'a', dur: 1, iniM: iso2n('2026-10-26') });  // digitada
+    const b = novaTarefa({ id: 'b', dur: 15, iniM: inicioDaNovaTarefa(null, false, HOJE) }); // em branco: hoje (sábado) vira a segunda
+    S.tarefas = [a, b];
+    const c = calcular(S, makeCal(S));
+    expect(n2br(c[0].ini)).toBe('26/10/2026'); expect(n2br(c[0].fim)).toBe('26/10/2026');
+    expect(n2br(c[1].ini)).toBe('26/10/2026'); expect(n2br(c[1].fim)).toBe('13/11/2026'); // 15 dias úteis
   });
 });

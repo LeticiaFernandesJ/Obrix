@@ -5,7 +5,7 @@ import { useApp } from '../../store/AppStore';
 import { Empty } from '../../components/ui';
 
 export function CronoHeader() {
-  const { crono, readOnly, podeEditarArea, db, obraAtual, setObraAtiva } = useApp();
+  const { crono, readOnly, podeEditarArea, soMinhas, db, obraAtual, setObraAtiva } = useApp();
   const podeEditar = podeEditarArea('cronograma');
   const m = crono.meta;
   const sd = m.statusDate ? m.statusDate.split('-').reverse().join('/') : '';
@@ -20,7 +20,8 @@ export function CronoHeader() {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         {readOnly && <span className="chip ro">somente leitura, visão PMO</span>}
-        {!readOnly && !podeEditar && <span className="chip ro">somente consulta</span>}
+        {!readOnly && !podeEditar && !soMinhas && <span className="chip ro">somente consulta</span>}
+        {!readOnly && soMinhas && <span className="chip ro">você altera só as suas tarefas</span>}
         {!readOnly && db.obras.length > 0 && (
           <label className="obra-pick" title="Obra do cronograma">
             <Building2 size={15} />

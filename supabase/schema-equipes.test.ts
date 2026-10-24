@@ -372,6 +372,64 @@ describe('responsável da tarefa e notificações', () => {
   });
 });
 
+describe('acesso "só as minhas tarefas" no cronograma', () => {
+  let org = '';
+  const tarefa = async (id: string) => (await q<{ nome: string; pct: string; responsavel_id: string | null; responsavel: string; ordem: number; nivel: number }>(
+    `select nome, pct, responsavel_id, responsavel, ordem, nivel from public.tarefas where org_id = '${org}' and id = '${id}'`))[0];
+  beforeAll(async () => {
+    org = (await linhas<{ org: string }>(D, `select public.criar_organizacao('Org Minhas Tarefas') as org`))[0].org;
+    await como(D, () => db.exec(`insert into public.convites (org_id, papel, permissoes) values ('${org}', 'personalizado', '{"cronograma":"minhas","compras":"minhas"}')`));
+    const t = (await linhas<{ token: string }>(D, `select token from public.convites where org_id = '${org}'`))[0].token;
+    await linhas(B, `select public.aceitar_convite('${t}')`);
+    await como(D, () => db.exec(`insert into public.obras (org_id, id, codigo, nome) values ('${org}', 1, 'M-1', 'Obra M');
+      insert into public.cronogramas (org_id, obra_id, nome) values ('${org}', 1, 'crono');
+      insert into public.tarefas (org_id, obra_id, id, ordem, nome, nivel, responsavel, responsavel_id) values
+        ('${org}', 1, 'minha', 0, 'Tarefa da B', 1, 'b@x.com', '${B}'),
+        ('${org}', 1, 'dela', 1, 'Tarefa da D', 1, 'Diana', '${D}');
+      insert into public.medicoes (org_id, obra_id, data, pct) values ('${org}', 1, '2026-01-01', 10);`));
+  });
+  it('vê o cronograma inteiro, só não altera tudo', async () => {
+    expect(await linhas(B, `select 1 from public.tarefas where org_id = '${org}'`)).toHaveLength(2);
+    expect(await linhas(B, `select 1 from public.cronogramas where org_id = '${org}'`)).toHaveLength(1);
+    expect(await linhas(B, `select 1 from public.medicoes where org_id = '${org}'`)).toHaveLength(1);
+  });
+  it('altera as tarefas em que é o responsável, e só elas', async () => {
+    await tenta(B, `update public.tarefas set pct = 60, nome = 'Concluindo a minha' where org_id = '${org}' and id = 'minha'`);
+    expect(Number((await tarefa('minha')).pct)).toBe(60); expect((await tarefa('minha')).nome).toBe('Concluindo a minha');
+    await tenta(B, `update public.tarefas set pct = 90, nome = 'Mexi na dos outros' where org_id = '${org}' and id = 'dela'`);
+    expect(Number((await tarefa('dela')).pct)).toBe(0); expect((await tarefa('dela')).nome).toBe('Tarefa da D');
+  });
+  it('não passa a tarefa para outra pessoa, nem muda posição, nível ou responsável', async () => {
+    await tenta(B, `update public.tarefas set responsavel_id = '${D}', responsavel = 'Diana', ordem = 5, nivel = 0 where org_id = '${org}' and id = 'minha'`);
+    const t = await tarefa('minha');
+    expect(t.responsavel_id).toBe(B); expect(t.responsavel).toBe('b@x.com'); expect(t.ordem).toBe(0); expect(t.nivel).toBe(1);
+  });
+  it('não pega tarefa dos outros para si', async () => {
+    await tenta(B, `update public.tarefas set responsavel_id = '${B}' where org_id = '${org}' and id = 'dela'`);
+    expect((await tarefa('dela')).responsavel_id).toBe(D);
+  });
+  it('não cria nem apaga tarefas', async () => {
+    expect(await tenta(B, `insert into public.tarefas (org_id, obra_id, id, ordem, nome, responsavel_id) values ('${org}', 1, 'nova', 9, 'x', '${B}')`)).not.toBeNull();
+    await tenta(B, `delete from public.tarefas where org_id = '${org}' and id = 'minha'`);
+    expect((await tarefa('minha'))).toBeDefined();
+  });
+  it('não mexe no cabeçalho do cronograma nem nas medições', async () => {
+    await tenta(B, `update public.cronogramas set nome = 'adulterado' where org_id = '${org}' and obra_id = 1`);
+    expect((await q<{ nome: string }>(`select nome from public.cronogramas where org_id = '${org}'`))[0].nome).toBe('crono');
+    expect(await tenta(B, `insert into public.medicoes (org_id, obra_id, data, pct) values ('${org}', 1, '2026-02-01', 50)`)).not.toBeNull();
+  });
+  it('grava o histórico do que fez, mas não altera obras nem compras', async () => {
+    expect(await tenta(B, `insert into public.historico (org_id, id, tipo, texto) values ('${org}', 1, 'tarefa', 'avancei')`)).toBeNull();
+    expect(await tenta(B, `insert into public.obras (org_id, id, nome) values ('${org}', 9, 'nova')`)).not.toBeNull();
+    expect(await tenta(B, `insert into public.compras (org_id, id, obra_id, descricao, total) values ('${org}', 1, 1, 'x', 1)`)).not.toBeNull(); // "minhas" em compras vale só como "ver"
+  });
+  it('o administrador continua alterando qualquer tarefa e pode passar a tarefa para outra pessoa', async () => {
+    await tenta(D, `update public.tarefas set pct = 30, responsavel_id = '${B}', ordem = 7 where org_id = '${org}' and id = 'dela'`);
+    const t = await tarefa('dela');
+    expect(Number(t.pct)).toBe(30); expect(t.responsavel_id).toBe(B); expect(t.ordem).toBe(7);
+  });
+});
+
 describe('limite de organizações por conta', () => {
   it('cada conta cria no máximo 5 organizações (a migrada também conta)', async () => {
     let criadas = 0, erroFinal: string | null = null;

@@ -88,7 +88,7 @@ export default function OrgGate({ userId, email, onSignOut, children }: {
       });
       if (entrou) {
         const o = lista.find((x) => x.id === entrou);
-        if (o) void avisarRef.current(`Você agora faz parte de "${o.nome}" como ${o.papel === 'admin' ? 'administrador' : o.papel === 'editor' ? 'editor' : 'leitor'}.`, 'Convite aceito');
+        if (o) void avisarRef.current(`Você agora faz parte de "${o.nome}" como ${o.papel === 'admin' ? 'administrador' : o.papel === 'editor' ? 'editor' : o.papel === 'personalizado' ? 'membro com acesso personalizado' : 'leitor'}.`, 'Convite aceito');
       }
     } catch (e) { setErro(traduzirErro((e as Error).message)); setOrgs((o) => o ?? []); }
   }, [userId]);

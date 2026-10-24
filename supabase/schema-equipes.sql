@@ -66,22 +66,28 @@ language sql stable security definer set search_path = '' as $$
     when 'admin' then 'editar'
     when 'editor' then case p_area when 'historico' then 'ver' else 'editar' end
     when 'leitor' then 'ver'
-    else coalesce(m.permissoes ->> p_area, 'ver')
+    -- 'minhas' (só as tarefas atribuídas a si) só existe no cronograma
+    else case when m.permissoes ->> p_area = 'minhas' and p_area <> 'cronograma' then 'ver' else coalesce(m.permissoes ->> p_area, 'ver') end
   end
   from public.membros m where m.org_id = p_org and m.user_id = (select auth.uid())
 $$;
 create or replace function public.pode_ver(p_org uuid, p_area text) returns boolean
 language sql stable security definer set search_path = '' as $$
-  select coalesce(public.nivel_area(p_org, p_area), 'nenhum') in ('ver', 'editar')
+  select coalesce(public.nivel_area(p_org, p_area), 'nenhum') in ('ver', 'minhas', 'editar')
 $$;
 create or replace function public.pode_area(p_org uuid, p_area text) returns boolean
 language sql stable security definer set search_path = '' as $$
   select coalesce(public.nivel_area(p_org, p_area), 'nenhum') = 'editar'
 $$;
+-- Pode mexer ao menos nas próprias tarefas (nível 'minhas') ou alterar a área toda.
+create or replace function public.pode_minhas(p_org uuid, p_area text) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select coalesce(public.nivel_area(p_org, p_area), 'nenhum') in ('minhas', 'editar')
+$$;
 -- Pode alterar alguma coisa (usado para gravar o histórico das alterações).
 create or replace function public.pode_editar(p_org uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
-  select public.pode_area(p_org, 'obras') or public.pode_area(p_org, 'compras') or public.pode_area(p_org, 'cronograma')
+  select public.pode_area(p_org, 'obras') or public.pode_area(p_org, 'compras') or public.pode_minhas(p_org, 'cronograma')
 $$;
 create or replace function public.eh_admin(p_org uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
@@ -147,10 +153,10 @@ create trigger trg_garantir_admin before update or delete on public.membros
   for each row execute function public.garantir_admin();
 
 revoke all on function public.meu_papel(uuid), public.eh_membro(uuid), public.pode_editar(uuid), public.eh_admin(uuid),
-  public.nivel_area(uuid, text), public.pode_ver(uuid, text), public.pode_area(uuid, text),
+  public.nivel_area(uuid, text), public.pode_ver(uuid, text), public.pode_area(uuid, text), public.pode_minhas(uuid, text),
   public.criar_organizacao(text), public.aceitar_convite(uuid), public.definir_meu_nome(text) from public, anon;
 grant execute on function public.meu_papel(uuid), public.eh_membro(uuid), public.pode_editar(uuid), public.eh_admin(uuid),
-  public.nivel_area(uuid, text), public.pode_ver(uuid, text), public.pode_area(uuid, text),
+  public.nivel_area(uuid, text), public.pode_ver(uuid, text), public.pode_area(uuid, text), public.pode_minhas(uuid, text),
   public.criar_organizacao(text), public.aceitar_convite(uuid), public.definir_meu_nome(text) to authenticated;
 
 -- ───────────────────────── 3) GUARDAR OS DADOS ANTIGOS (se existirem) ─────────────────────────
@@ -323,6 +329,8 @@ create table if not exists public.tarefas (
   foreign key (org_id, obra_id) references public.cronogramas (org_id, obra_id) on delete cascade
 );
 create index if not exists tarefas_ordem_idx on public.tarefas (org_id, obra_id, ordem);
+-- responsável da equipe: precisa existir antes das regras de acesso (seção 6)
+alter table public.tarefas add column if not exists responsavel_id uuid references auth.users(id) on delete set null;
 
 create table if not exists public.medicoes (
   org_id  uuid   not null references public.organizacoes(id) on delete cascade,
@@ -412,7 +420,7 @@ create policy convites_todos on public.convites for all to authenticated using (
 
 -- Cada tabela pertence a uma área de acesso. Obras e itens sempre podem ser vistos por quem é da equipe.
 do $$
-declare t text; p text; area text; ver text; criar text; alterar text;
+declare t text; p text; area text; ver text; criar text; alterar text; atualizar text;
 begin
   foreach t in array array['obras','itens','compras','historico','cronogramas','tarefas','medicoes'] loop
     area := case t when 'obras' then 'obras' when 'itens' then 'obras' when 'compras' then 'compras'
@@ -420,6 +428,10 @@ begin
     ver := case when area = 'obras' then 'public.eh_membro(org_id)' else format('public.pode_ver(org_id, %L)', area) end;
     criar := case when t = 'historico' then 'public.pode_editar(org_id)' else format('public.pode_area(org_id, %L)', area) end;
     alterar := case when t = 'historico' then 'public.pode_editar(org_id)' else format('public.pode_area(org_id, %L)', area) end;
+    -- quem tem o nível "só as minhas tarefas" altera apenas as tarefas em que é o responsável
+    atualizar := case when t = 'tarefas'
+      then 'public.pode_area(org_id, ''cronograma'') or (public.nivel_area(org_id, ''cronograma'') = ''minhas'' and responsavel_id = (select auth.uid()))'
+      else alterar end;
     execute format('alter table public.%I enable row level security', t);
     for p in select policyname from pg_policies where schemaname = 'public' and tablename = t loop
       execute format('drop policy %I on public.%I', p, t);
@@ -427,7 +439,7 @@ begin
     execute format('create policy %I on public.%I for select to authenticated using (%s)', t || '_ver', t, ver);
     execute format('create policy %I on public.%I for insert to authenticated with check (%s)', t || '_criar', t, criar);
     if t <> 'historico' then
-      execute format('create policy %I on public.%I for update to authenticated using (%s) with check (%s)', t || '_alterar', t, alterar, alterar);
+      execute format('create policy %I on public.%I for update to authenticated using (%s) with check (%s)', t || '_alterar', t, atualizar, atualizar);
     end if;
     execute format('create policy %I on public.%I for delete to authenticated using (%s)', t || '_apagar', t, case when t = 'historico' then 'public.eh_admin(org_id)' else alterar end);
     execute format('revoke all on public.%I from anon', t);
@@ -515,6 +527,20 @@ create policy notificacoes_apagar on public.notificacoes for delete to authentic
 revoke all on public.notificacoes from anon, authenticated;
 grant select, delete on public.notificacoes to authenticated;
 grant update (lida) on public.notificacoes to authenticated;
+
+-- Quem só altera as próprias tarefas não muda de quem é a tarefa, nem a posição dela, nem a linha de base.
+create or replace function public.tarefas_proteger() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if (select auth.uid()) is not null and not public.pode_area(new.org_id, 'cronograma') then
+    new.responsavel := old.responsavel; new.responsavel_id := old.responsavel_id;
+    new.ordem := old.ordem; new.nivel := old.nivel; new.base_inicio := old.base_inicio; new.base_fim := old.base_fim;
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_tarefas_proteger on public.tarefas;
+create trigger trg_tarefas_proteger before update on public.tarefas
+  for each row execute function public.tarefas_proteger();
 
 -- ───────────────────────── 8) ATUALIZAÇÃO EM TEMPO REAL ─────────────────────────
 -- Faz o app de cada pessoa perceber quando outra alterou os dados.

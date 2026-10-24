@@ -4,8 +4,8 @@ import { useApp } from '../../store/AppStore';
 import { Modal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { type Membro, listarMembros } from '../../lib/equipe';
-import { aplicarCampo, novaTarefa, predParse, predTexto } from '../../lib/schedule';
-import { n2iso } from '../../lib/dates';
+import { aplicarCampo, inicioDaNovaTarefa, novaTarefa, predParse, predTexto } from '../../lib/schedule';
+import { hojeN, n2iso, parseData } from '../../lib/dates';
 
 /** Nome que aparece para a equipe: o cadastrado ou, na falta dele, o e-mail. */
 export const nomeDoMembro = (m: Pick<Membro, 'nome' | 'email'>) => m.nome || m.email || 'Sem nome';
@@ -21,7 +21,9 @@ interface Props {
 }
 
 export function TarefaModal({ indice, marcoInicial = false, selecionada, onClose, onSalvo }: Props) {
-  const { crono, updateCrono, orgId, userId, toast } = useApp();
+  const { crono, updateCrono, orgId, userId, toast, podeEditarArea } = useApp();
+  /** só altera a própria tarefa: o responsável aparece, mas não dá para trocar */
+  const limitado = !podeEditarArea('cronograma');
   const T = crono.tarefas;
   const atual = indice != null ? T[indice] : null;
   const nuvem = !!supabase && !!orgId;
@@ -56,10 +58,10 @@ export function TarefaModal({ indice, marcoInicial = false, selecionada, onClose
     if (!marco && !(d >= 0)) { toast('A duração precisa ser um número de dias úteis.'); return; }
     const p = parseFloat(pct.replace(',', '.'));
     if (pct.trim() !== '' && !(p >= 0 && p <= 100)) { toast('O percentual concluído vai de 0 a 100.'); return; }
-    if (modo === 'equipe' && !escolhido) { toast('Escolha uma pessoa da equipe ou use "Só o nome".'); return; }
+    if (!limitado && modo === 'equipe' && !escolhido) { toast('Escolha uma pessoa da equipe ou use "Só o nome".'); return; }
 
-    const respTexto = modo === 'equipe' ? nomeDoMembro(escolhido!) : respNome.trim();
-    const respIdFinal = modo === 'equipe' ? escolhido!.user_id : null;
+    const respTexto = limitado ? '' : modo === 'equipe' ? nomeDoMembro(escolhido!) : respNome.trim();
+    const respIdFinal = limitado ? null : modo === 'equipe' ? escolhido!.user_id : null;
     const pos = T.length ? Math.min(selecionada + 1, T.length) : 0;
     const linha = indice ?? pos;
 
@@ -78,8 +80,10 @@ export function TarefaModal({ indice, marcoInicial = false, selecionada, onClose
       aplicarCampo(S, cal, ca, i, 'peso', peso);
       const t = S.tarefas[i];
       t.pred = predicts.filter((x) => x.id !== t.id);
+      // tarefa nova sem data: começa hoje (dia em que foi criada); o término sai da duração
+      if (indice == null) t.iniM = inicioDaNovaTarefa(parseData(ini), t.pred.length > 0, hojeN());
       t.marco = marco; if (marco) t.dur = 0;
-      t.resp = respTexto; t.respId = respIdFinal;
+      if (!limitado) { t.resp = respTexto; t.respId = respIdFinal; }
     });
     if (vaiAvisar) toast(`Tarefa salva. ${nomeDoMembro(escolhido!)} será avisado(a) no sino.`);
     onSalvo(linha); onClose();
@@ -103,9 +107,9 @@ export function TarefaModal({ indice, marcoInicial = false, selecionada, onClose
         <div className="form-group"><label htmlFor="tarefa-dur">Duração (dias úteis)</label>
           <input id="tarefa-dur" inputMode="decimal" value={marco ? '0' : dur} disabled={marco} onChange={(e) => setDur(e.target.value)} /></div>
 
-        <div className="form-group"><label htmlFor="tarefa-ini">Início fixo (opcional)</label>
+        <div className="form-group"><label htmlFor="tarefa-ini">Data de início</label>
           <input id="tarefa-ini" type="date" value={ini} onChange={(e) => setIni(e.target.value)} />
-          <span className="dica">Deixe vazio para o início sair das predecessoras.</span></div>
+          <span className="dica">{indice == null ? 'Vazio: começa hoje, no dia em que a tarefa é criada (ou depois das predecessoras). O término vem da duração.' : 'Vazio: o início vem das predecessoras ou da data do projeto. O término vem da duração.'}</span></div>
         <div className="form-group"><label htmlFor="tarefa-pred">Predecessoras (opcional)</label>
           <input id="tarefa-pred" value={pred} onChange={(e) => setPred(e.target.value)} placeholder="Ex: 5  ou  5TI+2  ou  4;7II" />
           <span className="dica">Número da linha que precisa terminar antes. TI+2 = começa 2 dias depois.</span></div>
@@ -115,6 +119,13 @@ export function TarefaModal({ indice, marcoInicial = false, selecionada, onClose
         <div className="form-group"><label htmlFor="tarefa-peso">Peso (opcional)</label>
           <input id="tarefa-peso" inputMode="decimal" value={peso} onChange={(e) => setPeso(e.target.value)} placeholder="Importância da tarefa na obra" /></div>
 
+        {limitado ? (
+          <div className="form-group form-full">
+            <label>Responsável</label>
+            <div className="resp-fixo"><UserRound size={15} /> {atual?.resp || 'Você'}</div>
+            <span className="dica">Você altera a sua tarefa, mas quem muda o responsável é um administrador ou editor do cronograma.</span>
+          </div>
+        ) : (
         <div className="form-group form-full">
           <label id="tarefa-resp-rotulo">Responsável</label>
           {nuvem && !erroEquipe ? (
@@ -141,6 +152,7 @@ export function TarefaModal({ indice, marcoInicial = false, selecionada, onClose
             </>
           )}
         </div>
+        )}
       </div>
     </Modal>
   );

@@ -44,7 +44,7 @@ function Cell({ value, onCommit, readOnly, ...rest }: {
 }
 
 export default function Cronograma() {
-  const { crono, calc, cal, updateCrono, podeEditarArea, toast } = useApp();
+  const { crono, calc, cal, updateCrono, podeEditarArea, podeEditarTarefa, soMinhas, toast } = useApp();
   const readOnly = !podeEditarArea('cronograma');
   const { confirmar } = useDialogo();
   const [sel, setSel] = useState(0);
@@ -85,7 +85,7 @@ export default function Cronograma() {
   const addTarefa = (marco: boolean) => {
     const pos = T.length ? selOk + 1 : 0;
     updateCrono((S) => {
-      const t = novaTarefa({ nivel: S.tarefas[selOk] ? S.tarefas[selOk].nivel : 0 });
+      const t = novaTarefa({ nivel: S.tarefas[selOk] ? S.tarefas[selOk].nivel : 0, iniM: hojeN() }); // começa hoje, no dia em que é criada
       if (marco) { t.dur = 0; t.marco = true; t.nome = 'Marco'; }
       S.tarefas.splice(pos, 0, t);
     });
@@ -187,6 +187,8 @@ export default function Cronograma() {
   };
 
   const ro = readOnly;
+  /** linha só para leitura? (quem altera só as próprias tarefas edita apenas as linhas em que é o responsável) */
+  const cro = (i: number) => ro && !(T[i] && podeEditarTarefa(T[i]));
   const nLinhas = T.length, nMarcos = T.filter((t, i) => t.marco || (+t.dur === 0 && !calc[i]?.res)).length;
   const zoomNome: Record<Zoom, string> = { d: 'dia', s: 'semana', m: 'mês', q: 'trimestre' };
 
@@ -215,6 +217,15 @@ export default function Cronograma() {
           <div className="sep" />
           <button className="btn" title="Congela as datas atuais como previsto" aria-label="Congela as datas atuais como previsto" onClick={linhaBase}><Save size={14} /> Salvar linha de base</button>
           <button className="btn" title="Registra o avanço de hoje na curva S" aria-label="Registra o avanço de hoje na curva S" onClick={medicao}><BarChart3 size={14} /> Registrar medição</button>
+          <div className="spacer" />
+          <label><input type="checkbox" checked={mostrarReal} onChange={(e) => setMostrarReal(e.target.checked)} /> colunas de realizado</label>
+        </div>
+      )}
+
+      {ro && soMinhas && (
+        <div className="toolbar">
+          <button className="btn" disabled={!T[selOk] || cro(selOk)} onClick={() => setTm({ indice: selOk, marco: false })} title="Abrir os dados da tarefa selecionada (só as atribuídas a você)"><Pencil size={14} /> Detalhes</button>
+          <span className="dica">Você altera só as tarefas atribuídas a você. As demais ficam para consulta.</span>
           <div className="spacer" />
           <label><input type="checkbox" checked={mostrarReal} onChange={(e) => setMostrarReal(e.target.checked)} /> colunas de realizado</label>
         </div>
@@ -253,7 +264,7 @@ export default function Cronograma() {
                     return (
                       <tr key={t.id} data-i={i} className={(res ? 'summary ' : '') + (k.crit && !res ? 'crit ' : '') + (i === selOk ? 'sel' : '')}
                         onFocus={() => setSel(i)}>
-                        <td className="rownum" onClick={() => setSel(i)} onDoubleClick={() => { if (!ro) setTm({ indice: i, marco: false }); }} title={ro ? undefined : 'Dois cliques abrem os dados da tarefa'}>{i + 1}</td>
+                        <td className="rownum" onClick={() => setSel(i)} onDoubleClick={() => { if (!cro(i)) setTm({ indice: i, marco: false }); }} title={cro(i) ? undefined : 'Dois cliques abrem os dados da tarefa'}>{i + 1}</td>
                         {CS.map((col) => {
                           const cl = col.cls;
                           const base = { 'data-i': i, 'data-k': col.k, 'aria-label': `${col.t}${col.sub ? ' (' + col.sub + ')' : ''}, linha ${i + 1}`, onKeyDown: (e: React.KeyboardEvent) => onKey(e, i, col.k) };
@@ -267,24 +278,24 @@ export default function Cronograma() {
                               <td key={col.k} className="cellname"><div className="inner">
                                 <span style={{ width: t.nivel * 15, flex: '0 0 auto' }} />
                                 {res ? <button className="twist" onClick={() => updateCrono((S) => { S.tarefas[i].fechado = !S.tarefas[i].fechado; })}>{t.fechado ? '▶' : '▼'}</button> : <span className="twist" />}
-                                <Cell {...base} value={t.nome} readOnly={ro} placeholder={res ? '' : 'descreva o serviço'} onCommit={(v) => edit(i, 'nome', v)} />
+                                <Cell {...base} value={t.nome} readOnly={cro(i)} placeholder={res ? '' : 'descreva o serviço'} onCommit={(v) => edit(i, 'nome', v)} />
                                 {flag}
                               </div></td>
                             );
                           }
-                          if (col.k === 'dur') return <td key={col.k} className={cl}><Cell {...base} value={String(res ? k.dur || 0 : t.marco ? 0 : t.dur)} readOnly={ro || res} onCommit={(v) => edit(i, 'dur', v)} /></td>;
+                          if (col.k === 'dur') return <td key={col.k} className={cl}><Cell {...base} value={String(res ? k.dur || 0 : t.marco ? 0 : t.dur)} readOnly={cro(i) || res} onCommit={(v) => edit(i, 'dur', v)} /></td>;
                           if (col.k === 'ini' || col.k === 'fim') {
                             const v = col.k === 'ini' ? k.ini : k.fim; const fixa = col.k === 'ini' && t.iniM != null;
-                            return <td key={col.k} className={cl}><Cell {...base} value={n2br(v)} readOnly={ro || res} placeholder="dd/mm/aaaa" style={fixa ? { color: 'var(--accent)', fontWeight: 600 } : undefined} onCommit={(x) => edit(i, col.k as CampoGrade, x)} /></td>;
+                            return <td key={col.k} className={cl}><Cell {...base} value={n2br(v)} readOnly={cro(i) || res} placeholder="dd/mm/aaaa" style={fixa ? { color: 'var(--accent)', fontWeight: 600 } : undefined} onCommit={(x) => edit(i, col.k as CampoGrade, x)} /></td>;
                           }
-                          if (col.k === 'pred') return <td key={col.k} className={cl}><Cell {...base} value={res ? '' : predTexto(T, t)} readOnly={ro || res} title="ex.: 5  |  5TI+2  |  4;7II" onCommit={(v) => edit(i, 'pred', v)} /></td>;
+                          if (col.k === 'pred') return <td key={col.k} className={cl}><Cell {...base} value={res ? '' : predTexto(T, t)} readOnly={cro(i) || res} title="ex.: 5  |  5TI+2  |  4;7II" onCommit={(v) => edit(i, 'pred', v)} /></td>;
                           if (col.k === 'pct') {
                             const p = Math.round(k.pct || 0);
-                            return <td key={col.k} className={cl}><div className="pct-wrap"><div className="pct-bar" style={{ width: p + '%' }} /><Cell {...base} value={String(p)} readOnly={ro || res} onCommit={(v) => edit(i, 'pct', v)} /></div></td>;
+                            return <td key={col.k} className={cl}><div className="pct-wrap"><div className="pct-bar" style={{ width: p + '%' }} /><Cell {...base} value={String(p)} readOnly={cro(i) || res} onCommit={(v) => edit(i, 'pct', v)} /></div></td>;
                           }
-                          if (col.k === 'peso') return <td key={col.k} className={cl}><Cell {...base} value={res ? fmtN(k.peso, 1) : String(t.peso ?? '')} readOnly={ro || res} placeholder={res ? '' : String(Math.max(0, +t.dur || 0))} onCommit={(v) => edit(i, 'peso', v)} /></td>;
+                          if (col.k === 'peso') return <td key={col.k} className={cl}><Cell {...base} value={res ? fmtN(k.peso, 1) : String(t.peso ?? '')} readOnly={cro(i) || res} placeholder={res ? '' : String(Math.max(0, +t.dur || 0))} onCommit={(v) => edit(i, 'peso', v)} /></td>;
                           if (col.k === 'folga') return <td key={col.k} className={cl}><input readOnly value={res ? '' : String(k.folga ?? '')} style={k.crit && !res ? { color: 'var(--critical)', fontWeight: 600 } : undefined} /></td>;
-                          if (col.k === 'rIni' || col.k === 'rFim') return <td key={col.k} className={cl}><Cell {...base} value={n2br(t[col.k])} readOnly={ro || res} placeholder="dd/mm" onCommit={(v) => edit(i, col.k as CampoGrade, v)} /></td>;
+                          if (col.k === 'rIni' || col.k === 'rFim') return <td key={col.k} className={cl}><Cell {...base} value={n2br(t[col.k])} readOnly={cro(i) || res} placeholder="dd/mm" onCommit={(v) => edit(i, col.k as CampoGrade, v)} /></td>;
                           return <td key={col.k} className={cl}><Cell {...base} value={t.resp || ''} readOnly={ro || res} onCommit={(v) => edit(i, 'resp', v)} /></td>;
                         })}
                       </tr>
@@ -310,7 +321,7 @@ export default function Cronograma() {
         <span>{nLinhas} tarefas / fases{crono.baseline ? ' · linha de base salva' : ''}</span>
       </div>
       <div className="tip" ref={tip} />
-      {tm && !ro && <TarefaModal indice={tm.indice} marcoInicial={tm.marco} selecionada={selOk} onClose={() => setTm(null)} onSalvo={(l) => setSel(l)} />}
+      {tm && (!ro || soMinhas) && <TarefaModal indice={tm.indice} marcoInicial={tm.marco} selecionada={selOk} onClose={() => setTm(null)} onSalvo={(l) => setSel(l)} />}
     </div>
   );
 }

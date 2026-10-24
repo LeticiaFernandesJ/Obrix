@@ -8,6 +8,7 @@ import ErrorBoundary from './components/ErrorBoundary.tsx';
 import { recarregarUmaVez } from './lib/recarregar.ts';
 import { capturarConvite } from './lib/equipe.ts';
 import './index.css';
+import './tema-interno.css';
 
 // link de convite (?convite=...): guarda o código até a pessoa entrar
 capturarConvite();

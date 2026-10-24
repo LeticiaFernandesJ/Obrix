@@ -165,7 +165,7 @@ export default function Detalhe() {
         <div className="metric">
           <div className="metric-head"><div className="metric-label">Saldo (AC21 − Pago)</div><div className="metric-icon mi-green"><CreditCard size={17} /></div></div>
           <div className={'metric-value sm ' + (sl < 0 ? 'danger' : '')}>{fmt(sl)}</div>
-          <div className={'metric-sub ' + (sl < 0 ? 'danger' : 'ok')} style={{ fontWeight: 700 }}>{sl >= 0 ? '✓ Disponível' : '⚠ Estourado'}</div>
+          <div className={'metric-sub ' + (sl < 0 ? 'danger' : 'ok')} style={{ fontWeight: 700 }}>{sl >= 0 ? 'Disponível' : 'Estourado'}</div>
         </div>
       </div>
 

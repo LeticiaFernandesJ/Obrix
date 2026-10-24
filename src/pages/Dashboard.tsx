@@ -29,7 +29,7 @@ export default function Dashboard() {
       <div className="metrics c4">
         <div className="metric">
           <div className="metric-head"><div className="metric-label">Total AC21 Aprovado</div><div className="metric-icon mi-blue"><CreditCard size={18} /></div></div>
-          <div className="metric-value" style={{ color: 'var(--blue)' }}>{fmt(totalAC21)}</div>
+          <div className="metric-value">{fmt(totalAC21)}</div>
           <div className="metric-sub">{obras.length === 1 ? '1 obra ativa' : `${obras.length} obras ativas`}</div>
         </div>
         <div className="metric">
@@ -46,14 +46,14 @@ export default function Dashboard() {
         </div>
         <div className="metric">
           <div className="metric-head"><div className="metric-label">Total Efetivamente Pago</div><div className="metric-icon mi-blue"><CreditCard size={18} /></div></div>
-          <div className="metric-value" style={{ color: corPct(pg) }}>{fmt(totPg)}</div>
+          <div className="metric-value">{fmt(totPg)}</div>
           <div className="metric-sub">{pg}% do AC21 pago</div>
           <div className="metric-bar"><div className="metric-bar-fill" style={{ width: Math.min(pg, 100) + '%', background: corPct(pg) }} /></div>
         </div>
         <div className="metric">
           <div className="metric-head"><div className="metric-label">Saldo (AC21 − Pago)</div><div className="metric-icon mi-amber"><Gauge size={18} /></div></div>
-          <div className={'metric-value ' + (saldo < 0 ? 'danger' : '')}>{fmt(saldo)}</div>
-          <div className={'metric-sub ' + (saldo < 0 ? 'danger' : 'ok')}>{saldo < 0 ? '⚠ ESTOURADO' : 'Dentro do limite'}</div>
+          <div className={'metric-value ' + (saldo < 0 ? 'danger' : '')} style={saldo < 0 ? undefined : { color: 'var(--brand)' }}>{fmt(saldo)}</div>
+          <div className={'metric-sub ' + (saldo < 0 ? 'danger' : 'ok')}>{saldo < 0 ? 'Verba estourada' : 'Dentro do limite'}</div>
         </div>
       </div>
 

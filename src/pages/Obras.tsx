@@ -57,7 +57,7 @@ export default function Obras() {
   return (
     <div className="content">
       <div className="action-row">
-        {podeEditar && <button className="btn btn-primary" onClick={nova}><Plus size={15} /> Nova Obra</button>}
+        {podeEditar && <button className="btn btn-accent" onClick={nova}><Plus size={15} /> Nova Obra</button>}
         <div className="spacer" />
         <div className="search"><Search size={15} /><input aria-label="Buscar obra" placeholder="Buscar obra..." value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
       </div>

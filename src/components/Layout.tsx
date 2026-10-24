@@ -83,7 +83,7 @@ function AC21Actions() {
   };
   return (
     <>
-      <button className="btn btn-success" onClick={() => exportarExcel(db)}><FileSpreadsheet size={15} /> Exportar Excel</button>
+      <button className="btn btn-dark" onClick={() => exportarExcel(db)}><FileSpreadsheet size={15} /> Exportar Excel</button>
       <button className="btn" onClick={salvar}><Save size={15} /> Salvar</button>
       {podeEditar && <button className="btn" onClick={() => input.current?.click()}><Download size={15} /> Carregar</button>}
       <input ref={input} type="file" accept=".json" hidden onChange={carregar} />
@@ -148,7 +148,7 @@ export default function Layout() {
       </aside>
       <div className="main">
         <header className="topbar">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="topbar-head">
             <button className="btn btn-icon menu-toggle" onClick={() => setAberto((v) => !v)} aria-label="Menu"><Menu size={18} /></button>
             <div>
               <div className="topbar-title">{titulo}</div>

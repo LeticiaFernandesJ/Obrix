@@ -27,8 +27,7 @@ export default function Historico() {
         {hist.length === 0 ? <div className="empty">Nenhum registro.</div> : hist.map((h) => (
           <div className="hist-item" key={h.id}>
             <span className="hist-time">{fmtTs(h.ts)}</span>
-            <span>{h.icone}</span>
-            <span className="hist-text">{h.texto.split(String.fromCharCode(8212)).join('-')}<span className="hist-user">- {h.user}</span></span>
+            <span className="hist-text">{h.texto.split(String.fromCharCode(8212)).join('-')}<span className="hist-user">{h.user}</span></span>
           </div>
         ))}
       </div>

@@ -1,0 +1,204 @@
+/* =========================== TEMA DAS TELAS INTERNAS ===========================
+   Visual mais leve: fundo quente, cartões sem borda com sombra suave, botões arredondados,
+   azul-marinho nas ações principais e laranja da marca nos destaques. Vale só dentro de .shell. */
+
+:root:not([data-theme="dark"]) {
+  --bg: #f6f3ef; --surface-2: #faf8f5; --gray-light: #f3f0ec; --gray-border: #ece7e1; --hover-row: #fbf9f6;
+  --input-border: #e3dcd3; --input-border-hover: #cdc3b7;
+  --radius: 12px; --radius-lg: 20px;
+  --shadow: 0 1px 2px rgba(32, 24, 12, .04), 0 10px 28px rgba(32, 24, 12, .06);
+  --navy: #14233f; --navy-2: #1d3157;
+  --brand: #d2650f; --brand-2: #e8761e; --brand-soft: #fdf0e4;
+}
+:root[data-theme="dark"] { --navy: #2a416b; --navy-2: #345185; --brand: #f0883a; --brand-2: #f59a52; --brand-soft: rgba(240, 136, 58, .14); }
+
+/* ── menu lateral ── */
+.shell .nav-item { border-radius: 12px; padding: 10px 13px; }
+.shell .nav-item.active { background: rgba(255, 255, 255, .11); box-shadow: none; color: #fff; font-weight: 600; }
+.shell .nav-item.active svg { color: #ffa45c; opacity: 1; }
+
+/* ── cabeçalho da página ── */
+.shell .main { background: var(--bg); }
+.shell .topbar {
+  position: relative; isolation: isolate; background: transparent; border: 0; padding: 26px 32px 6px;
+  display: block; z-index: 40;
+}
+.shell .topbar::before {
+  content: ''; position: absolute; top: 0; right: 0; height: 150px; width: min(440px, 56%); z-index: -1; pointer-events: none;
+  background: url('./assets/header-obra.svg') right top / cover no-repeat;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 70%), linear-gradient(180deg, #000 45%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 70%), linear-gradient(180deg, #000 45%, transparent 100%);
+  -webkit-mask-composite: source-in; mask-composite: intersect; opacity: .8;
+}
+:root[data-theme="dark"] .shell .topbar::before { opacity: .12; }
+.shell .topbar-head { display: flex; align-items: center; gap: 14px; }
+.shell .topbar-title { font-size: 30px; font-weight: 750; letter-spacing: -.025em; color: var(--text); }
+.shell .topbar-sub { font-size: 14.5px; color: var(--text3); margin-top: 4px; }
+.shell .topbar-actions { margin-top: 20px; gap: 10px; }
+.shell .btn.menu-toggle { width: 50px; height: 50px; padding: 0; flex: 0 0 auto; }
+
+/* ── botões ── */
+.shell .btn {
+  height: 44px; padding: 0 18px; border: 0; border-radius: 14px; background: var(--surface); color: var(--text);
+  font-size: 14px; font-weight: 600; box-shadow: 0 1px 2px rgba(32, 24, 12, .05), 0 4px 14px rgba(32, 24, 12, .07);
+}
+.shell .btn:hover { background: var(--surface); box-shadow: 0 1px 2px rgba(32, 24, 12, .06), 0 8px 20px rgba(32, 24, 12, .11); transform: translateY(-1px); }
+.shell .btn:active { transform: none; }
+.shell .btn-sm { height: 34px; padding: 0 13px; font-size: 12.5px; border-radius: 11px; }
+.shell .btn-icon { width: 44px; padding: 0; }
+.shell .btn-sm.btn-icon { width: 34px; }
+.shell .btn-primary, .shell .btn-dark { background: var(--navy); color: #fff; box-shadow: 0 6px 16px rgba(20, 35, 63, .25); }
+.shell .btn-primary:hover, .shell .btn-dark:hover { background: var(--navy-2); box-shadow: 0 10px 22px rgba(20, 35, 63, .3); }
+.shell .btn-accent { background: linear-gradient(90deg, #c4590f, #e07018); color: #fff; box-shadow: 0 8px 20px rgba(196, 89, 15, .3); }
+.shell .btn-accent:hover { background: linear-gradient(90deg, #b5500c, #d3660f); box-shadow: 0 12px 24px rgba(196, 89, 15, .36); }
+.shell .btn-success { background: #1b8f66; color: #fff; box-shadow: 0 6px 16px rgba(27, 143, 102, .25); }
+.shell .btn-success:hover { background: #167a58; }
+.shell .btn-danger { color: var(--red); }
+.shell .btn-danger:hover { background: var(--red-light); }
+.shell .btn-ghost { background: var(--gray-light); box-shadow: none; }
+.shell .btn:disabled { transform: none; box-shadow: none; }
+.shell .btn:focus-visible, .shell .tab-btn:focus-visible { outline: 3px solid rgba(232, 118, 30, .45); outline-offset: 2px; }
+
+/* ── cartões ── */
+.shell .card, .shell .panel, .shell .metric, .shell .crono-head, .shell .crono-card, .shell .modal {
+  border: 0; border-radius: var(--radius-lg); box-shadow: var(--shadow);
+}
+.shell .card { padding: 24px 26px; }
+.shell .card-title { font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
+.shell .panel-head { padding: 20px 24px; border-bottom: 1px solid var(--gray-border); }
+.shell .panel-head .metric-icon, .shell .card-head .metric-icon { background: var(--brand-soft); color: var(--brand); }
+
+/* ── indicadores ── */
+.shell .metrics { gap: 18px; margin-bottom: 22px; }
+.shell .metric { padding: 22px 24px; }
+.shell .metric:has(.mi-blue) { background: linear-gradient(160deg, #fff 40%, #f1f6ff); }
+.shell .metric:has(.mi-green) { background: linear-gradient(160deg, #fff 40%, #effaf5); }
+.shell .metric:has(.mi-amber) { background: linear-gradient(160deg, #fff 40%, var(--brand-soft)); }
+.shell .metric:has(.mi-red) { background: linear-gradient(160deg, #fff 40%, #fff1f0); }
+:root[data-theme="dark"] .shell .metric { background: var(--surface); }
+.shell .metric-icon { width: 46px; height: 46px; border-radius: 15px; }
+.shell .mi-amber { background: var(--brand-soft); color: var(--brand); }
+.shell .metric-head { margin-bottom: 18px; align-items: center; }
+.shell .metric-label { font-size: 14.5px; font-weight: 650; }
+.shell .metric-value { font-size: 30px; font-weight: 750; letter-spacing: -.03em; }
+.shell .metric-value.sm { font-size: 26px; }
+.shell .metric-sub { font-size: 12.5px; margin-top: 10px; }
+.shell .metric-hint { font-size: 11.5px; }
+.shell .metric-bar, .shell .progress, .shell .consumo-bar { background: #ebe6df; height: 8px; border-radius: 6px; }
+.shell .metric-bar-fill, .shell .progress-fill { border-radius: 6px; }
+
+/* ── campos ── */
+.shell input[type=text], .shell input[type=number], .shell input[type=date], .shell input[type=email], .shell input[type=password],
+.shell input:not([type]), .shell select, .shell textarea {
+  border-width: 1px; border-radius: 14px; background-color: #fff; box-shadow: 0 1px 2px rgba(32, 24, 12, .04);
+}
+.shell input:focus, .shell select:focus, .shell textarea:focus { border-color: var(--brand-2); box-shadow: 0 0 0 4px rgba(232, 118, 30, .16); }
+.shell input[type=checkbox] { accent-color: var(--brand-2); }
+.shell .adorn:focus-within::before { color: var(--brand); }
+.shell .form-group label, .shell .field label { font-size: 13.5px; }
+.shell div.search input { height: 50px; border-radius: 16px; padding-left: 46px; box-shadow: 0 1px 2px rgba(32, 24, 12, .05), 0 4px 14px rgba(32, 24, 12, .06); border-color: transparent; }
+.shell .obra-pick { border: 0; border-radius: 14px; background: var(--surface); box-shadow: 0 1px 2px rgba(32, 24, 12, .05), 0 4px 14px rgba(32, 24, 12, .07); }
+
+/* ── tabelas ── */
+.shell .table-wrap { border: 0; border-radius: 16px; background: var(--surface); }
+.shell .card .table-wrap { background: transparent; }
+.shell th { background: transparent; font-size: 11px; letter-spacing: .06em; color: var(--text3); border-bottom: 1px solid var(--gray-border); padding: 12px 14px; }
+.shell td { border-bottom: 1px solid #f1ede8; padding: 14px; }
+.shell tfoot td { background: var(--surface-2); border-top: 1px solid var(--gray-border); }
+.shell tbody tr:hover td { background: #fcfaf7; }
+:root[data-theme="dark"] .shell td { border-bottom-color: var(--gray-border); }
+.shell .badge { padding: 4px 11px; }
+
+/* ── abas ── */
+.shell .tabs { gap: 8px; border: 0; margin-bottom: 20px; flex-wrap: wrap; }
+.shell .tab-btn {
+  border: 0; border-radius: 14px; padding: 0 18px; height: 42px; margin: 0; color: var(--text2);
+  background: transparent; font-size: 13.5px;
+}
+.shell .tab-btn:hover:not(.active) { background: rgba(255, 255, 255, .7); }
+.shell .tab-btn.active { background: var(--surface); color: var(--brand); box-shadow: 0 1px 2px rgba(32, 24, 12, .05), 0 6px 16px rgba(32, 24, 12, .08); }
+.shell .seg { border: 0; background: rgba(32, 24, 12, .06); border-radius: 14px; }
+.shell .seg a, .shell .seg button { border-radius: 10px; }
+
+/* ── obras ── */
+.shell .obra-card { border: 0; border-radius: 18px; background: var(--surface-2); box-shadow: none; padding: 16px 18px; }
+.shell .obra-card:hover { background: #fff; box-shadow: var(--shadow); }
+.shell .obra-card.selected { background: #fff; box-shadow: 0 0 0 2px var(--brand-2), var(--shadow); border: 0; }
+.shell .note { border: 0; border-radius: 14px; background: var(--surface-2); }
+.shell .alert { border-radius: 14px; }
+
+/* ── estado vazio ── */
+.shell .empty { padding: 28px 20px 34px; }
+.shell .empty-icon {
+  width: 240px; max-width: 80%; height: 156px; border-radius: 0; margin: 0 auto 10px; background: url('./assets/vazio-obra.svg') center / contain no-repeat;
+}
+.shell .empty-icon > * { display: none; }
+.shell .empty p { font-size: 18px; font-weight: 700; color: var(--text); }
+:root[data-theme="dark"] .shell .empty-icon { opacity: .55; }
+
+/* ── janelas ── */
+.shell .modal-overlay { background: rgba(20, 28, 44, .5); backdrop-filter: blur(3px); }
+.shell .modal { padding: 28px; width: 580px; }
+.shell .modal-title { font-size: 20px; font-weight: 750; letter-spacing: -.015em; }
+.shell .modal-footer { border-top: 0; padding-top: 4px; margin-top: 24px; gap: 10px; }
+.shell .modal-close { width: 38px; height: 38px; border-radius: 12px; background: var(--gray-light); }
+
+/* ── sino de alertas ── */
+.shell .sino-btn { position: relative; }
+.shell .sino-painel { border: 0; border-radius: 20px; box-shadow: 0 18px 50px rgba(32, 24, 12, .22); }
+
+/* ── celular e tablet ── */
+@media (max-width: 860px) {
+  .shell .topbar { padding: 18px 16px 4px; }
+  .shell .topbar::before { width: 66%; height: 130px; opacity: .7; }
+  .shell .topbar-title { font-size: 28px; }
+  .shell .topbar-actions { margin-top: 16px; gap: 8px; flex-wrap: wrap; padding-bottom: 8px; }
+  .shell .topbar-actions .btn { padding: 0 14px; }
+  .shell .topbar-actions .btn-icon { width: 44px; padding: 0; }
+  .shell .content { padding-top: 14px; }
+  .shell .card { padding: 20px 18px; }
+  .shell .metric { padding: 20px; }
+  .shell .modal { padding: 22px 20px; }
+}
+@media (max-width: 480px) {
+  .shell .topbar-actions .btn:not(.btn-icon) svg { display: none; }
+  .shell .topbar-actions .btn { padding: 0 13px; font-size: 13.5px; }
+}
+@media (min-width: 861px) and (max-width: 1180px) {
+  .shell .metrics.c4 { gap: 16px; }
+}
+@media print { .shell .topbar::before { display: none; } }
+
+/* ── barra de busca e lista de obras ── */
+.shell .action-row { gap: 12px; flex-wrap: nowrap; }
+.shell .action-row .spacer { display: none; }
+.shell .action-row .search { order: -1; flex: 1; min-width: 0; }
+.shell .action-row .search input, .shell div.search input { width: 100%; }
+.shell .action-row .btn { height: 50px; border-radius: 16px; flex: 0 0 auto; }
+.shell .obra-kpis strong { white-space: nowrap; }
+.shell .obra-card { grid-template-columns: 12px 1fr; }
+.shell .obra-card > div:last-child { grid-column: 1 / -1; flex-direction: row !important; flex-wrap: wrap; }
+.shell .obra-card > div:last-child .btn { flex: 1; min-width: 96px; }
+.shell .obra-kpis { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+@media (max-width: 860px) { .shell .obra-list-pad { padding: 12px; } }
+@media (max-width: 480px) {
+  .shell .action-row .btn { padding: 0 14px; }
+}
+.shell .metric-value { font-size: clamp(22px, 2.05vw, 30px); white-space: nowrap; }
+.shell .metric-value.sm { font-size: clamp(20px, 1.8vw, 26px); }
+@media (max-width: 1180px) { .shell .metric-value { font-size: 28px; } }
+@media (max-width: 860px) { .shell .metric-value { font-size: 30px; } }
+.shell .hist-user { font-style: normal; margin-left: 10px; padding: 2px 9px; border-radius: 20px; background: var(--gray-light); }
+.shell .hist-item { border-bottom-color: #f1ede8; padding: 14px 0; }
+.shell td.td-right { white-space: nowrap; }
+
+/* ── cronograma: a grade de células e as barras de ferramentas continuam compactas ── */
+.shell .grid td input, .shell .grid td select, .shell .grid td input[type=text], .shell .grid td input:not([type]) {
+  border: 0; background-color: transparent; border-radius: 0; box-shadow: none; height: calc(var(--row-h) - 1px); padding: 0 6px;
+}
+.shell .grid td input:focus { background-color: var(--surface); box-shadow: inset 0 0 0 2px var(--accent); }
+.shell .grid .btn, .shell .toolbar .btn, .shell .crono-card .btn { height: 36px; padding: 0 14px; border-radius: 11px; box-shadow: none; background: var(--gray-light); }
+.shell .toolbar .btn:hover, .shell .crono-card .btn:hover { background: #fff; box-shadow: var(--shadow); transform: none; }
+.shell .toolbar .btn-icon, .shell .crono-card .btn-icon { width: 36px; padding: 0; }
+.shell .toolbar input[type=date], .shell .toolbar select { height: 36px; border-radius: 11px; box-shadow: none; background-color: var(--gray-light); border-color: transparent; }
+.shell .toolbar { border: 0; }

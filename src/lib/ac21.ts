@@ -161,6 +161,6 @@ export function sanitizarDB(raw: unknown): DB | null {
       status: (['Pago', 'Pendente', 'Parcial'].includes(str(c.status)) ? c.status : 'Pendente') as StatusCompra, obs: str(c.obs),
     }));
   const historico: Historico[] = (Array.isArray(r.historico) ? r.historico : []).filter((h) => h && typeof h === 'object')
-    .map((h: Partial<Historico>) => ({ id: num(h.id), ts: str(h.ts) || new Date().toISOString(), tipo: str(h.tipo) || 'info', icone: str(h.icone), texto: str(h.texto), user: str(h.user) || 'Gerente' }));
+    .map((h: Partial<Historico>) => ({ id: uniq(h.id), ts: str(h.ts) || new Date().toISOString(), tipo: str(h.tipo) || 'info', icone: str(h.icone), texto: str(h.texto), user: str(h.user) || 'Gerente' }));
   return { obras, compras, historico, nextId: nextId + 1 };
 }

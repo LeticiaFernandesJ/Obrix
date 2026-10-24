@@ -83,7 +83,7 @@ function AC21Actions() {
 
 export default function Layout() {
   const { pathname } = useLocation();
-  const { toastMsg, readOnly, usuario, sair, nuvem, recarregarNuvem } = useApp();
+  const { toastMsg, readOnly, usuario, sair, nuvem, recarregarNuvem, tentarSincronizar } = useApp();
   const [aberto, setAberto] = useState(false);
   useEffect(() => setAberto(false), [pathname]);
   const path = pathname.replace(/\/+$/, '') || '/';
@@ -114,12 +114,11 @@ export default function Layout() {
           <div className="user-box">
             <span className="email" title={usuario}>{usuario}</span>
             <span className="sync">
-              <i className={'sync-dot' + (nuvem === 'salvando' || nuvem === 'carregando' ? ' busy' : nuvem === 'erro' || nuvem === 'conflito' ? ' err' : '')} />
-              {nuvem === 'salvo' && 'Salvo na nuvem'}
+              <i className={'sync-dot' + (nuvem === 'salvando' || nuvem === 'carregando' ? ' busy' : nuvem === 'erro' ? ' err' : '')} />
+              {nuvem === 'salvo' && <>Salvo na nuvem <button onClick={recarregarNuvem}>atualizar</button></>}
               {nuvem === 'salvando' && 'Salvando…'}
               {nuvem === 'carregando' && 'Carregando…'}
-              {nuvem === 'erro' && <>Erro ao sincronizar <button onClick={recarregarNuvem}>tentar de novo</button></>}
-              {nuvem === 'conflito' && <>Alterado em outro lugar <button onClick={recarregarNuvem}>recarregar</button></>}
+              {nuvem === 'erro' && <>Erro ao sincronizar <button onClick={tentarSincronizar}>tentar de novo</button></>}
             </span>
             {sair && <button className="btn btn-sm" style={{ background: 'rgba(255,255,255,.08)', color: '#fff', borderColor: 'rgba(255,255,255,.18)' }} onClick={() => void sair()}>Sair</button>}
           </div>

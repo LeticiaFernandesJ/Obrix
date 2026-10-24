@@ -400,3 +400,8 @@
 .shell .dragbar:hover::after { background: var(--brand-2); opacity: 1; }
 @media (max-width: 860px) { .shell .dragbar { flex-basis: 14px; margin-left: -7px; } .shell .split-wrap { min-height: 460px; } }
 .shell .tlhead .d.sem.hoje { background: color-mix(in srgb, var(--critical) 16%, transparent); color: var(--critical); border-radius: 0; box-shadow: inset 0 -3px 0 var(--critical); }
+
+/* grade do cronograma: só o percentual é editável direto; o resto é leitura (os dados mudam na janela da tarefa) */
+.shell .grid td input[readonly] { cursor: default; }
+.shell .grid td input:not([readonly]) { cursor: text; background: color-mix(in srgb, var(--brand-2) 9%, transparent); box-shadow: inset 0 -2px 0 var(--brand-2); font-weight: 650; }
+.shell .grid td input:not([readonly]):focus { background: var(--surface); box-shadow: inset 0 0 0 2px var(--accent); }

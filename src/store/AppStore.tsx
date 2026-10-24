@@ -7,7 +7,7 @@ import {
 } from '../lib/schedule';
 import { supabase } from '../lib/supabase';
 import { useDialogo } from '../components/Dialogo';
-import { type Snap, type Tabela, TABELAS, deLinhas, enviarMudancas, lerNuvem, paraLinhas, snapDe, snapVazio } from '../lib/nuvem';
+import { ConflitoErro, type Snap, type Tabela, type Versoes, TABELAS, deLinhas, enviarMudancas, lerNuvem, paraLinhas, snapDe, snapVazio, versoesDe } from '../lib/nuvem';
 import { type Area, type Org, type Papel, type Permissoes, podeAlterar, podeEditarArea, podeVerArea } from '../lib/equipe';
 
 const K_DB = 'obrix-ac21-v1';
@@ -87,6 +87,9 @@ interface ProviderProps {
 
 export function AppProvider({ children, email, nome = '', onSignOut, orgId = null, papel = null, permissoes = null, orgs = [], trocarOrg, recarregarOrgs }: ProviderProps) {
   const { confirmar, avisar } = useDialogo();
+  // as janelas de diálogo são chamadas de dentro de callbacks e efeitos que não devem refazer-se a cada renderização
+  const confirmarRef = useRef(confirmar); confirmarRef.current = confirmar;
+  const avisarRef = useRef(avisar); avisarRef.current = avisar;
   // cada organização tem o seu próprio cache no navegador
   const sufixo = orgId ? ':' + orgId : '';
   const kDb = K_DB + sufixo, kCronos = K_CRONOS + sufixo;
@@ -167,6 +170,8 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
   const [nuvem, setNuvem] = useState<StatusNuvem>(orgId && supabase ? 'carregando' : 'local');
   const prontoRef = useRef(false);
   const snapRef = useRef<Snap>(snapVazio());
+  const versoesRef = useRef<Versoes>(new Map()); // updated_at de cada linha como estava na nuvem quando li (detecta edição simultânea)
+  const forcarRef = useRef(false);               // próxima gravação ignora o conflito (a pessoa escolheu manter a sua versão)
   const ultimoRef = useRef('');
   const salvandoRef = useRef(false);
   const sujoRef = useRef(false);
@@ -188,6 +193,7 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
       const novo = JSON.stringify({ db: r.db, cronos: r.cronos });
       if (novo === ultimoRef.current) return;
       snapRef.current = snapDe(paraLinhas(r.db, r.cronos));
+      versoesRef.current = versoesDe(L);
       ultimoRef.current = novo;
       setDb(r.db); setCronos(r.cronos);
     } catch (e) { console.error('Falha ao atualizar da nuvem', e); }
@@ -200,11 +206,26 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
     const alvo = estadoRef.current;
     setNuvem('salvando');
     try {
-      await enviarMudancas(supabase, orgId, paraLinhas(alvo.db, alvo.cronos), snapRef.current, tabelasRef.current);
+      const forcar = forcarRef.current; forcarRef.current = false;
+      await enviarMudancas(supabase, orgId, paraLinhas(alvo.db, alvo.cronos), snapRef.current, tabelasRef.current, { versoes: versoesRef.current, forcar });
       ultimoRef.current = alvo.payload;
       ultimoEnvioRef.current = Date.now();
       setNuvem('salvo');
-    } catch (e) { console.error('Falha ao sincronizar', e); setNuvem('erro'); }
+    } catch (e) {
+      if (e instanceof ConflitoErro) {
+        // outra pessoa mexeu nas mesmas linhas: quem decide é quem está editando
+        const manter = await confirmarRef.current(`Outra pessoa alterou ${e.linhas.length === 1 ? '1 registro' : e.linhas.length + ' registros'} que você também alterou, desde que você abriu a tela.\n\nManter a sua versão substitui o que ela fez. Usar a da nuvem descarta as suas alterações que ainda não foram enviadas.`, { titulo: 'Edição simultânea', confirmar: 'Manter a minha', cancelar: 'Usar a da nuvem' });
+        if (manter) { forcarRef.current = true; sujoRef.current = true; }
+        else {
+          try {
+            const L = await lerNuvem(supabase, orgId); const r = deLinhas(L);
+            snapRef.current = snapDe(paraLinhas(r.db, r.cronos)); versoesRef.current = versoesDe(L);
+            ultimoRef.current = JSON.stringify({ db: r.db, cronos: r.cronos });
+            setDb(r.db); setCronos(r.cronos); setNuvem('salvo');
+          } catch (e2) { console.error('Falha ao atualizar da nuvem', e2); setNuvem('erro'); }
+        }
+      } else { console.error('Falha ao sincronizar', e); setNuvem('erro'); }
+    }
     finally {
       salvandoRef.current = false;
       if (sujoRef.current && estadoRef.current.payload !== ultimoRef.current) void salvarAgora();
@@ -220,11 +241,12 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
       if (L.obras.length) {
         const r = deLinhas(L);
         snapRef.current = snapDe(paraLinhas(r.db, r.cronos));
+        versoesRef.current = versoesDe(L);
         const local = estadoRef.current;
         const manterLocal = !roRef.current && editouSemNuvemRef.current &&
-          (await confirmar('Você fez alterações neste aparelho enquanto estava sem conexão.\n\nEnviar essas alterações para a nuvem substitui o que está lá. Descartar usa os dados da nuvem.', { titulo: 'Alterações sem conexão', confirmar: 'Enviar as minhas', cancelar: 'Descartar e usar a nuvem' }));
+          (await confirmarRef.current('Você fez alterações neste aparelho enquanto estava sem conexão.\n\nEnviar essas alterações para a nuvem substitui o que está lá. Descartar usa os dados da nuvem.', { titulo: 'Alterações sem conexão', confirmar: 'Enviar as minhas', cancelar: 'Descartar e usar a nuvem' }));
         if (manterLocal) {
-          await enviarMudancas(supabase, orgId, paraLinhas(local.db, local.cronos), snapRef.current, tabelasRef.current);
+          await enviarMudancas(supabase, orgId, paraLinhas(local.db, local.cronos), snapRef.current, tabelasRef.current, { versoes: versoesRef.current, forcar: true });
           ultimoRef.current = local.payload;
         } else {
           ultimoRef.current = JSON.stringify({ db: r.db, cronos: r.cronos });
@@ -331,7 +353,7 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
       else if (!roRef.current) setCronos((c) => ({ ...c, [chaveRef.current]: est }));
       window.history.replaceState(null, '', base + (ro ? '/painel' + window.location.hash : '/cronograma'));
       window.dispatchEvent(new PopStateEvent('popstate'));
-    }).catch(() => { void avisar('Não consegui ler o link, ele pode ter sido cortado pelo e-mail. Peça o arquivo .json.'); });
+    }).catch((e: Error) => { void avisarRef.current(/expirou|grande demais/.test(e.message) ? e.message : 'Não consegui ler o link, ele pode ter sido cortado pelo e-mail. Peça o arquivo .json.'); });
   };
     carregarHash();
     window.addEventListener('hashchange', carregarHash);

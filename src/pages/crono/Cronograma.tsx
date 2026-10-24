@@ -208,7 +208,7 @@ export default function Cronograma() {
               <option value="d">Dia</option><option value="s">Semana</option><option value="m">Mês</option><option value="q">Trimestre</option>
             </select></label>
           <label>Data de status
-            <input type="date" value={crono.meta.statusDate || ''} onChange={(e) => updateCrono((S) => { S.meta.statusDate = e.target.value || n2iso(hojeN()); })} /></label>
+            <input type="date" aria-label="Data de status" value={crono.meta.statusDate || ''} onChange={(e) => updateCrono((S) => { S.meta.statusDate = e.target.value || n2iso(hojeN()); })} /></label>
           <div className="sep" />
           <button className="btn" title="Congela as datas atuais como previsto" aria-label="Congela as datas atuais como previsto" onClick={linhaBase}><Save size={14} /> Salvar linha de base</button>
           <button className="btn" title="Registra o avanço de hoje na curva S" aria-label="Registra o avanço de hoje na curva S" onClick={medicao}><BarChart3 size={14} /> Registrar medição</button>
@@ -253,7 +253,7 @@ export default function Cronograma() {
                         <td className="rownum" onClick={() => setSel(i)}>{i + 1}</td>
                         {CS.map((col) => {
                           const cl = col.cls;
-                          const base = { 'data-i': i, 'data-k': col.k, onKeyDown: (e: React.KeyboardEvent) => onKey(e, i, col.k) };
+                          const base = { 'data-i': i, 'data-k': col.k, 'aria-label': `${col.t}${col.sub ? ' (' + col.sub + ')' : ''}, linha ${i + 1}`, onKeyDown: (e: React.KeyboardEvent) => onKey(e, i, col.k) };
                           if (col.k === 'nome') {
                             let flag: React.ReactNode = null;
                             if (!res) {

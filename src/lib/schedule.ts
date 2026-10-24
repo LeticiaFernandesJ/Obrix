@@ -409,8 +409,14 @@ function unb64u(str: string): Uint8Array {
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
-export async function empacotar(obj: unknown): Promise<string> {
-  const bytes = new TextEncoder().encode(JSON.stringify(obj));
+/** Limites ao abrir um link: protegem o navegador de um link malicioso (descompressão enorme). */
+export const LIMITE_LINK_TEXTO = 3_000_000;
+export const LIMITE_LINK_BYTES = 8 * 1024 * 1024;
+
+/** `validadeDias`: depois disso o link não abre mais (0 ou vazio = sem validade). */
+export async function empacotar(obj: unknown, validadeDias = 0): Promise<string> {
+  const dado = validadeDias > 0 && obj && typeof obj === 'object' ? { ...(obj as object), _exp: Date.now() + validadeDias * 86400000 } : obj;
+  const bytes = new TextEncoder().encode(JSON.stringify(dado));
   if (typeof CompressionStream !== 'undefined') {
     try {
       const cs = new CompressionStream('deflate-raw');
@@ -422,14 +428,24 @@ export async function empacotar(obj: unknown): Promise<string> {
   return 'j' + b64u(bytes);
 }
 export async function desempacotar(str: string): Promise<Estado> {
+  if (str.length > LIMITE_LINK_TEXTO) throw new Error('O link é grande demais para abrir com segurança. Peça o arquivo .json.');
   const tipo = str[0]; const dados = unb64u(str.slice(1));
+  let bytes: Uint8Array = dados;
   if (tipo === 'z') {
     const ds = new DecompressionStream('deflate-raw');
-    const w = ds.writable.getWriter(); w.write(dados as unknown as BufferSource); w.close();
-    const buf = await new Response(ds.readable).arrayBuffer();
-    return JSON.parse(new TextDecoder().decode(buf));
-  }
-  return JSON.parse(new TextDecoder().decode(dados));
+    const w = ds.writable.getWriter(); void w.write(dados as unknown as BufferSource).catch(() => undefined); void w.close().catch(() => undefined);
+    const leitor = ds.readable.getReader(); const partes: Uint8Array[] = []; let total = 0;
+    for (;;) {
+      const { done, value } = await leitor.read(); if (done) break;
+      total += value.length;
+      if (total > LIMITE_LINK_BYTES) { await leitor.cancel(); throw new Error('O link é grande demais para abrir com segurança. Peça o arquivo .json.'); }
+      partes.push(value);
+    }
+    bytes = new Uint8Array(total); let pos = 0; partes.forEach((p) => { bytes.set(p, pos); pos += p.length; });
+  } else if (bytes.length > LIMITE_LINK_BYTES) throw new Error('O link é grande demais para abrir com segurança. Peça o arquivo .json.');
+  const obj = JSON.parse(new TextDecoder().decode(bytes)) as Estado & { _exp?: number };
+  if (typeof obj._exp === 'number' && obj._exp < Date.now()) throw new Error('Este link expirou. Peça um link novo a quem enviou.');
+  return obj;
 }
 export function baixar(nome: string, conteudo: BlobPart, tipo = 'application/json;charset=utf-8') {
   const b = new Blob([conteudo], { type: tipo });

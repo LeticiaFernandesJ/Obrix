@@ -8,7 +8,7 @@ export const escaparXml = (s: unknown) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c] as string));
 
 /** Tira BOM, comentários e prefixos de namespace (<ns:tag> vira <tag>). */
-export const limparXml = (xml: string) => xml.replace(/^﻿/, '').replace(/<!--[\s\S]*?-->/g, '').replace(/<(\/?)[A-Za-z0-9_]+:/g, '<$1');
+export const limparXml = (xml: string) => xml.replace(/^\uFEFF/, '').replace(/<!--[\s\S]*?-->/g, '').replace(/<(\/?)[A-Za-z0-9_]+:/g, '<$1');
 
 const padrao = (nome: string, flags = '') => new RegExp('<' + nome + '(?:\\s[^>]*)?>([\\s\\S]*?)</' + nome + '>', flags);
 

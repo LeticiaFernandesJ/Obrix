@@ -51,10 +51,13 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ['react', 'react-dom', 'react-router-dom'],
-          supabase: ['@supabase/supabase-js'],
-          graficos: ['chart.js'],
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return undefined;
+          if (/node_modules[\/](react|react-dom|react-router|react-router-dom|scheduler)[\/]/.test(id)) return 'react';
+          if (id.includes('@supabase')) return 'supabase';
+          if (id.includes('chart.js')) return 'graficos';
+          if (id.includes('lucide-react')) return 'icones';
+          return undefined;
         },
       },
     },

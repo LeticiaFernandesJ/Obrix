@@ -26,6 +26,7 @@ export function CronoActions() {
   const [impLimpa, setImpLimpa] = useState(false);
   const [opLink, setOpLink] = useState('');
   const [links, setLinks] = useState<{ ro: string; ed: string } | null>(null);
+  const [validade, setValidade] = useState(30);
 
   const clone = (): Estado => JSON.parse(JSON.stringify(crono));
   const zeraHash = () => { try { if (location.hash) history.replaceState(null, '', location.pathname + location.search); } catch { /* ok */ } };
@@ -66,15 +67,16 @@ export function CronoActions() {
     const carga = mm ? mm[1] : /^[zj][A-Za-z0-9_-]{20,}$/.test(t) ? t : null;
     if (!carga) { void avisar('Não encontrei o código do cronograma nesse texto. Cole o link inteiro, do http até o final.'); return; }
     try { const obj = await desempacotar(carga); carregarCrono(obj); fechar(); toast('Cronograma carregado do link.'); }
-    catch { void avisar('O link parece incompleto, provavelmente foi cortado pelo e-mail. Peça o arquivo .json em anexo.'); }
+    catch (e) { void avisar(/expirou|grande demais/.test((e as Error).message) ? (e as Error).message : 'O link parece incompleto, provavelmente foi cortado pelo e-mail. Peça o arquivo .json em anexo.'); }
   };
 
-  const abrirShare = async () => {
-    setM('share'); setLinks(null);
+  const gerarLinks = async (dias: number) => {
+    setLinks(null);
     const base = location.origin + BASE;
-    const p = await empacotar(crono);
+    const p = await empacotar(crono, dias);
     setLinks({ ro: base + '#v=' + p, ed: base + '#p=' + p });
   };
+  const abrirShare = async () => { setM('share'); await gerarLinks(validade); };
   const copiar = (txt: string) => {
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast('Link copiado.')).catch(() => toast('Selecione o link e copie com Ctrl+C.'));
   };
@@ -158,12 +160,16 @@ export function CronoActions() {
         {!links ? <p>Gerando o link…</p> : (<>
           <p>O cronograma inteiro viaja dentro do próprio link: não há servidor, senha nem cadastro. Quem abrir vê o painel e o Gantt em modo somente leitura.</p>
           {links.ro.length > 28000 && <div className="note warn"><b>Cronograma grande.</b> O link ficou com {links.ro.length.toLocaleString('pt-BR')} caracteres e alguns e-mails cortam links longos. Prefira enviar o arquivo .json em anexo.</div>}
+          <div className="field"><label htmlFor="link-validade">Validade do link</label>
+            <select id="link-validade" value={validade} onChange={(e) => { const d = Number(e.target.value); setValidade(d); void gerarLinks(d); }}>
+              <option value={7}>7 dias</option><option value={30}>30 dias</option><option value={90}>90 dias</option><option value={0}>Sem validade</option>
+            </select></div>
           <div className="field"><label htmlFor="link-ro">Link somente leitura (para o PMO)</label>
             <div className="linkbox"><input id="link-ro" readOnly value={links.ro} onFocus={(e) => e.target.select()} /><button className="btn" onClick={() => copiar(links.ro)}>Copiar</button></div></div>
           <div className="field"><label htmlFor="link-ed">Link editável (para quem vai atualizar o cronograma)</label>
             <div className="linkbox"><input id="link-ed" readOnly value={links.ed} onFocus={(e) => e.target.select()} /><button className="btn" onClick={() => copiar(links.ed)}>Copiar</button></div></div>
           <div className="note">Toda semana: atualize os <b>%</b>, clique em <b>Registrar medição</b> e gere um link novo. O link antigo continua mostrando a foto daquela semana.</div>
-          <div className="note warn"><b>Privacidade:</b> o link carrega os dados do cronograma dentro dele. Qualquer pessoa que o receba (ou o encaminhe) vê o cronograma, e ele <b>não pode ser cancelado</b> depois de enviado. Envie só a quem deve ver; para restringir o acesso, mande o arquivo .json em anexo.</div>
+          <div className="note warn"><b>Privacidade:</b> o link carrega os dados do cronograma dentro dele. Qualquer pessoa que o receba (ou o encaminhe) vê o cronograma, e ele <b>não pode ser cancelado</b> depois de enviado, mas deixa de abrir quando a validade acaba. Envie só a quem deve ver; para restringir o acesso, mande o arquivo .json em anexo.</div>
           <div className="note"><b>O link abre direto?</b> Só se o Obrix estiver publicado num endereço da internet ou da rede da empresa. Caso contrário, envie o <b>arquivo .json</b> em anexo e o PMO usa <b>Abrir</b>.</div>
         </>)}
       </Modal>

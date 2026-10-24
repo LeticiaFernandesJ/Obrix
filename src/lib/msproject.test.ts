@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { exportarMSProject, lerMSProject } from './msproject';
 import { calcular, exemplo, makeCal, novaTarefa, novoEstado, predTexto } from './schedule';
 
-const MSP = `﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+const MSP = `\uFEFF<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Project xmlns="http://schemas.microsoft.com/project">
   <Name>obra.xml</Name><Title>Galpão &amp; Escritório</Title><StartDate>2026-03-02T08:00:00</StartDate>
   <MinutesPerDay>480</MinutesPerDay>

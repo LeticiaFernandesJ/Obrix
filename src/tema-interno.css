@@ -8,9 +8,11 @@
   --radius: 12px; --radius-lg: 20px;
   --shadow: 0 1px 2px rgba(32, 24, 12, .04), 0 10px 28px rgba(32, 24, 12, .06);
   --navy: #14233f; --navy-2: #1d3157;
-  --brand: #d2650f; --brand-2: #e8761e; --brand-soft: #fdf0e4;
+  --brand: #d2650f; --brand-2: #e8761e; --brand-soft: #fdf0e4; --brand-text: #b4520b;
+  /* cores de texto com contraste de pelo menos 4,5 : 1 sobre o fundo e os cartões */
+  --text3: #5f6b7a; --green: #12805d; --amber: #965c0d;
 }
-:root[data-theme="dark"] { --navy: #2a416b; --navy-2: #345185; --brand: #f0883a; --brand-2: #f59a52; --brand-soft: rgba(240, 136, 58, .14); }
+:root[data-theme="dark"] { --navy: #2a416b; --navy-2: #345185; --brand: #f0883a; --brand-2: #f59a52; --brand-soft: rgba(240, 136, 58, .14); --brand-text: #f5a05c; }
 
 /* ── menu lateral ── */
 .shell .nav-item { border-radius: 12px; padding: 10px 13px; }
@@ -49,8 +51,8 @@
 .shell .btn-sm.btn-icon { width: 34px; }
 .shell .btn-primary, .shell .btn-dark { background: var(--navy); color: #fff; box-shadow: 0 6px 16px rgba(20, 35, 63, .25); }
 .shell .btn-primary:hover, .shell .btn-dark:hover { background: var(--navy-2); box-shadow: 0 10px 22px rgba(20, 35, 63, .3); }
-.shell .btn-accent { background: linear-gradient(90deg, #c4590f, #e07018); color: #fff; box-shadow: 0 8px 20px rgba(196, 89, 15, .3); }
-.shell .btn-accent:hover { background: linear-gradient(90deg, #b5500c, #d3660f); box-shadow: 0 12px 24px rgba(196, 89, 15, .36); }
+.shell .btn-accent { background: linear-gradient(90deg, #a84b09, #bb560b); color: #fff; box-shadow: 0 8px 20px rgba(168, 75, 9, .3); }
+.shell .btn-accent:hover { background: linear-gradient(90deg, #983f06, #aa4e09); box-shadow: 0 12px 24px rgba(196, 89, 15, .36); }
 .shell .btn-success { background: #1b8f66; color: #fff; box-shadow: 0 6px 16px rgba(27, 143, 102, .25); }
 .shell .btn-success:hover { background: #167a58; }
 .shell .btn-danger { color: var(--red); }
@@ -116,7 +118,7 @@
   background: transparent; font-size: 13.5px;
 }
 .shell .tab-btn:hover:not(.active) { background: rgba(255, 255, 255, .7); }
-.shell .tab-btn.active { background: var(--surface); color: var(--brand); box-shadow: 0 1px 2px rgba(32, 24, 12, .05), 0 6px 16px rgba(32, 24, 12, .08); }
+.shell .tab-btn.active { background: var(--surface); color: var(--brand-text); box-shadow: 0 1px 2px rgba(32, 24, 12, .05), 0 6px 16px rgba(32, 24, 12, .08); }
 .shell .seg { border: 0; background: rgba(32, 24, 12, .06); border-radius: 14px; }
 .shell .seg a, .shell .seg button { border-radius: 10px; }
 
@@ -263,14 +265,14 @@
 .shell .main { margin-left: 248px; }
 .shell .brand-box { background: transparent; border: 0; padding: 18px 16px 6px; }
 .shell .brand-box .logo-crop { border-radius: 16px; background: #fff; box-shadow: 0 6px 18px rgba(0, 0, 0, .22); }
-.shell .brand-tag { color: rgba(255, 255, 255, .5); font-size: 11px; font-weight: 500; letter-spacing: .06em; margin: 12px 0 2px; }
+.shell .brand-tag { color: rgba(255, 255, 255, .68); font-size: 11px; font-weight: 500; letter-spacing: .06em; margin: 12px 0 2px; }
 
 .shell .nav { padding: 6px 14px 12px; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .22) transparent; }
 .shell .nav::-webkit-scrollbar { width: 6px; }
 .shell .nav::-webkit-scrollbar-track { background: transparent; }
 .shell .nav::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .2); border-radius: 6px; }
 .shell .nav::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .35); }
-.shell .nav-section { padding: 22px 12px 8px; font-size: 10.5px; font-weight: 700; letter-spacing: .14em; color: rgba(255, 255, 255, .36); }
+.shell .nav-section { padding: 22px 12px 8px; font-size: 10.5px; font-weight: 700; letter-spacing: .14em; color: rgba(255, 255, 255, .6); }
 .shell .nav-item { position: relative; height: 42px; padding: 0 12px; margin-bottom: 3px; gap: 13px; border-radius: 12px; font-size: 13.5px; font-weight: 500; color: rgba(255, 255, 255, .74); }
 .shell .nav-item svg { width: 19px; height: 19px; opacity: .8; transition: color .15s, opacity .15s; }
 .shell .nav-item:hover { background: rgba(255, 255, 255, .07); color: #fff; }
@@ -284,10 +286,10 @@
 .shell .install-box .btn { width: 100%; height: 40px; border: 1px dashed rgba(255, 255, 255, .28); border-radius: 12px; background: rgba(255, 255, 255, .05); color: rgba(255, 255, 255, .88); box-shadow: none; font-size: 13px; }
 .shell .install-box .btn:hover { background: rgba(255, 255, 255, .1); transform: none; box-shadow: none; }
 .shell .user-box { margin: 10px 14px 14px; padding: 14px; gap: 8px; border: 0; border-radius: 16px; background: rgba(255, 255, 255, .06); }
-.shell .user-box .org-nome { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: rgba(255, 255, 255, .5); }
+.shell .user-box .org-nome { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: rgba(255, 255, 255, .66); }
 .shell .user-box .email { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; white-space: normal; font-size: 14px; font-weight: 600; color: #fff; line-height: 1.3; overflow: visible; }
 .shell .papel-tag { margin: 0; padding: 2px 8px; font-size: 9.5px; font-weight: 700; letter-spacing: .08em; background: rgba(255, 154, 60, .2); color: #ffc48a; }
-.shell .user-box .sync { font-size: 11.5px; color: rgba(255, 255, 255, .6); }
+.shell .user-box .sync { font-size: 11.5px; color: rgba(255, 255, 255, .72); }
 .shell .user-box .sync button { color: #ffc48a; }
 .shell .user-box .btn { height: 38px; margin-top: 4px; border: 0; border-radius: 12px; background: rgba(255, 255, 255, .1) !important; color: #fff !important; box-shadow: none; font-size: 13px; }
 .shell .user-box .btn:hover { background: rgba(255, 255, 255, .18) !important; transform: none; }
@@ -298,3 +300,11 @@
   .shell .sidebar { width: min(300px, 86vw); }
 
 }
+
+/* ── contraste: texto pequeno em laranja usa a variante mais escura ── */
+.shell .perm-resumo, .shell .dica { color: var(--text2); }
+.shell .link-btn { color: var(--blue); }
+.shell .metric-hint { color: var(--text2); }
+
+/* ── paginação das listas longas ── */
+.shell .mais-linhas { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; font-size: 13px; color: var(--text2); }

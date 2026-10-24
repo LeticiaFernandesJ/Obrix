@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useApp } from '../store/AppStore';
 import { fmtTs } from '../lib/ac21';
+import { MaisLinhas, useLimite } from '../components/ui';
 
 export default function Historico() {
   const { db } = useApp();
@@ -9,6 +10,7 @@ export default function Historico() {
   const [dt, setDt] = useState('');
   const tipos = [...new Set(db.historico.map((h) => h.tipo))];
   const hist = db.historico.filter((h) => (!tipo || h.tipo === tipo) && (!dt || h.ts.startsWith(dt)));
+  const pagina = useLimite(tipo + '|' + dt, 100);
   return (
     <div className="content">
       <div className="card">
@@ -24,12 +26,13 @@ export default function Historico() {
       </div>
       <div className="card">
         <div className="card-title">{hist.length === 1 ? '1 registro encontrado' : `${hist.length} registros encontrados`}</div>
-        {hist.length === 0 ? <div className="empty">Nenhum registro.</div> : hist.map((h) => (
+        {hist.length === 0 ? <div className="empty">Nenhum registro.</div> : hist.slice(0, pagina.limite).map((h) => (
           <div className="hist-item" key={h.id}>
             <span className="hist-time">{fmtTs(h.ts)}</span>
             <span className="hist-text">{h.texto.split(String.fromCharCode(8212)).join('-')}<span className="hist-user">{h.user}</span></span>
           </div>
         ))}
+        <MaisLinhas total={hist.length} {...pagina} />
       </div>
     </div>
   );

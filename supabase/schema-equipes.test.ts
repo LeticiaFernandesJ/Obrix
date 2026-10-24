@@ -77,6 +77,13 @@ describe('migração dos dados antigos', () => {
     const n = await q<{ email: string; nome: string }>('select email, nome from public.membros order by email');
     expect(n.map((x) => x.nome)).toEqual(['Ana Souza', '']);
   });
+  it('tarefas ganham updated_at e ele muda a cada alteração (detecta edição simultânea)', async () => {
+    const antes = (await q<{ u: Date }>('select updated_at u from public.tarefas where org_id = $1', [orgA]))[0].u;
+    await new Promise((r) => setTimeout(r, 15));
+    await db.exec(`update public.tarefas set nome = 'tarefa 2' where org_id = '${orgA}'`);
+    const depois = (await q<{ u: Date }>('select updated_at u from public.tarefas where org_id = $1', [orgA]))[0].u;
+    expect(new Date(depois).getTime()).toBeGreaterThan(new Date(antes).getTime());
+  });
   it('as compras têm a coluna de vencimento (data), vazia nos dados migrados', async () => {
     expect((await q<{ v: string | null }>('select vencimento v from public.compras where org_id = $1', [orgA]))[0].v).toBeNull();
     await db.exec(`update public.compras set vencimento = '2026-05-10' where org_id = '${orgA}'`);
@@ -245,6 +252,33 @@ describe('acesso personalizado por área', () => {
     await sql(`update public.membros set permissoes = null where org_id = '${org}' and user_id = '${B}'`);
     expect(await tenta(B, `insert into public.compras (org_id, id, obra_id, descricao, total) values ('${org}', 11, 1, 'x', 1)`)).not.toBeNull();
     expect(await tenta(D, `update public.membros set papel = 'chefe' where org_id = '${org}' and user_id = '${B}'`)).not.toBeNull();
+  });
+});
+
+describe('convite travado por e-mail', () => {
+  let org = '';
+  beforeAll(async () => {
+    org = (await linhas<{ org: string }>(D, `select public.criar_organizacao('Org Convite Email') as org`))[0].org;
+  });
+  const convite = async (para: string) => {
+    await como(D, () => db.exec(`insert into public.convites (org_id, papel, email) values ('${org}', 'editor', '${para}')`));
+    return (await linhas<{ token: string }>(D, `select token from public.convites where org_id = '${org}' and email = '${para}'`))[0].token;
+  };
+  it('outra conta não entra e o convite continua valendo para a pessoa certa', async () => {
+    const t = await convite('b@x.com');
+    expect(await tenta(C, `select public.aceitar_convite('${t}')`)).toMatch(/outro e-mail/);
+    expect(await linhas(D, `select 1 from public.convites where token = '${t}'`)).toHaveLength(1);
+    expect(await tenta(B, `select public.aceitar_convite('${t}')`)).toBeNull();
+    expect(await linhas(B, `select 1 from public.membros where org_id = '${org}' and user_id = '${B}'`)).toHaveLength(1);
+  });
+  it('maiúsculas e espaços não atrapalham', async () => {
+    const t = await convite('C@X.com ');
+    expect(await tenta(C, `select public.aceitar_convite('${t}')`)).toBeNull();
+  });
+  it('sem @ (só um nome) qualquer conta pode usar', async () => {
+    await como(D, () => db.exec(`insert into public.convites (org_id, papel, email) values ('${org}', 'leitor', 'Marcos, engenheiro')`));
+    const t = (await linhas<{ token: string }>(D, `select token from public.convites where org_id = '${org}' and email = 'Marcos, engenheiro'`))[0].token;
+    expect(await tenta(A, `select public.aceitar_convite('${t}')`)).toBeNull();
   });
 });
 

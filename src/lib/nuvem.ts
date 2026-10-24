@@ -153,9 +153,54 @@ export async function lerNuvem(sb: SupabaseClient, orgId: string): Promise<Linha
   return L;
 }
 
-/** Envia só o que mudou desde o último estado sincronizado. Atualiza `snap` à medida que avança. */
-/** `permitidas`: só estas tabelas são gravadas (quem tem acesso parcial não mexe nas outras). */
-export async function enviarMudancas(sb: SupabaseClient, orgId: string, L: Linhas, snap: Snap, permitidas?: ReadonlySet<Tabela>): Promise<number> {
+/* ───────────── edição simultânea ───────────── */
+/** Tabelas que têm updated_at no banco: dá para saber se outra pessoa mexeu na mesma linha. */
+const VERSIONADAS: Tabela[] = ['obras', 'itens', 'compras', 'cronogramas', 'tarefas'];
+export type Versoes = Map<string, string>;
+const chaveVersao = (t: Tabela, r: Row) => t + '|' + chave(t, r);
+
+/** Guarda a versão (updated_at) de cada linha lida da nuvem. Chamar com as linhas cruas, logo depois de lerNuvem. */
+export function versoesDe(L: Linhas): Versoes {
+  const v: Versoes = new Map();
+  VERSIONADAS.forEach((t) => L[t].forEach((r) => { if (r.updated_at != null) v.set(chaveVersao(t, r), String(r.updated_at)); }));
+  return v;
+}
+
+/** Outra pessoa alterou (ou apagou) linhas que esta pessoa também alterou. Nada foi gravado. */
+export class ConflitoErro extends Error {
+  constructor(public readonly linhas: string[]) { super('Edição simultânea'); this.name = 'ConflitoErro'; }
+}
+
+async function conferirVersoes(sb: SupabaseClient, orgId: string, novas: Record<Tabela, Row[]>, snap: Snap, versoes: Versoes): Promise<string[]> {
+  const conflitos: string[] = [];
+  for (const t of VERSIONADAS) {
+    const existentes = novas[t].filter((r) => snap[t].has(chave(t, r)) && versoes.has(chaveVersao(t, r)));
+    if (!existentes.length) continue;
+    const ultimo = CHAVES[t][CHAVES[t].length - 1];
+    const grupos = new Map<string, Row[]>();
+    existentes.forEach((r) => { const g = CHAVES[t].slice(0, -1).map((c) => r[c]).join('|'); grupos.set(g, [...(grupos.get(g) ?? []), r]); });
+    for (const rows of grupos.values()) {
+      for (let i = 0; i < rows.length; i += 200) {
+        const parte = rows.slice(i, i + 200);
+        let q = sb.from(t).select([...CHAVES[t], 'updated_at'].join(',')).eq('org_id', orgId);
+        CHAVES[t].slice(0, -1).forEach((c) => { q = q.eq(c, parte[0][c] as string); });
+        const { data: atuais, error } = await q.in(ultimo, parte.map((r) => r[ultimo] as string));
+        if (error) throw error;
+        const nuvem = new Map(((atuais ?? []) as unknown as Row[]).map((r) => [chave(t, r), String(r.updated_at)] as const));
+        parte.forEach((r) => { if (nuvem.get(chave(t, r)) !== versoes.get(chaveVersao(t, r))) conflitos.push(chaveVersao(t, r)); });
+      }
+    }
+  }
+  return conflitos;
+}
+
+/**
+ * Envia só o que mudou desde o último estado sincronizado. Atualiza `snap` à medida que avança.
+ * `permitidas`: só estas tabelas são gravadas (quem tem acesso parcial não mexe nas outras).
+ * `ctrl`: com as versões lidas, confere antes se outra pessoa mexeu nas mesmas linhas e lança ConflitoErro (sem gravar nada);
+ * `ctrl.forcar` grava mesmo assim. As versões são atualizadas após cada envio.
+ */
+export async function enviarMudancas(sb: SupabaseClient, orgId: string, L: Linhas, snap: Snap, permitidas?: ReadonlySet<Tabela>, ctrl?: { versoes: Versoes; forcar?: boolean }): Promise<number> {
   let total = 0;
   const novas: Record<Tabela, Row[]> = {} as Record<Tabela, Row[]>;
   const removidas: Record<Tabela, Row[]> = {} as Record<Tabela, Row[]>;
@@ -172,6 +217,11 @@ export async function enviarMudancas(sb: SupabaseClient, orgId: string, L: Linha
     });
   });
 
+  if (ctrl && !ctrl.forcar) {
+    const conflitos = await conferirVersoes(sb, orgId, novas, snap, ctrl.versoes);
+    if (conflitos.length) throw new ConflitoErro(conflitos);
+  }
+
   // exclusões: filhos antes dos pais
   for (const t of [...ORDEM].reverse()) {
     const rem = removidas[t]; if (!rem.length) continue;
@@ -187,7 +237,7 @@ export async function enviarMudancas(sb: SupabaseClient, orgId: string, L: Linha
         if (error) throw error;
       }
     }
-    rem.forEach((r) => snap[t].delete(chave(t, r)));
+    rem.forEach((r) => { snap[t].delete(chave(t, r)); ctrl?.versoes.delete(chaveVersao(t, r)); });
     total += rem.length;
   }
   // inserções e alterações: pais antes dos filhos
@@ -195,8 +245,14 @@ export async function enviarMudancas(sb: SupabaseClient, orgId: string, L: Linha
     const rows = novas[t];
     for (let i = 0; i < rows.length; i += 500) {
       const parte = rows.slice(i, i + 500);
-      const { error } = await sb.from(t).upsert(parte.map((r) => ({ ...r, org_id: orgId })), { onConflict: ['org_id', ...CHAVES[t]].join(','), ...(t === 'historico' ? { ignoreDuplicates: true } : {}) });
-      if (error) throw error;
+      const linhas = parte.map((r) => ({ ...r, org_id: orgId }));
+      const opcoes = { onConflict: ['org_id', ...CHAVES[t]].join(','), ...(t === 'historico' ? { ignoreDuplicates: true } : {}) };
+      const versionada = !!ctrl && VERSIONADAS.includes(t);
+      let res = versionada ? await sb.from(t).upsert(linhas, opcoes).select([...CHAVES[t], 'updated_at'].join(',')) : await sb.from(t).upsert(linhas, opcoes);
+      // banco ainda sem a coluna updated_at nesta tabela (script SQL antigo): grava sem acompanhar a versão
+      if (res.error && versionada && /updated_at/.test(res.error.message ?? '')) res = await sb.from(t).upsert(linhas, opcoes);
+      if (res.error) throw res.error;
+      if (versionada) ((res.data ?? []) as unknown as Row[]).forEach((r) => { if (r.updated_at != null) ctrl!.versoes.set(chaveVersao(t, r), String(r.updated_at)); });
       parte.forEach((r) => snap[t].set(chave(t, r), JSON.stringify(r)));
     }
     total += rows.length;

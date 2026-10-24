@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { mascaraMoeda, valorDaMascara } from '../lib/ac21';
 import { Chart, type ChartConfiguration, registerables } from 'chart.js';
@@ -35,7 +36,7 @@ export function Modal({ title, onClose, children, footer, size }: {
     return () => { document.removeEventListener('keydown', h, true); anterior?.focus?.(); };
   }, []);
 
-  return (
+  const conteudo = (
     <div className="modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div ref={caixa} tabIndex={-1} className={'modal' + (size ? ' ' + size : '')} role="dialog" aria-modal="true" aria-labelledby={idTitulo}>
         <div className="modal-header">
@@ -47,6 +48,9 @@ export function Modal({ title, onClose, children, footer, size }: {
       </div>
     </div>
   );
+  // fora da barra superior e de qualquer contexto de empilhamento: a janela sempre fica por cima do menu lateral
+  const destino = typeof document !== 'undefined' ? (document.querySelector('.shell') ?? document.body) : null;
+  return destino ? createPortal(conteudo, destino) : conteudo;
 }
 
 /** Tema atual (atributo data-theme do <html>), reagindo quando muda. */
@@ -77,6 +81,22 @@ export function ChartCanvas({ config, height }: { config: ChartConfiguration<any
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   return <div className="chart-box" style={{ height }}><canvas ref={ref} /></div>;
+}
+
+/** Mostra as primeiras linhas e deixa a pessoa pedir mais. Volta ao começo quando `chave` muda (ex.: o filtro). */
+export function useLimite(chave: string, passo = 50) {
+  const [limite, setLimite] = useState(passo);
+  useEffect(() => { setLimite(passo); }, [chave, passo]);
+  return { limite, passo, mais: () => setLimite((v) => v + passo) };
+}
+export function MaisLinhas({ total, limite, passo, mais }: { total: number; limite: number; passo: number; mais: () => void }) {
+  if (total <= limite) return null;
+  return (
+    <div className="mais-linhas" role="status">
+      <span>Mostrando {limite} de {total}</span>
+      <button className="btn btn-sm" onClick={mais}>Mostrar mais {Math.min(passo, total - limite)}</button>
+    </div>
+  );
 }
 
 export function Empty({ icon, children }: { icon: ReactNode; children: ReactNode }) {

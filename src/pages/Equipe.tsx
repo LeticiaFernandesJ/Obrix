@@ -72,6 +72,13 @@ export default function Equipe() {
   };
 
   const gerarConvite = async () => {
+    if (novoPapel === 'admin') {
+      const comEmail = paraQuem.includes('@');
+      const ok = await confirmar(
+        'Quem abrir o link entra como administrador: altera tudo, convida e remove pessoas.' + (comEmail ? '' : ' Dica: escreva o e-mail da pessoa no campo "Para quem" e só essa conta conseguirá usar o link.'),
+        { titulo: 'Gerar convite de administrador?', confirmar: 'Gerar convite', cancelar: 'Voltar', perigo: true });
+      if (!ok) return;
+    }
     try {
       const c = await criarConvite(supabase!, orgId, novoPapel, paraQuem, novasPerm);
       setParaQuem(''); await carregar(); copiar(c.token);
@@ -209,8 +216,9 @@ export default function Equipe() {
               </select>
             </div>
             <div className="form-group" style={{ flex: 2 }}>
-              <label htmlFor="conv-quem">Para quem (opcional, só para você lembrar)</label>
-              <input id="conv-quem" value={paraQuem} onChange={(e) => setParaQuem(e.target.value)} placeholder="Ex: Marcos, engenheiro" maxLength={80} />
+              <label htmlFor="conv-quem">Para quem (opcional)</label>
+              <input id="conv-quem" value={paraQuem} onChange={(e) => setParaQuem(e.target.value)} placeholder="Nome, ou e-mail para travar o convite" maxLength={80} />
+              <span className="dica">Com um e-mail (marcos@empresa.com), só essa conta consegue aceitar o link. Com um nome, vale só como lembrete.</span>
             </div>
             <button className="btn btn-primary" onClick={() => void gerarConvite()}><UserPlus size={15} /> Gerar link</button>
           </div>

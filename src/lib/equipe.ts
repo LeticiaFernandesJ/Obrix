@@ -94,6 +94,7 @@ function lancar(error: { message: string } | null) { if (error) throw new Error(
 
 export function traduzirErro(msg: string): string {
   const m = msg.toLowerCase();
+  if (m.includes('para outro e-mail')) return 'Este convite foi feito para outro e-mail. Entre com o e-mail indicado pelo administrador.';
   if (m.includes('convite inválido') || m.includes('convite invalido')) return 'Convite inválido ou expirado. Peça um novo link a um administrador.';
   if (m.includes('limite de organizações')) return 'Você atingiu o limite de organizações criadas por conta. Peça um convite para entrar em uma existente.';
   if (m.includes('pelo menos um administrador')) return 'A organização precisa ter pelo menos um administrador.';

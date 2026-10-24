@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { deLinhas, enviarMudancas, paraLinhas, snapVazio } from './nuvem';
+import { ConflitoErro, deLinhas, enviarMudancas, paraLinhas, snapVazio, versoesDe } from './nuvem';
 import { calcular, exemplo, makeCal, pctRealAtual } from './schedule';
 import type { DB } from './ac21';
 
@@ -91,5 +91,78 @@ describe('envio incremental', () => {
     const ordem = log.map((l) => l.split(' ')[1]);
     expect(ordem.indexOf('tarefas')).toBeLessThan(ordem.indexOf('cronogramas'));
     expect(ordem.indexOf('cronogramas')).toBeLessThan(ordem.indexOf('obras'));
+  });
+});
+
+/** Cliente falso que conhece a versão (updated_at) de cada linha na nuvem. */
+function falsoVersionado(nuvem: Record<string, string>) {
+  const log: string[] = []; let n = 0;
+  const cliente = {
+    from: (t: string) => ({
+      upsert: (rows: Record<string, unknown>[]) => {
+        log.push(`upsert ${t} ${rows.length}`);
+        const devolve = () => rows.map((r) => ({ id: r.id, obra_id: r.obra_id, updated_at: 'novo' + ++n }));
+        const p = Promise.resolve({ error: null, data: null });
+        return Object.assign(p, { select: async () => ({ error: null, data: devolve() }) });
+      },
+      select: () => {
+        const q = { eq: () => q, in: async (_c: string, ids: unknown[]) => ({ error: null, data: ids.filter((i) => nuvem[`${t}|${i}`] !== undefined).map((i) => ({ id: i, updated_at: nuvem[`${t}|${i}`] })) }) };
+        return q;
+      },
+      delete: () => { const q = { eq: () => q, in: async () => ({ error: null }) }; return q; },
+    }),
+  } as unknown as SupabaseClient;
+  return { cliente, log };
+}
+
+describe('edição simultânea', () => {
+  const montar = async (nuvem: Record<string, string>) => {
+    const { cliente, log } = falsoVersionado(nuvem); const snap = snapVazio(); const d = db();
+    await enviarMudancas(cliente, 'u', paraLinhas(d, {}), snap); // estado já sincronizado
+    log.length = 0;
+    const versoes = new Map([['compras|7', 'v1'], ['obras|2', 'v1']]);
+    return { cliente, log, snap, d, versoes };
+  };
+
+  it('ninguém mexeu: grava e passa a conhecer a nova versão', async () => {
+    const { cliente, log, snap, d, versoes } = await montar({ 'compras|7': 'v1', 'obras|2': 'v1' });
+    d.compras[0].total = 1800;
+    await enviarMudancas(cliente, 'u', paraLinhas(d, {}), snap, undefined, { versoes });
+    expect(log).toEqual(['upsert compras 1']);
+    expect(versoes.get('compras|7')).toMatch(/^novo/);
+  });
+
+  it('outra pessoa mudou a mesma linha: avisa e não grava nada', async () => {
+    const { cliente, log, snap, d, versoes } = await montar({ 'compras|7': 'v2', 'obras|2': 'v1' });
+    d.compras[0].total = 1800; d.obras[0].nome = 'Outro nome';
+    const erro = await enviarMudancas(cliente, 'u', paraLinhas(d, {}), snap, undefined, { versoes }).catch((e) => e);
+    expect(erro).toBeInstanceOf(ConflitoErro);
+    expect((erro as ConflitoErro).linhas).toEqual(['compras|7']); // só a que mudou lá; a obra não conflita
+    expect(log.filter((l) => l.startsWith('upsert'))).toEqual([]);
+  });
+
+  it('a pessoa escolhe manter a sua versão: grava mesmo assim', async () => {
+    const { cliente, log, snap, d, versoes } = await montar({ 'compras|7': 'v2', 'obras|2': 'v1' });
+    d.compras[0].total = 1800;
+    await enviarMudancas(cliente, 'u', paraLinhas(d, {}), snap, undefined, { versoes, forcar: true });
+    expect(log).toEqual(['upsert compras 1']);
+  });
+
+  it('linha apagada por outra pessoa também conta como conflito', async () => {
+    const { cliente, snap, d, versoes } = await montar({ 'obras|2': 'v1' }); // a compra 7 sumiu da nuvem
+    d.compras[0].total = 1800;
+    await expect(enviarMudancas(cliente, 'u', paraLinhas(d, {}), snap, undefined, { versoes })).rejects.toBeInstanceOf(ConflitoErro);
+  });
+
+  it('linhas novas e linhas que só eu mexi nunca geram conflito', async () => {
+    const { cliente, log, snap, d, versoes } = await montar({ 'compras|7': 'v1', 'obras|2': 'v1' });
+    d.compras.push({ ...d.compras[0], id: 99, desc: 'nova' });
+    await enviarMudancas(cliente, 'u', paraLinhas(d, {}), snap, undefined, { versoes });
+    expect(log).toEqual(['upsert compras 1']);
+  });
+
+  it('as versões vêm das linhas cruas da nuvem (só tabelas com updated_at)', () => {
+    const v = versoesDe({ obras: [{ id: 2, updated_at: '2026-01-01T00:00:00+00:00' }], itens: [], compras: [{ id: 7 }], historico: [{ id: 1, updated_at: 'x' }], cronogramas: [], tarefas: [], medicoes: [] });
+    expect([...v.entries()]).toEqual([['obras|2', '2026-01-01T00:00:00+00:00']]);
   });
 });

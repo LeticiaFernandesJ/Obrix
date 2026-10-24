@@ -5,7 +5,7 @@ import { CATS_COMPRA, exportarExcelCompras, fmt, fmtData, fmtNum, type Compra } 
 import { useDialogo } from '../components/Dialogo';
 import { CompraModal } from '../components/CompraModal';
 import { ImportarNFeModal } from '../components/ImportarNFeModal';
-import { Empty } from '../components/ui';
+import { Empty, MaisLinhas, useLimite } from '../components/ui';
 
 export const badgeCompra = (s: string) => (s === 'Pago' ? 'badge-ok' : s === 'Pendente' ? 'badge-warn' : 'badge-blue');
 
@@ -26,6 +26,7 @@ export default function Compras() {
     if (f.fim && c.data && c.data > f.fim) return false;
     return true;
   });
+  const pagina = useLimite(Object.values(f).join('|'));
   const totPago = compras.filter((c) => c.status === 'Pago').reduce((s, c) => s + Number(c.total || 0), 0);
   const totPend = compras.filter((c) => c.status !== 'Pago').reduce((s, c) => s + Number(c.total || 0), 0);
 
@@ -82,7 +83,7 @@ export default function Compras() {
               <th className="td-right">Qtde</th><th className="td-right">Unit.</th><th className="td-right">Total</th><th>Status</th><th>Ações</th></tr></thead>
             <tbody>
               {compras.length === 0 && <tr><td colSpan={12}><Empty icon={<ShoppingBasket size={28} />}>Nenhuma compra encontrada.</Empty></td></tr>}
-              {compras.map((c) => {
+              {compras.slice(0, pagina.limite).map((c) => {
                 const obra = db.obras.find((o) => o.id === c.obraId);
                 return (
                   <tr key={c.id}>
@@ -112,6 +113,7 @@ export default function Compras() {
             )}
           </table>
         </div>
+        <MaisLinhas total={compras.length} {...pagina} />
       </div>
       {nfe && <ImportarNFeModal onClose={() => setNfe(false)} />}
       {modal && <CompraModal compra={modal.c} onClose={() => setModal(null)} />}

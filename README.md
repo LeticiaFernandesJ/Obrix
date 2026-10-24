@@ -73,6 +73,10 @@ Os dados pertencem a uma **organização** (sua empresa ou equipe), não a uma p
 - **Cabeçalhos:** o `vercel.json` define CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy e Permissions-Policy. Se um dia o app precisar carregar algo de outro domínio (outra fonte, outra API), inclua o domínio na `Content-Security-Policy`.
 - **Senhas:** contas novas exigem 8 caracteres com letras e números. No Supabase, em **Authentication > Providers > Email**, deixe o mínimo de senha em 8 ou mais e ative a proteção contra senhas vazadas. A confirmação de e-mail está desligada por escolha do projeto; para ligá-la, use a mesma tela.
 - **Organizações:** cada conta cria no máximo 5.
+- **Convites:** no campo "Para quem", um e-mail (com @) trava o convite: só essa conta consegue aceitar, e um convite de administrador pede confirmação ao ser gerado.
+- **Link do PMO:** tem validade (7, 30, 90 dias ou sem validade), recusa links que descomprimem para algo gigante e continua sem poder ser cancelado depois de enviado.
+- **Edição simultânea:** se outra pessoa alterou as mesmas linhas desde que você abriu a tela, o app avisa e deixa você escolher entre manter a sua versão ou usar a da nuvem. Isso depende da coluna `updated_at` das tarefas, criada pelo `schema-equipes.sql`.
+- **Dependências:** `npm audit` sem vulnerabilidades. O projeto usa Vite 8 e Vitest 5 (Node 20.19 ou mais novo).
 
 ## Scripts
 
@@ -81,6 +85,7 @@ Os dados pertencem a uma **organização** (sua empresa ou equipe), não a uma p
 | `npm run dev` | Servidor de desenvolvimento |
 | `npm run build` | Verifica os tipos e gera a versão de produção em `dist/` |
 | `npm test` | Roda os testes automáticos (cronograma, contas do AC21, gravação no banco e regras de acesso das equipes) |
+| `npm run lint` | Confere o código com o ESLint (inclui regras que proíbem execução dinâmica de código) |
 | `npm run icones` | Gera de novo os ícones do PWA a partir de `public/assets/obrix-logo.jpg` |
 
 ## Publicação (GitHub Pages)

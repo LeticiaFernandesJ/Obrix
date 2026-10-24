@@ -112,6 +112,10 @@ begin
   select * into v_conv from public.convites where token = p_token and expira_em > now();
   if not found then raise exception 'Convite inválido ou expirado'; end if;
   select email, coalesce(raw_user_meta_data->>'nome', '') into v_email, v_nome from auth.users where id = (select auth.uid());
+  -- convite com e-mail (campo "para quem" com @): só essa conta entra; o convite continua válido para a pessoa certa
+  if position('@' in coalesce(v_conv.email, '')) > 0 and lower(trim(v_conv.email)) <> lower(trim(coalesce(v_email, ''))) then
+    raise exception 'Este convite é para outro e-mail';
+  end if;
   insert into public.membros (org_id, user_id, email, nome, papel, permissoes)
     values (v_conv.org_id, (select auth.uid()), coalesce(v_email, ''), coalesce(v_nome, ''), v_conv.papel, v_conv.permissoes)
     on conflict (org_id, user_id) do nothing;
@@ -329,14 +333,15 @@ create table if not exists public.medicoes (
   foreign key (org_id, obra_id) references public.cronogramas (org_id, obra_id) on delete cascade
 );
 
--- updated_at automático
+-- updated_at automático (também nas tarefas, para detectar edição simultânea do cronograma)
+alter table public.tarefas add column if not exists updated_at timestamptz not null default now();
 create or replace function public.set_updated_at() returns trigger
 language plpgsql set search_path = '' as $$
 begin new.updated_at = now(); return new; end $$;
 do $$
 declare t text;
 begin
-  foreach t in array array['obras','itens','compras','cronogramas'] loop
+  foreach t in array array['obras','itens','compras','cronogramas','tarefas'] loop
     execute format('drop trigger if exists trg_%1$s_updated on public.%1$s', t);
     execute format('create trigger trg_%1$s_updated before update on public.%1$s
                     for each row execute function public.set_updated_at()', t);

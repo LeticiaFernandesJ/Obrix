@@ -381,8 +381,8 @@ export default function Detalhe() {
                     <td className="td-right" style={{ fontWeight: 600 }}>{fmt(c.total)}</td>
                     <td><span className={'badge ' + badgeCompra(c.status)}>{c.status}</span></td>
                     <td><div style={{ display: 'flex', gap: 4 }}>{podeEditarCompras && <>
-                      <button className="btn btn-sm btn-icon" onClick={() => setCompraModal({ c })}><Pencil size={14} /></button>
-                      <button className="btn btn-sm btn-icon btn-danger" onClick={async () => { if (await confirmar(`Excluir a compra "${c.desc}"?`, { confirmar: 'Excluir', perigo: true })) { excluirCompra(c.id); toast('Compra excluída.'); } }}><Trash2 size={14} /></button>
+                      <button className="btn btn-sm btn-icon" aria-label={`Editar compra ${c.desc}`} title="Editar" onClick={() => setCompraModal({ c })}><Pencil size={14} /></button>
+                      <button className="btn btn-sm btn-icon btn-danger" aria-label={`Excluir compra ${c.desc}`} title="Excluir" onClick={async () => { if (await confirmar(`Excluir a compra "${c.desc}"?`, { confirmar: 'Excluir', perigo: true })) { excluirCompra(c.id); toast('Compra excluída.'); } }}><Trash2 size={14} /></button>
                     </>}</div></td>
                   </tr>
                 ))}

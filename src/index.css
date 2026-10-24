@@ -539,7 +539,7 @@ table.list { width: 100%; border-collapse: collapse; font-size: 12px; }
 .install-box .btn:hover { background: rgba(255,255,255,.18); }
 @supports (padding: max(0px)) { .topbar { padding-top: max(14px, env(safe-area-inset-top)); } }
 
-.lg-app { margin-top: clamp(16px, 3.2vh, 30px); text-shadow: none; display: inline-flex; align-items: center; justify-content: center; gap: 12px; height: clamp(48px, 7vh, 60px); min-width: 250px; padding: 0 30px; border-radius: 14px; border: 0; background: linear-gradient(180deg, #ffa24a, #e8761e); color: #fff; font-weight: 750; font-size: clamp(16px, 2.2vh, 19px); letter-spacing: .01em; cursor: pointer; box-shadow: 0 10px 28px rgba(232,118,30,.5), 0 0 0 4px rgba(255,154,60,.18); transition: filter .15s, transform .05s, box-shadow .15s; animation: lg-pulso 2.6s ease-in-out infinite; }
+.lg-app { margin-top: clamp(16px, 3.2vh, 30px); text-shadow: none; display: inline-flex; align-items: center; justify-content: center; gap: 12px; height: clamp(48px, 7vh, 60px); min-width: 250px; padding: 0 30px; border-radius: 14px; border: 0; background: linear-gradient(180deg, #d2650f, #b5500c); color: #fff; font-weight: 750; font-size: clamp(16px, 2.2vh, 19px); letter-spacing: .01em; cursor: pointer; box-shadow: 0 10px 28px rgba(232,118,30,.5), 0 0 0 4px rgba(255,154,60,.18); transition: filter .15s, transform .05s, box-shadow .15s; animation: lg-pulso 2.6s ease-in-out infinite; }
 .lg-app:hover { filter: brightness(1.08); box-shadow: 0 12px 32px rgba(232,118,30,.65), 0 0 0 5px rgba(255,154,60,.28); } .lg-app:active { transform: translateY(1px); }
 @keyframes lg-pulso { 0%, 100% { box-shadow: 0 10px 28px rgba(232,118,30,.5), 0 0 0 4px rgba(255,154,60,.18); } 50% { box-shadow: 0 10px 28px rgba(232,118,30,.6), 0 0 0 9px rgba(255,154,60,.06); } }
 @media (prefers-reduced-motion: reduce) { .lg-app { animation: none; } }
@@ -627,8 +627,8 @@ button:focus-visible, a:focus-visible, [role="tab"]:focus-visible { outline: 2px
 .lg-input { background: #faf7f4; border-color: #e6dfd8; border-radius: 12px; }
 .lg-input input { font-family: inherit; font-weight: 400; }
 .lg-input input::placeholder { color: #8b919b; }
-.lg-link { color: #c75a0c; font-weight: 600; }
-.lg-btn { font-family: inherit; font-weight: 500; font-size: 19px; border-radius: 12px; background: linear-gradient(90deg, #c4590f 0%, #e8761e 100%); box-shadow: 0 10px 24px rgba(196, 89, 15, .35); }
+.lg-link { color: #b4520b; font-weight: 600; }
+.lg-btn { font-family: inherit; font-weight: 500; font-size: 19px; border-radius: 12px; background: linear-gradient(90deg, #ae4e0a 0%, #bd570b 100%); box-shadow: 0 10px 24px rgba(196, 89, 15, .35); }
 .lg-foot { color: #5c6470; font-size: 14.5px; }
 .lg-app { font-family: inherit; font-weight: 600; }
 @media (max-width: 960px) {

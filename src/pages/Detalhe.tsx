@@ -23,6 +23,7 @@ const classeEvm: Record<Nivel, string> = { bom: 'badge-ok', atencao: 'badge-warn
 const rotuloEvm: Record<Nivel, string> = { bom: 'No ritmo', atencao: 'Atenção', critico: 'Crítico', indef: 'Sem dados' };
 type Aba = 'itens' | 'graficos' | 'desempenho' | 'compras';
 
+
 function ItemModal({ obra, item, onClose }: { obra: Obra; item: Item | null; onClose: () => void }) {
   const { salvarItem, toast } = useApp();
   const [f, setF] = useState({

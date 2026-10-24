@@ -9,6 +9,7 @@ Sistema web (PWA) que reúne, em um só lugar:
 - **Importar NF-e (XML)**: em Compras, leia uma ou mais notas fiscais eletrônicas; cada parcela da nota vira uma conta com o seu vencimento (ou cada item vira uma compra). Notas já lançadas são sinalizadas.
 - **Desempenho (valor agregado)**: aba na obra com IDP, IDC, custo previsto no término (EAC) e curva planejado x agregado x custo real, cruzando o cronograma com o que foi pago.
 - **Alertas**: o sino na barra superior junta verba no limite, contas vencidas ou a vencer, tarefas atrasadas e índices abaixo do esperado. Alertas por e-mail ou push precisam de um servidor e ainda não existem.
+- **Tarefas com responsável da equipe**: o botão **Tarefa** (e **Marco**) abre uma janela para preencher nome, duração, início, predecessoras, avanço, peso e responsável. O responsável pode ser uma **pessoa da equipe**, que recebe um aviso no sino na hora, ou **só um nome**. Dois cliques no número da linha (ou o botão **Detalhes**) reabrem a janela. O aviso é criado pelo banco; e-mail ou WhatsApp precisariam de um servidor.
 - **MS Project**: importe e exporte o cronograma em XML (Arquivo > Salvar como > XML no Project). Arquivos `.mpp` e do Primavera não são lidos.
 
 Os dados ficam no **Supabase** (login por e-mail e senha, cada usuário vê só os seus dados) e também em cache no navegador para uso offline.

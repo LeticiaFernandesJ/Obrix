@@ -463,13 +463,66 @@ left join (select org_id, obra_id, sum(total) total_todas,
            from public.compras group by org_id, obra_id) c on c.org_id = o.org_id and c.obra_id = o.id;
 grant select on public.v_obras_resumo to authenticated;
 
+-- ───────────────────────── 7b) RESPONSÁVEL DA EQUIPE E NOTIFICAÇÕES ─────────────────────────
+-- A tarefa pode ter como responsável uma pessoa da equipe (responsavel_id) ou só um nome (responsavel).
+alter table public.tarefas add column if not exists responsavel_id uuid references auth.users(id) on delete set null;
+
+create table if not exists public.notificacoes (
+  id         uuid primary key default gen_random_uuid(),
+  org_id     uuid not null references public.organizacoes(id) on delete cascade,
+  para_user  uuid not null references auth.users(id) on delete cascade,
+  de_user    uuid references auth.users(id) on delete set null,
+  de_nome    text not null default '',
+  tipo       text not null default 'tarefa',
+  titulo     text not null,
+  texto      text not null default '',
+  rota       text not null default '/',
+  obra_id    bigint,
+  lida       boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists notificacoes_para_idx on public.notificacoes (para_user, org_id, created_at desc);
+
+-- Quem recebe uma tarefa é avisado na hora, pelo próprio banco (não dá para forjar nem esquecer de avisar).
+create or replace function public.notificar_responsavel() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare v_uid uuid := (select auth.uid()); v_de text; v_obra text;
+begin
+  if new.responsavel_id is null or v_uid is null or new.responsavel_id = v_uid then return null; end if;
+  if tg_op = 'UPDATE' and old.responsavel_id is not distinct from new.responsavel_id then return null; end if;
+  if not exists (select 1 from public.membros where org_id = new.org_id and user_id = new.responsavel_id) then return null; end if;
+  select coalesce(nullif(trim(nome), ''), email, '') into v_de from public.membros where org_id = new.org_id and user_id = v_uid;
+  select case when coalesce(codigo, '') <> '' then codigo || ' - ' else '' end || nome into v_obra
+    from public.obras where org_id = new.org_id and id = new.obra_id;
+  insert into public.notificacoes (org_id, para_user, de_user, de_nome, tipo, titulo, texto, rota, obra_id)
+  values (new.org_id, new.responsavel_id, v_uid, coalesce(v_de, ''), 'tarefa', 'Nova tarefa para você',
+    coalesce(nullif(v_de, ''), 'Alguém') || ' atribuiu a você a tarefa "' || coalesce(nullif(new.nome, ''), 'sem nome') || '"'
+      || case when v_obra is not null then ' na obra ' || v_obra else '' end || '.',
+    '/cronograma', new.obra_id);
+  return null;
+end $$;
+drop trigger if exists trg_tarefas_notificar on public.tarefas;
+create trigger trg_tarefas_notificar after insert or update of responsavel_id on public.tarefas
+  for each row execute function public.notificar_responsavel();
+
+alter table public.notificacoes enable row level security;
+drop policy if exists notificacoes_ver on public.notificacoes;
+drop policy if exists notificacoes_ler on public.notificacoes;
+drop policy if exists notificacoes_apagar on public.notificacoes;
+create policy notificacoes_ver    on public.notificacoes for select to authenticated using (para_user = (select auth.uid()));
+create policy notificacoes_ler    on public.notificacoes for update to authenticated using (para_user = (select auth.uid())) with check (para_user = (select auth.uid()));
+create policy notificacoes_apagar on public.notificacoes for delete to authenticated using (para_user = (select auth.uid()));
+revoke all on public.notificacoes from anon, authenticated;
+grant select, delete on public.notificacoes to authenticated;
+grant update (lida) on public.notificacoes to authenticated;
+
 -- ───────────────────────── 8) ATUALIZAÇÃO EM TEMPO REAL ─────────────────────────
 -- Faz o app de cada pessoa perceber quando outra alterou os dados.
 do $$
 declare t text;
 begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
-    foreach t in array array['obras','itens','compras','historico','cronogramas','tarefas','medicoes','membros'] loop
+    foreach t in array array['obras','itens','compras','historico','cronogramas','tarefas','medicoes','membros','notificacoes'] loop
       begin
         execute format('alter publication supabase_realtime add table public.%I', t);
       exception when duplicate_object then null;

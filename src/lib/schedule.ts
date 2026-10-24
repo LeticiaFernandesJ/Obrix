@@ -7,7 +7,8 @@ export interface Baseline { i: number | null; f: number | null }
 export interface Tarefa {
   id: string; nome: string; nivel: number; dur: number; iniM: number | null;
   pred: Pred[]; peso: number | null; pct: number; rIni: number | null; rFim: number | null;
-  resp: string; marco: boolean; fechado: boolean; bl: Baseline | null;
+  resp: string; /** pessoa da equipe escolhida como responsável (vazio se for só um nome) */ respId: string | null;
+  marco: boolean; fechado: boolean; bl: Baseline | null;
 }
 export interface Medicao { d: string; p: number }
 export type Zoom = 'd' | 's' | 'm' | 'q';
@@ -59,7 +60,7 @@ export function novaTarefa(o?: Partial<Tarefa>): Tarefa {
   return {
     id: 't' + Math.random().toString(36).slice(2, 9),
     nome: '', nivel: 0, dur: 1, iniM: null, pred: [], peso: null, pct: 0,
-    rIni: null, rFim: null, resp: '', marco: false, fechado: false, bl: null,
+    rIni: null, rFim: null, resp: '', respId: null, marco: false, fechado: false, bl: null,
     ...(o || {}),
   };
 }
@@ -73,6 +74,7 @@ export function normalizarEstado(obj: Partial<Estado> | null | undefined): Estad
   const tarefas = (Array.isArray(o.tarefas) ? o.tarefas : []).filter((t) => t && typeof t === 'object').map((t) => {
     const x = novaTarefa(t as Partial<Tarefa>);
     x.nome = String(x.nome ?? ''); x.resp = String(x.resp ?? '');
+    x.respId = typeof x.respId === 'string' && x.respId ? x.respId : null;
     x.nivel = Math.max(0, Math.min(8, Math.round(n(x.nivel)))); x.dur = Math.max(0, n(x.dur, 1));
     x.pct = Math.max(0, Math.min(100, n(x.pct))); x.iniM = nn(x.iniM); x.rIni = nn(x.rIni); x.rFim = nn(x.rFim); x.peso = nn(x.peso);
     x.pred = (Array.isArray(x.pred) ? x.pred : []).filter((p) => p && typeof p.id === 'string')
@@ -291,7 +293,8 @@ export type CampoGrade = 'nome' | 'resp' | 'dur' | 'ini' | 'fim' | 'pred' | 'pct
 /** Aplica a edição diretamente em S (que deve ser uma cópia). `calcAnt` = cálculo do estado anterior. */
 export function aplicarCampo(S: Estado, cal: Cal, calcAnt: Calc[], i: number, k: CampoGrade, val: string) {
   const t = S.tarefas[i]; if (!t) return;
-  if (k === 'nome' || k === 'resp') t[k] = val;
+  if (k === 'nome') t.nome = val;
+  else if (k === 'resp') { if (t.resp !== val) t.respId = null; t.resp = val; } // digitar um nome na grade vira "só o nome"
   else if (k === 'dur') { const v = Math.max(0, parseFloat(String(val).replace(',', '.')) || 0); t.dur = v; t.marco = v === 0; }
   else if (k === 'ini') t.iniM = parseData(val);
   else if (k === 'fim') {

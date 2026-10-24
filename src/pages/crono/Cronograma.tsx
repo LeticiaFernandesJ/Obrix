@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronsLeft, ChevronsRight, Diamond, Plus, Save, Trash2, BarChart3 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronsLeft, ChevronsRight, Diamond, Pencil, Plus, Save, Trash2, BarChart3 } from 'lucide-react';
 import { useApp } from '../../store/AppStore';
 import {
   type CampoGrade, type Zoom, aplicarCampo, filhos, linhasVisiveis, novaTarefa, pctRealAtual, predTexto,
@@ -10,6 +10,7 @@ import { montarGantt } from './gantt';
 import { useDialogo } from '../../components/Dialogo';
 import { plural } from '../../lib/ac21';
 import { CronoHeader } from './CronoHeader';
+import { TarefaModal } from './TarefaModal';
 
 interface ColDef { k: string; t: string; sub?: string; w: number; cls: string }
 const COLS_BASE: ColDef[] = [
@@ -48,6 +49,7 @@ export default function Cronograma() {
   const { confirmar } = useDialogo();
   const [sel, setSel] = useState(0);
   const [mostrarReal, setMostrarReal] = useState(false);
+  const [tm, setTm] = useState<{ indice: number | null; marco: boolean } | null>(null); // janela da tarefa
   const [larg, setLarg] = useState(778);
   const foco = useRef<{ i: number; k: string } | null>(null);
   const paneL = useRef<HTMLDivElement>(null);
@@ -194,8 +196,9 @@ export default function Cronograma() {
 
       {!ro && (
         <div className="toolbar">
-          <button className="btn" onClick={() => addTarefa(false)}><Plus size={15} /> Tarefa</button>
-          <button className="btn" onClick={() => addTarefa(true)} title="Inserir marco (duração 0)"><Diamond size={14} /> Marco</button>
+          <button className="btn" onClick={() => setTm({ indice: null, marco: false })} title="Abrir a janela para preencher a nova tarefa"><Plus size={15} /> Tarefa</button>
+          <button className="btn" onClick={() => setTm({ indice: null, marco: true })} title="Inserir marco (duração 0)"><Diamond size={14} /> Marco</button>
+          <button className="btn" disabled={!T[selOk]} onClick={() => setTm({ indice: selOk, marco: false })} title="Abrir os dados da linha selecionada (ou dê dois cliques no número da linha)"><Pencil size={14} /> Detalhes</button>
           <div className="sep" />
           <button className="btn btn-icon" title="Diminuir nível (Alt+←)" aria-label="Diminuir nível (Alt+←)" onClick={() => indentar(-1)}><ChevronsLeft size={15} /></button>
           <button className="btn btn-icon" title="Aumentar nível (Alt+→)" aria-label="Aumentar nível (Alt+→)" onClick={() => indentar(1)}><ChevronsRight size={15} /></button>
@@ -250,7 +253,7 @@ export default function Cronograma() {
                     return (
                       <tr key={t.id} data-i={i} className={(res ? 'summary ' : '') + (k.crit && !res ? 'crit ' : '') + (i === selOk ? 'sel' : '')}
                         onFocus={() => setSel(i)}>
-                        <td className="rownum" onClick={() => setSel(i)}>{i + 1}</td>
+                        <td className="rownum" onClick={() => setSel(i)} onDoubleClick={() => { if (!ro) setTm({ indice: i, marco: false }); }} title={ro ? undefined : 'Dois cliques abrem os dados da tarefa'}>{i + 1}</td>
                         {CS.map((col) => {
                           const cl = col.cls;
                           const base = { 'data-i': i, 'data-k': col.k, 'aria-label': `${col.t}${col.sub ? ' (' + col.sub + ')' : ''}, linha ${i + 1}`, onKeyDown: (e: React.KeyboardEvent) => onKey(e, i, col.k) };
@@ -307,6 +310,7 @@ export default function Cronograma() {
         <span>{nLinhas} tarefas / fases{crono.baseline ? ' · linha de base salva' : ''}</span>
       </div>
       <div className="tip" ref={tip} />
+      {tm && !ro && <TarefaModal indice={tm.indice} marcoInicial={tm.marco} selecionada={selOk} onClose={() => setTm(null)} onSalvo={(l) => setSel(l)} />}
     </div>
   );
 }

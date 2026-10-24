@@ -59,7 +59,7 @@ export function paraLinhas(db: DB, cronos: Record<string, Estado>): Linhas {
     S.tarefas.forEach((t, ordem) => L.tarefas.push({
       obra_id: obraId, id: t.id, ordem, nome: t.nome, nivel: t.nivel, duracao: t.dur, inicio_manual: nIso(t.iniM),
       predecessoras: t.pred, peso: t.peso, pct: t.pct, inicio_real: nIso(t.rIni), fim_real: nIso(t.rFim),
-      responsavel: t.resp, marco: t.marco, fechado: t.fechado,
+      responsavel: t.resp, responsavel_id: t.respId, marco: t.marco, fechado: t.fechado,
       base_inicio: nIso(t.bl?.i), base_fim: nIso(t.bl?.f),
     }));
     S.medicoes.forEach((m) => { const d = data(m.d); if (d) L.medicoes.push({ obra_id: obraId, data: d, pct: Math.max(0, Math.min(100, m.p)) }); });
@@ -102,7 +102,7 @@ export function deLinhas(L: Linhas): { db: DB; cronos: Record<string, Estado> } 
       id: str(t.id), nome: str(t.nome), nivel: num(t.nivel), dur: num(t.duracao, 1), iniM: iso2n(data(t.inicio_manual)),
       pred: Array.isArray(t.predecessoras) ? (t.predecessoras as Tarefa['pred']) : [],
       peso: t.peso == null ? null : num(t.peso), pct: num(t.pct), rIni: iso2n(data(t.inicio_real)), rFim: iso2n(data(t.fim_real)),
-      resp: str(t.responsavel), marco: !!t.marco, fechado: !!t.fechado,
+      resp: str(t.responsavel), respId: t.responsavel_id ? String(t.responsavel_id) : null, marco: !!t.marco, fechado: !!t.fechado,
       bl: t.base_inicio || t.base_fim ? { i: iso2n(data(t.base_inicio)), f: iso2n(data(t.base_fim)) } : null,
     }));
     const meta: Partial<Estado['meta']> = {
@@ -251,6 +251,10 @@ export async function enviarMudancas(sb: SupabaseClient, orgId: string, L: Linha
       let res = versionada ? await sb.from(t).upsert(linhas, opcoes).select([...CHAVES[t], 'updated_at'].join(',')) : await sb.from(t).upsert(linhas, opcoes);
       // banco ainda sem a coluna updated_at nesta tabela (script SQL antigo): grava sem acompanhar a versão
       if (res.error && versionada && /updated_at/.test(res.error.message ?? '')) res = await sb.from(t).upsert(linhas, opcoes);
+      // banco ainda sem a coluna do responsável da equipe: grava sem ela (o nome continua indo no campo de texto)
+      if (res.error && t === 'tarefas' && /responsavel_id/.test(res.error.message ?? '')) {
+        res = await sb.from(t).upsert(linhas.map((r) => { const { responsavel_id: _ignorado, ...resto } = r as Row; return resto; }), opcoes);
+      }
       if (res.error) throw res.error;
       if (versionada) ((res.data ?? []) as unknown as Row[]).forEach((r) => { if (r.updated_at != null) ctrl!.versoes.set(chaveVersao(t, r), String(r.updated_at)); });
       parte.forEach((r) => snap[t].set(chave(t, r), JSON.stringify(r)));

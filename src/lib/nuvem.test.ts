@@ -166,3 +166,29 @@ describe('edição simultânea', () => {
     expect([...v.entries()]).toEqual([['obras|2', '2026-01-01T00:00:00+00:00']]);
   });
 });
+
+describe('responsável da equipe no banco', () => {
+  it('vai e volta pelas linhas das tarefas', () => {
+    const S = { ...E, tarefas: E.tarefas.map((t, i) => (i === 0 ? { ...t, resp: 'Ana', respId: 'user-1' } : t)) };
+    const L = paraLinhas(db(), { '2': S });
+    expect(L.tarefas[0].responsavel_id).toBe('user-1'); expect(L.tarefas[1].responsavel_id).toBeNull();
+    const volta = deLinhas(JSON.parse(JSON.stringify(L))).cronos['2'];
+    expect(volta.tarefas[0].respId).toBe('user-1'); expect(volta.tarefas[0].resp).toBe('Ana'); expect(volta.tarefas[1].respId).toBeNull();
+  });
+
+  it('banco ainda sem a coluna responsavel_id: grava as tarefas sem ela, em vez de travar a sincronização', async () => {
+    const chamadas: { t: string; temColuna: boolean }[] = [];
+    const cliente = {
+      from: (t: string) => ({
+        upsert: async (rows: Record<string, unknown>[]) => {
+          const temColuna = rows.some((r) => 'responsavel_id' in r);
+          chamadas.push({ t, temColuna });
+          return t === 'tarefas' && temColuna ? { error: { message: 'column "responsavel_id" of relation "tarefas" does not exist' } } : { error: null };
+        },
+      }),
+    } as unknown as SupabaseClient;
+    await enviarMudancas(cliente, 'u', paraLinhas(db(), { '2': E }), snapVazio());
+    const tarefas = chamadas.filter((c) => c.t === 'tarefas');
+    expect(tarefas).toEqual([{ t: 'tarefas', temColuna: true }, { t: 'tarefas', temColuna: false }]);
+  });
+});

@@ -41,6 +41,8 @@ interface Ctx {
   readOnly: boolean;
 
   /* equipe */
+  /** quem está logado (null no uso local) */
+  userId: string | null;
   orgId: string | null;
   orgNome: string;
   orgs: Org[];
@@ -85,7 +87,7 @@ interface ProviderProps {
   orgId?: string | null; papel?: Papel | null; permissoes?: Permissoes | null; orgs?: Org[]; trocarOrg?: (id: string) => void; recarregarOrgs?: () => void;
 }
 
-export function AppProvider({ children, email, nome = '', onSignOut, orgId = null, papel = null, permissoes = null, orgs = [], trocarOrg, recarregarOrgs }: ProviderProps) {
+export function AppProvider({ children, userId = null, email, nome = '', onSignOut, orgId = null, papel = null, permissoes = null, orgs = [], trocarOrg, recarregarOrgs }: ProviderProps) {
   const { confirmar, avisar } = useDialogo();
   // as janelas de diálogo são chamadas de dentro de callbacks e efeitos que não devem refazer-se a cada renderização
   const confirmarRef = useRef(confirmar); confirmarRef.current = confirmar;
@@ -480,7 +482,7 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
     db, obraAtivaId, obraAtual, cronos, exportarTudo, setObraAtiva, salvarObra, excluirObra, salvarItem, excluirItem, salvarCompra, excluirCompra,
     registrarHistorico, importarDB,
     crono, cal, calc, updateCrono, carregarCrono, readOnly,
-    orgId, orgNome: orgAtual?.nome ?? '', orgs, papel, permissoes, podeEditar, podeEditarArea: editaArea, podeVerArea: veArea,
+    userId, orgId, orgNome: orgAtual?.nome ?? '', orgs, papel, permissoes, podeEditar, podeEditarArea: editaArea, podeVerArea: veArea,
     trocarOrg: trocarOrg ?? (() => undefined), recarregarOrgs: recarregarOrgs ?? (() => undefined),
     usuario: email, nomeUsuario: nome, sair: onSignOut ? sairSeguro : null, nuvem, recarregarNuvem: () => { void carregarNuvem(); }, tentarSincronizar: () => { void salvarAgora(); },
     tema, alternarTema: () => setTema((t) => (t === 'dark' ? 'light' : 'dark')),

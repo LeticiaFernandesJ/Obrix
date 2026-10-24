@@ -319,6 +319,59 @@ describe('histórico como registro de auditoria', () => {
   }, 60000);
 });
 
+describe('responsável da tarefa e notificações', () => {
+  let org = '';
+  const notas = (uid: string) => linhas<{ titulo: string; texto: string; lida: boolean; rota: string; obra_id: string }>(uid, `select titulo, texto, lida, rota, obra_id from public.notificacoes where org_id = '${org}' order by created_at`);
+  beforeAll(async () => {
+    org = (await linhas<{ org: string }>(D, `select public.criar_organizacao('Org Notificações') as org`))[0].org;
+    await como(D, () => db.exec(`select public.definir_meu_nome('Diana Reis')`));
+    await como(D, () => db.exec(`insert into public.convites (org_id, papel) values ('${org}', 'editor')`));
+    const t = (await linhas<{ token: string }>(D, `select token from public.convites where org_id = '${org}'`))[0].token;
+    await linhas(B, `select public.aceitar_convite('${t}')`);
+    await como(D, () => db.exec(`insert into public.obras (org_id, id, codigo, nome) values ('${org}', 1, 'P-1', 'Ponte Norte');
+      insert into public.cronogramas (org_id, obra_id, nome) values ('${org}', 1, 'crono');`));
+  });
+  it('escolher alguém da equipe como responsável avisa essa pessoa, com o nome de quem atribuiu', async () => {
+    expect(await tenta(D, `insert into public.tarefas (org_id, obra_id, id, ordem, nome, responsavel, responsavel_id) values ('${org}', 1, 't1', 0, 'Concretar laje', 'b@x.com', '${B}')`)).toBeNull();
+    const n = await notas(B);
+    expect(n).toHaveLength(1);
+    expect(n[0].titulo).toBe('Nova tarefa para você');
+    expect(n[0].texto).toBe('Diana Reis atribuiu a você a tarefa "Concretar laje" na obra P-1 - Ponte Norte.');
+    expect(n[0].lida).toBe(false); expect(n[0].rota).toBe('/cronograma'); expect(String(n[0].obra_id)).toBe('1');
+  });
+  it('salvar de novo com o mesmo responsável não avisa outra vez; trocar de responsável avisa o novo', async () => {
+    await tenta(D, `update public.tarefas set nome = 'Concretar a laje 2', responsavel_id = '${B}' where org_id = '${org}' and id = 't1'`);
+    expect(await notas(B)).toHaveLength(1);
+    await tenta(B, `update public.tarefas set responsavel_id = '${D}' where org_id = '${org}' and id = 't1'`);
+    const paraD = await notas(D);
+    expect(paraD).toHaveLength(1); expect(paraD[0].texto).toContain('b@x.com atribuiu a você');
+  });
+  it('a própria pessoa não é avisada de uma tarefa que ela mesma atribuiu a si', async () => {
+    await tenta(D, `insert into public.tarefas (org_id, obra_id, id, ordem, nome, responsavel_id) values ('${org}', 1, 't4', 3, 'Vistoria', '${D}')`);
+    expect(await notas(D)).toHaveLength(1);
+  });
+  it('só nome (sem pessoa da equipe) e quem não é da equipe não geram aviso', async () => {
+    await tenta(D, `insert into public.tarefas (org_id, obra_id, id, ordem, nome, responsavel) values ('${org}', 1, 't2', 1, 'Pintura', 'Seu Zé')`);
+    await tenta(D, `insert into public.tarefas (org_id, obra_id, id, ordem, nome, responsavel_id) values ('${org}', 1, 't3', 2, 'Elétrica', '${A}')`);
+    expect(await linhas(A, `select 1 from public.notificacoes where org_id = '${org}'`)).toHaveLength(0);
+  });
+  it('cada pessoa só vê as próprias notificações; as dos outros ficam invisíveis', async () => {
+    expect(await linhas(C, `select 1 from public.notificacoes where org_id = '${org}'`)).toHaveLength(0);
+    expect((await notas(B)).length).toBe(1);
+  });
+  it('não dá para criar nem alterar notificação direto; só marcar como lida e apagar as próprias', async () => {
+    expect(await tenta(B, `insert into public.notificacoes (org_id, para_user, titulo) values ('${org}', '${B}', 'falsa')`)).not.toBeNull();
+    expect(await tenta(B, `update public.notificacoes set texto = 'adulterado' where org_id = '${org}'`)).not.toBeNull();
+    expect(await tenta(B, `update public.notificacoes set lida = true where org_id = '${org}'`)).toBeNull();
+    expect((await notas(B))[0].lida).toBe(true);
+    await tenta(C, `update public.notificacoes set lida = true where org_id = '${org}'`);
+    expect(Number((await q<{ n: string }>(`select count(*) n from public.notificacoes where org_id = '${org}' and lida = false`))[0].n)).toBe(1); // a de D continua não lida
+    await tenta(B, `delete from public.notificacoes where org_id = '${org}'`);
+    expect(await notas(B)).toHaveLength(0);
+    expect(await notas(D)).toHaveLength(1);
+  });
+});
+
 describe('limite de organizações por conta', () => {
   it('cada conta cria no máximo 5 organizações (a migrada também conta)', async () => {
     let criadas = 0, erroFinal: string | null = null;

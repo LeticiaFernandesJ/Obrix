@@ -642,3 +642,11 @@ button:focus-visible, a:focus-visible, [role="tab"]:focus-visible { outline: 2px
 @media (max-height: 760px) and (min-width: 961px) { .lg-hero p { display: none; } }
 .lg-card { background: #fefdfb; }
 @media (max-width: 960px) { .lg-eyebrow { text-align: left; } }
+
+/* notificações no sino */
+.sino-topo { display: flex; align-items: center; gap: 6px; }
+.sino-todas { margin-left: auto; font-size: 12px; font-weight: 600; }
+.sino-item.nova { background: color-mix(in srgb, var(--brand-2, #e8761e) 9%, transparent); }
+.sino-item em { display: block; font-style: normal; font-size: 11px; color: var(--text3); margin-top: 3px; }
+.sino-icone { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; flex: 0 0 auto; background: var(--blue-light); color: var(--blue); margin-top: 1px; }
+.sino-item.nova b::after { content: ''; display: inline-block; width: 7px; height: 7px; margin-left: 8px; border-radius: 50%; background: var(--brand-2, #e8761e); vertical-align: 1px; }

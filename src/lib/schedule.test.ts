@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { iso2n, n2br, parseData } from './dates';
 import {
-  calcular, difUtil, exemplo, importarTexto, makeCal, normalizarEstado, novaTarefa, novoEstado, pctRealAtual,
+  aplicarCampo, calcular, difUtil, exemplo, importarTexto, makeCal, normalizarEstado, novaTarefa, novoEstado, pctRealAtual,
   predParse, predTexto, somaUtil,
 } from './schedule';
 
@@ -128,5 +128,20 @@ describe('normalizarEstado', () => {
     expect(S.tarefas[1].nivel).toBeLessThanOrEqual(1); // o nível não pode pular
     expect(S.medicoes).toEqual([{ d: '2026-01-01', p: 5 }]);
     expect(() => calcular(S, makeCal(S))).not.toThrow();
+  });
+});
+
+describe('responsável da equipe', () => {
+  it('a tarefa nasce sem pessoa da equipe e o arquivo carregado mantém só ids válidos', () => {
+    expect(novaTarefa().respId).toBeNull();
+    const S = normalizarEstado({ tarefas: [{ ...novaTarefa({ nome: 'a', resp: 'Ana', respId: 'u-1' }) }, { ...novaTarefa({ nome: 'b' }), respId: 5 as unknown as string }] });
+    expect(S.tarefas[0].respId).toBe('u-1'); expect(S.tarefas[1].respId).toBeNull();
+  });
+  it('digitar outro nome na grade desfaz a ligação com a pessoa da equipe', () => {
+    const S = novoEstado(); S.tarefas = [novaTarefa({ resp: 'Ana', respId: 'u-1' })];
+    const cal = makeCal(S);
+    aplicarCampo(S, cal, [], 0, 'resp', 'Ana'); expect(S.tarefas[0].respId).toBe('u-1'); // mesmo nome: continua
+    aplicarCampo(S, cal, [], 0, 'resp', 'Seu José'); expect(S.tarefas[0].respId).toBeNull();
+    expect(S.tarefas[0].resp).toBe('Seu José');
   });
 });

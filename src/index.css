@@ -609,3 +609,36 @@ button:focus-visible, a:focus-visible, [role="tab"]:focus-visible { outline: 2px
 .sino-vazio { display: flex; align-items: center; gap: 10px; padding: 22px 16px; color: var(--text2); font-size: 13px; }
 .sino-vazio svg { color: var(--green); flex: 0 0 auto; }
 @media (max-width: 560px) { .sino-painel { position: fixed; left: 16px; right: 16px; top: 72px; width: auto; max-width: none; } }
+
+/* ── login: fotografia da obra, texto à esquerda e cartão claro (tipografia Montserrat) ── */
+.lg-page { font-family: 'Montserrat', 'Inter', system-ui, sans-serif; background-position: center 55%; }
+.lg-shade { background: linear-gradient(90deg, rgba(4, 10, 22, .74) 0%, rgba(4, 10, 22, .38) 48%, rgba(4, 10, 22, .08) 100%), linear-gradient(180deg, rgba(4, 10, 22, .35) 0%, rgba(4, 10, 22, 0) 35%); }
+.lg-hero { max-width: 520px; transform: translateY(-4vh); }
+.lg-eyebrow { display: block; position: relative; padding-top: 22px; font-size: 14px; font-weight: 400; letter-spacing: .34em; text-transform: uppercase; color: #ece6df; margin-bottom: 14px; }
+.lg-eyebrow::before { content: ''; position: absolute; top: 0; left: 0; width: 62px; height: 3px; border-radius: 2px; background: #f0832a; }
+.lg-hero h2 { font-size: clamp(40px, 5vw, 62px); font-weight: 300; line-height: 1.08; letter-spacing: -.015em; color: #fff; }
+.lg-hero h2 em { font-style: normal; font-weight: 600; color: #f58a2d; }
+.lg-hero p { margin-top: 18px; max-width: 400px; font-size: 17px; line-height: 1.55; font-weight: 300; color: rgba(255, 255, 255, .88); }
+.lg-card { background: rgba(253, 251, 248, .97); border-radius: 24px; }
+.lg-card h1 { font-size: clamp(26px, 3.6vh, 33px); font-weight: 400; letter-spacing: -.015em; color: #14213a; line-height: 1.15; }
+.lg-card h1 em { font-style: normal; font-weight: 500; color: #d2650f; }
+.lg-sub { font-weight: 400; color: #6d7480; }
+.lg-field label { font-weight: 600; font-size: 14px; }
+.lg-input { background: #faf7f4; border-color: #e6dfd8; border-radius: 12px; }
+.lg-input input { font-family: inherit; font-weight: 400; }
+.lg-input input::placeholder { color: #8b919b; }
+.lg-link { color: #c75a0c; font-weight: 600; }
+.lg-btn { font-family: inherit; font-weight: 500; font-size: 19px; border-radius: 12px; background: linear-gradient(90deg, #c4590f 0%, #e8761e 100%); box-shadow: 0 10px 24px rgba(196, 89, 15, .35); }
+.lg-foot { color: #5c6470; font-size: 14.5px; }
+.lg-app { font-family: inherit; font-weight: 600; }
+@media (max-width: 960px) {
+  .lg-page { background-position: center top; }
+  .lg-shade { background: linear-gradient(180deg, rgba(4, 10, 22, .62) 0%, rgba(4, 10, 22, .22) 38%, rgba(4, 10, 22, .12) 62%, rgba(4, 10, 22, .5) 100%); }
+  .lg-eyebrow { display: block; align-self: flex-start; width: 100%; max-width: 440px; font-size: 13px; margin-top: 4px; margin-bottom: 8px; }
+  .lg-hero h2 { align-self: flex-start; width: 100%; max-width: 440px; text-align: left; font-size: clamp(36px, 11vw, 50px); margin: 0 0 12px; }
+  .lg-hero p { display: block; align-self: flex-start; width: 100%; max-width: 440px; margin: 0 0 22px; font-size: 15.5px; text-align: left; }
+  .lg-card h1 { font-size: 27px; }
+}
+@media (max-height: 760px) and (min-width: 961px) { .lg-hero p { display: none; } }
+.lg-card { background: rgba(255, 255, 255, .97); }
+@media (max-width: 960px) { .lg-eyebrow { text-align: left; } }

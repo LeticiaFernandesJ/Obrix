@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, BarChart3, Download, Eye, EyeOff, FileText, Lock, Mail, User, Users } from 'lucide-react';
+import { ArrowRight, Download, Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
 import { supabase, supabaseAtivo } from '../lib/supabase';
 import { AppProvider } from '../store/AppStore';
 import OrgGate from './OrgGate';
@@ -24,10 +24,10 @@ function traduzir(msg: string): string {
 }
 
 type Modo = 'entrar' | 'criar' | 'recuperar';
-const TEXTOS: Record<Modo, { titulo: string; sub: string; botao: string }> = {
-  entrar: { titulo: 'Entrar na sua conta', sub: 'Acesse o sistema e gerencie suas obras de forma simples e eficiente.', botao: 'Entrar' },
-  criar: { titulo: 'Criar sua conta', sub: 'Cadastre-se para guardar suas obras e cronogramas com segurança.', botao: 'Criar conta' },
-  recuperar: { titulo: 'Recuperar senha', sub: 'Informe seu e-mail e enviaremos um link para redefinir a senha.', botao: 'Enviar link' },
+const TEXTOS: Record<Modo, { antes: string; destaque: string; sub: string; botao: string }> = {
+  entrar: { antes: 'Entre na ', destaque: 'sua conta', sub: 'Acesse e continue acompanhando suas obras.', botao: 'Entrar' },
+  criar: { antes: 'Crie ', destaque: 'sua conta', sub: 'Cadastre-se para guardar suas obras e cronogramas com segurança.', botao: 'Criar conta' },
+  recuperar: { antes: 'Recupere ', destaque: 'sua senha', sub: 'Informe seu e-mail e enviaremos um link para redefinir a senha.', botao: 'Enviar link' },
 };
 
 function BotaoBaixarApp() {
@@ -96,20 +96,15 @@ function Login() {
       <div className="lg-shade" />
       <div className="lg-inner">
         <section className="lg-hero" aria-label="Apresentação">
-          <span className="lg-eyebrow">OBRIX</span>
-          <h2>Gestão de obras<br /><em>mais eficiente.</em></h2>
-          <p>Planejamento, execução e <br />controle em um só lugar.</p>
-          <ul className="lg-feats">
-            <li><span><BarChart3 size={22} /></span>Acompanhe<br />o progresso</li>
-            <li><span><Users size={22} /></span>Organize<br />a equipe</li>
-            <li><span><FileText size={22} /></span>Tenha o controle<br />em tempo real</li>
-          </ul>
+          <span className="lg-eyebrow">Gestão de obras</span>
+          <h2>Mais <em>eficiente.</em></h2>
+          <p>Organize suas obras, acompanhe o progresso e construa melhores resultados.</p>
           <BotaoBaixarApp />
         </section>
 
         <form className="lg-card" onSubmit={enviar}>
           <span className="logo-crop lg-logo"><img src={BASE + 'assets/obrix-logo.jpg'} alt="Obrix - Gestão inteligente de obras" /></span>
-          <h1>{t.titulo}</h1>
+          <h1>{t.antes}<em>{t.destaque}</em></h1>
           <p className="lg-sub">{t.sub}</p>
 
           {modo === 'criar' && (

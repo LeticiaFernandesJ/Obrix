@@ -51,6 +51,7 @@ interface Ctx {
   recarregarOrgs: () => void;
 
   usuario: string | null;
+  /** nome completo de quem está logado (vazio se não informou) */ nomeUsuario: string;
   sair: (() => Promise<void>) | null;
   nuvem: StatusNuvem;
   recarregarNuvem: () => void;
@@ -75,11 +76,11 @@ function lerJSON<T>(k: string): T | null {
 function gravar(k: string, v: unknown) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } }
 
 interface ProviderProps {
-  children: ReactNode; userId: string | null; email: string | null; onSignOut: (() => Promise<void>) | null;
+  children: ReactNode; userId: string | null; email: string | null; nome?: string; onSignOut: (() => Promise<void>) | null;
   orgId?: string | null; papel?: Papel | null; orgs?: Org[]; trocarOrg?: (id: string) => void; recarregarOrgs?: () => void;
 }
 
-export function AppProvider({ children, email, onSignOut, orgId = null, papel = null, orgs = [], trocarOrg, recarregarOrgs }: ProviderProps) {
+export function AppProvider({ children, email, nome = '', onSignOut, orgId = null, papel = null, orgs = [], trocarOrg, recarregarOrgs }: ProviderProps) {
   const { confirmar, avisar } = useDialogo();
   // cada organização tem o seu próprio cache no navegador
   const sufixo = orgId ? ':' + orgId : '';
@@ -438,7 +439,7 @@ export function AppProvider({ children, email, onSignOut, orgId = null, papel = 
     crono, cal, calc, updateCrono, carregarCrono, readOnly,
     orgId, orgNome: orgAtual?.nome ?? '', orgs, papel, podeEditar,
     trocarOrg: trocarOrg ?? (() => undefined), recarregarOrgs: recarregarOrgs ?? (() => undefined),
-    usuario: email, sair: onSignOut ? sairSeguro : null, nuvem, recarregarNuvem: () => { void carregarNuvem(); }, tentarSincronizar: () => { void salvarAgora(); },
+    usuario: email, nomeUsuario: nome, sair: onSignOut ? sairSeguro : null, nuvem, recarregarNuvem: () => { void carregarNuvem(); }, tentarSincronizar: () => { void salvarAgora(); },
     tema, alternarTema: () => setTema((t) => (t === 'dark' ? 'light' : 'dark')),
     toast, toastMsg,
   };

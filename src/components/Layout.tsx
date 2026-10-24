@@ -93,7 +93,7 @@ function AC21Actions() {
 
 export default function Layout() {
   const { pathname } = useLocation();
-  const { toastMsg, readOnly, usuario, sair, nuvem, recarregarNuvem, tentarSincronizar, orgId, orgNome, papel } = useApp();
+  const { toastMsg, readOnly, usuario, nomeUsuario, sair, nuvem, recarregarNuvem, tentarSincronizar, orgId, orgNome, papel } = useApp();
   const [aberto, setAberto] = useState(false);
   const { podeInstalar, instalarNoIos, instalar } = useInstalar();
   useEffect(() => setAberto(false), [pathname]);
@@ -132,7 +132,7 @@ export default function Layout() {
         {usuario ? (
           <div className="user-box">
             {orgNome && <span className="org-nome" title={orgNome}>{orgNome}</span>}
-            <span className="email" title={usuario}>{usuario}{papel && <em className="papel-tag">{papel === 'admin' ? 'admin' : papel === 'editor' ? 'editor' : 'leitor'}</em>}</span>
+            <span className="email" title={nomeUsuario ? `${nomeUsuario} (${usuario})` : usuario}>{nomeUsuario || usuario}{papel && <em className="papel-tag">{papel === 'admin' ? 'admin' : papel === 'editor' ? 'editor' : 'leitor'}</em>}</span>
             <span className="sync">
               <i className={'sync-dot' + (nuvem === 'salvando' || nuvem === 'carregando' ? ' busy' : nuvem === 'erro' ? ' err' : '')} />
               {nuvem === 'salvo' && <>Salvo na nuvem <button onClick={recarregarNuvem}>atualizar</button></>}

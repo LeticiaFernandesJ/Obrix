@@ -48,7 +48,7 @@ Use **somente** a chave `anon`. Nunca coloque a `service_role` no front-end.
 
 Os arquivos em `supabase/legado/` são formatos antigos. O `schema-completo-v2.sql` só é usado pelo teste da migração.
 
-> **Atualizando uma instalação antiga:** rode de novo o `supabase/schema-equipes.sql` no SQL Editor. Ele é seguro para repetir e acrescenta a coluna de vencimento das compras.
+> **Atualizando uma instalação antiga:** rode de novo o `supabase/schema-equipes.sql` no SQL Editor. Ele é seguro para repetir e acrescenta o vencimento das compras e o nome completo dos membros.
 
 ## Equipes e permissões
 

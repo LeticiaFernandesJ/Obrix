@@ -6,14 +6,14 @@ import { Empty } from '../components/ui';
 import { supabase } from '../lib/supabase';
 import {
   LISTA_PAPEIS, PAPEIS, type Convite, type Membro, type Papel, apagarConvite, criarConvite, linkConvite, listarConvites,
-  listarMembros, mudarPapel, removerMembro, renomearOrg, traduzirErro,
+  definirMeuNome, listarMembros, mudarPapel, removerMembro, renomearOrg, traduzirErro,
 } from '../lib/equipe';
 
 const dataBR = (iso: string) => new Date(iso).toLocaleDateString('pt-BR');
 const classePapel = (p: Papel) => (p === 'admin' ? 'badge-blue' : p === 'editor' ? 'badge-ok' : 'badge-gray');
 
 export default function Equipe() {
-  const { orgId, orgNome, orgs, papel, usuario, trocarOrg, recarregarOrgs, toast } = useApp();
+  const { orgId, orgNome, orgs, papel, usuario, nomeUsuario, trocarOrg, recarregarOrgs, toast } = useApp();
   const { confirmar, avisar } = useDialogo();
   const [membros, setMembros] = useState<Membro[]>([]);
   const [convites, setConvites] = useState<Convite[]>([]);
@@ -21,10 +21,12 @@ export default function Equipe() {
   const [novoPapel, setNovoPapel] = useState<Papel>('editor');
   const [paraQuem, setParaQuem] = useState('');
   const [nome, setNome] = useState(orgNome);
+  const [meuNome, setMeuNome] = useState(nomeUsuario);
   const [meuId, setMeuId] = useState<string | null>(null);
   const admin = papel === 'admin';
 
   useEffect(() => { setNome(orgNome); }, [orgNome]);
+  useEffect(() => { setMeuNome(nomeUsuario); }, [nomeUsuario]);
   useEffect(() => { void supabase?.auth.getUser().then(({ data }) => setMeuId(data.user?.id ?? null)); }, []);
 
   const carregar = useCallback(async () => {
@@ -68,12 +70,16 @@ export default function Equipe() {
   };
   const remover = async (m: Membro) => {
     const eu = m.user_id === meuId;
-    const msg = eu ? `Você deixa de ter acesso aos dados de "${orgNome}".` : `${m.email || 'Esta pessoa'} deixa de ter acesso aos dados de "${orgNome}".`;
+    const msg = eu ? `Você deixa de ter acesso aos dados de "${orgNome}".` : `${m.nome || m.email || 'Esta pessoa'} deixa de ter acesso aos dados de "${orgNome}".`;
     if (!(await confirmar(msg, { titulo: eu ? 'Sair desta organização?' : 'Remover da equipe?', confirmar: eu ? 'Sair' : 'Remover', perigo: true }))) return;
     try {
       await removerMembro(supabase!, orgId, m.user_id);
       if (eu) recarregarOrgs(); else { await carregar(); toast('Pessoa removida.'); }
     } catch (e) { falha(e); }
+  };
+  const salvarMeuNome = async () => {
+    if (meuNome.trim().length < 3 || meuNome.trim() === nomeUsuario) return;
+    try { await definirMeuNome(supabase!, meuNome); recarregarOrgs(); await carregar(); toast('Seu nome foi atualizado.'); } catch (e) { falha(e); }
   };
   const salvarNome = async () => {
     if (!nome.trim() || nome.trim() === orgNome) return;
@@ -106,6 +112,17 @@ export default function Equipe() {
       </div>
 
       <div className="card">
+        <div className="card-title">Seu nome</div>
+        <div className="filter-bar">
+          <div className="form-group" style={{ flex: 2 }}>
+            <label htmlFor="equipe-meunome">Nome completo</label>
+            <input id="equipe-meunome" value={meuNome} onChange={(e) => setMeuNome(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void salvarMeuNome(); }} maxLength={120} placeholder="Como você quer aparecer para a equipe" />
+          </div>
+          <button className="btn btn-primary" onClick={() => void salvarMeuNome()} disabled={meuNome.trim().length < 3 || meuNome.trim() === nomeUsuario}><Check size={15} /> Salvar meu nome</button>
+        </div>
+      </div>
+
+      <div className="card">
         <div className="card-title">Membros ({membros.length})</div>
         <div className="table-wrap">
           <table>
@@ -116,10 +133,10 @@ export default function Equipe() {
                 const eu = m.user_id === meuId;
                 return (
                   <tr key={m.user_id}>
-                    <td style={{ fontWeight: 500 }}>{m.email || 'Sem e-mail'}{eu && <span className="badge badge-gray" style={{ marginLeft: 8 }}>você</span>}</td>
+                    <td style={{ fontWeight: 500 }}>{m.nome || m.email || 'Sem nome'}{eu && <span className="badge badge-gray" style={{ marginLeft: 8 }}>você</span>}{m.nome && <div style={{ fontWeight: 400, fontSize: 12.5, color: 'var(--text3)' }}>{m.email}</div>}</td>
                     <td style={{ minWidth: 190 }}>
                       {admin ? (
-                        <select aria-label={`Papel de ${m.email}`} value={m.papel} onChange={(e) => void trocarPapel(m, e.target.value as Papel)} style={{ height: 38, borderRadius: 9 }}>
+                        <select aria-label={`Papel de ${m.nome || m.email}`} value={m.papel} onChange={(e) => void trocarPapel(m, e.target.value as Papel)} style={{ height: 38, borderRadius: 9 }}>
                           {LISTA_PAPEIS.map((p) => <option key={p} value={p}>{PAPEIS[p].rotulo}</option>)}
                         </select>
                       ) : <span className={'badge ' + classePapel(m.papel)}>{PAPEIS[m.papel].rotulo}</span>}

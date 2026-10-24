@@ -26,6 +26,8 @@ create table if not exists public.membros (
   primary key (org_id, user_id)
 );
 create index if not exists membros_user_idx on public.membros (user_id);
+-- nome completo de quem faz parte (vem do cadastro; cada pessoa pode corrigir o próprio)
+alter table public.membros add column if not exists nome text not null default '';
 
 -- Convite por link: o token secreto vai no endereço, vale uma vez e expira.
 create table if not exists public.convites (
@@ -61,29 +63,37 @@ $$;
 -- Cria a organização e já coloca quem criou como administrador.
 create or replace function public.criar_organizacao(p_nome text) returns uuid
 language plpgsql security definer set search_path = '' as $$
-declare v_org uuid; v_email text;
+declare v_org uuid; v_email text; v_nome text;
 begin
   if (select auth.uid()) is null then raise exception 'É preciso estar logado'; end if;
-  select email into v_email from auth.users where id = (select auth.uid());
+  select email, coalesce(raw_user_meta_data->>'nome', '') into v_email, v_nome from auth.users where id = (select auth.uid());
   insert into public.organizacoes (nome, criado_por) values (trim(p_nome), (select auth.uid())) returning id into v_org;
-  insert into public.membros (org_id, user_id, email, papel) values (v_org, (select auth.uid()), coalesce(v_email, ''), 'admin');
+  insert into public.membros (org_id, user_id, email, nome, papel) values (v_org, (select auth.uid()), coalesce(v_email, ''), coalesce(v_nome, ''), 'admin');
   return v_org;
 end $$;
 
 -- Quem abre o link de convite entra na organização com o papel do convite.
 create or replace function public.aceitar_convite(p_token uuid) returns uuid
 language plpgsql security definer set search_path = '' as $$
-declare v_conv public.convites%rowtype; v_email text;
+declare v_conv public.convites%rowtype; v_email text; v_nome text;
 begin
   if (select auth.uid()) is null then raise exception 'É preciso estar logado'; end if;
   select * into v_conv from public.convites where token = p_token and expira_em > now();
   if not found then raise exception 'Convite inválido ou expirado'; end if;
-  select email into v_email from auth.users where id = (select auth.uid());
-  insert into public.membros (org_id, user_id, email, papel)
-    values (v_conv.org_id, (select auth.uid()), coalesce(v_email, ''), v_conv.papel)
+  select email, coalesce(raw_user_meta_data->>'nome', '') into v_email, v_nome from auth.users where id = (select auth.uid());
+  insert into public.membros (org_id, user_id, email, nome, papel)
+    values (v_conv.org_id, (select auth.uid()), coalesce(v_email, ''), coalesce(v_nome, ''), v_conv.papel)
     on conflict (org_id, user_id) do nothing;
   delete from public.convites where id = v_conv.id;
   return v_conv.org_id;
+end $$;
+
+-- Cada pessoa corrige o próprio nome (vale em todas as organizações em que participa).
+create or replace function public.definir_meu_nome(p_nome text) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if (select auth.uid()) is null then raise exception 'É preciso estar logado'; end if;
+  update public.membros set nome = left(trim(p_nome), 120) where user_id = (select auth.uid());
 end $$;
 
 -- Nunca deixa a organização sem administrador.
@@ -102,9 +112,9 @@ create trigger trg_garantir_admin before update or delete on public.membros
   for each row execute function public.garantir_admin();
 
 revoke all on function public.meu_papel(uuid), public.eh_membro(uuid), public.pode_editar(uuid), public.eh_admin(uuid),
-  public.criar_organizacao(text), public.aceitar_convite(uuid) from public, anon;
+  public.criar_organizacao(text), public.aceitar_convite(uuid), public.definir_meu_nome(text) from public, anon;
 grant execute on function public.meu_papel(uuid), public.eh_membro(uuid), public.pode_editar(uuid), public.eh_admin(uuid),
-  public.criar_organizacao(text), public.aceitar_convite(uuid) to authenticated;
+  public.criar_organizacao(text), public.aceitar_convite(uuid), public.definir_meu_nome(text) to authenticated;
 
 -- ───────────────────────── 3) GUARDAR OS DADOS ANTIGOS (se existirem) ─────────────────────────
 drop view if exists public.v_obras_resumo;
@@ -355,6 +365,11 @@ revoke all on public.organizacoes, public.membros, public.convites from anon;
 grant select, update, delete on public.organizacoes to authenticated;
 grant select, update, delete on public.membros to authenticated;
 grant select, insert, update, delete on public.convites to authenticated;
+
+-- Quem já estava na equipe ganha o nome que informou no cadastro (se informou).
+update public.membros m set nome = trim(u.raw_user_meta_data->>'nome')
+  from auth.users u
+  where u.id = m.user_id and m.nome = '' and coalesce(trim(u.raw_user_meta_data->>'nome'), '') <> '';
 
 -- ───────────────────────── 7) RESUMO POR OBRA ─────────────────────────
 create view public.v_obras_resumo with (security_invoker = true) as

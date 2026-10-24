@@ -13,7 +13,7 @@ vi.mock('../lib/supabase', () => ({
 vi.mock('../components/Dialogo', () => ({ useDialogo: () => ({ confirmar: async () => true, avisar: async () => undefined }) }));
 vi.mock('../store/AppStore', () => ({
   useApp: () => ({
-    orgId: 'org1', orgNome: 'Construtora Alfa', orgs: ctx.orgs, papel: ctx.papel, usuario: 'ana@x.com',
+    orgId: 'org1', orgNome: 'Construtora Alfa', orgs: ctx.orgs, papel: ctx.papel, usuario: 'ana@x.com', nomeUsuario: 'Ana Souza',
     trocarOrg: () => undefined, recarregarOrgs: () => undefined, toast: () => undefined,
   }),
 }));
@@ -28,6 +28,7 @@ describe('tela Equipe (primeira renderização)', () => {
     expect(html).toContain('Administrador');
     expect(html).toContain('Convidar pessoas');
     expect(html).toContain('Salvar nome');
+    expect(html).toContain('Ana Souza'); expect(html).toContain('Salvar meu nome');
     expect(html).not.toContain('Trocar de organização'); // só uma organização
   });
   it('leitor não vê convites nem pode renomear', () => {

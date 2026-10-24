@@ -10,8 +10,8 @@ export const PAPEIS: Record<Papel, { rotulo: string; descricao: string }> = {
 };
 export const LISTA_PAPEIS: Papel[] = ['admin', 'editor', 'leitor'];
 
-export interface Org { id: string; nome: string; papel: Papel }
-export interface Membro { user_id: string; email: string; papel: Papel; created_at: string }
+export interface Org { id: string; nome: string; papel: Papel; /** nome completo de quem está logado */ meuNome: string }
+export interface Membro { user_id: string; email: string; nome: string; papel: Papel; created_at: string }
 export interface Convite { id: string; token: string; papel: Papel; email: string; expira_em: string; created_at: string }
 
 const BASE = import.meta.env.BASE_URL;
@@ -51,12 +51,12 @@ export function traduzirErro(msg: string): string {
 }
 
 export async function minhasOrgs(sb: SupabaseClient, userId: string): Promise<Org[]> {
-  const { data, error } = await sb.from('membros').select('papel, organizacoes(id, nome)').eq('user_id', userId);
+  const { data, error } = await sb.from('membros').select('papel, nome, organizacoes(id, nome)').eq('user_id', userId);
   lancar(error);
   const out: Org[] = [];
-  for (const r of (data ?? []) as unknown as { papel: Papel; organizacoes: { id: string; nome: string } | { id: string; nome: string }[] | null }[]) {
+  for (const r of (data ?? []) as unknown as { papel: Papel; nome: string | null; organizacoes: { id: string; nome: string } | { id: string; nome: string }[] | null }[]) {
     const o = Array.isArray(r.organizacoes) ? r.organizacoes[0] : r.organizacoes;
-    if (o) out.push({ id: o.id, nome: o.nome, papel: r.papel });
+    if (o) out.push({ id: o.id, nome: o.nome, papel: r.papel, meuNome: r.nome ?? '' });
   }
   return out.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 }
@@ -78,9 +78,13 @@ export async function renomearOrg(sb: SupabaseClient, orgId: string, nome: strin
 
 /* ---------- membros ---------- */
 export async function listarMembros(sb: SupabaseClient, orgId: string): Promise<Membro[]> {
-  const { data, error } = await sb.from('membros').select('user_id, email, papel, created_at').eq('org_id', orgId).order('created_at');
+  const { data, error } = await sb.from('membros').select('user_id, email, nome, papel, created_at').eq('org_id', orgId).order('created_at');
   lancar(error);
   return (data ?? []) as Membro[];
+}
+export async function definirMeuNome(sb: SupabaseClient, nome: string) {
+  const { error } = await sb.rpc('definir_meu_nome', { p_nome: nome.trim().split(/s+/).join(' ') });
+  lancar(error);
 }
 export async function mudarPapel(sb: SupabaseClient, orgId: string, userId: string, papel: Papel) {
   const { error } = await sb.from('membros').update({ papel }).eq('org_id', orgId).eq('user_id', userId);

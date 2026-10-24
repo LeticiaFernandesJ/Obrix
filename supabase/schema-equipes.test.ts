@@ -33,13 +33,13 @@ beforeAll(async () => {
   // simulação mínima do Supabase: usuários, auth.uid(), papéis e a publicação do realtime
   await db.exec(`
     create schema auth;
-    create table auth.users (id uuid primary key, email text);
+    create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb);
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
     create role anon nologin; create role authenticated nologin;
     grant usage on schema public, auth to anon, authenticated;
     grant select on auth.users to authenticated;
     create publication supabase_realtime;
-    insert into auth.users (id, email) values ('${A}','a@x.com'),('${B}','b@x.com'),('${C}','c@x.com'),('${D}','d@x.com');
+    insert into auth.users (id, email, raw_user_meta_data) values ('${A}','a@x.com','{"nome":"Ana Souza"}'),('${B}','b@x.com',null),('${C}','c@x.com','{"nome":"Carlos Lima"}'),('${D}','d@x.com','{"nome":"Diana Reis"}');
   `);
   // instalação antiga (uma conta = um conjunto de dados), com dados de A e B
   await db.exec(v2);
@@ -72,6 +72,10 @@ describe('migração dos dados antigos', () => {
       expect(await contar(t, orgB)).toBe(1);
     }
     expect((await q<{ p: string }>(`select predecessoras->0->>'id' p from public.tarefas where org_id = $1`, [orgA]))[0].p).toBe('t0');
+  });
+  it('quem já estava na equipe ganha o nome do cadastro, quando existe', async () => {
+    const n = await q<{ email: string; nome: string }>('select email, nome from public.membros order by email');
+    expect(n.map((x) => x.nome)).toEqual(['Ana Souza', '']);
   });
   it('as compras têm a coluna de vencimento (data), vazia nos dados migrados', async () => {
     expect((await q<{ v: string | null }>('select vencimento v from public.compras where org_id = $1', [orgA]))[0].v).toBeNull();
@@ -113,6 +117,7 @@ describe('convites e papéis', () => {
     expect(await tenta(C, `select public.aceitar_convite('00000000-0000-0000-0000-000000000000')`)).toMatch(/inválido/);
     const r = await linhas<{ org: string }>(C, `select public.aceitar_convite('${token}') as org`);
     expect(r[0].org).toBe(orgA);
+    expect((await linhas<{ nome: string }>(C, `select nome from public.membros where user_id = '${C}'`))[0].nome).toBe('Carlos Lima');
     expect(await linhas(A, 'select * from public.convites')).toHaveLength(0);
     expect(await tenta(C, `select public.aceitar_convite('${token}')`)).not.toBeNull();
   });
@@ -168,6 +173,11 @@ describe('organização nova', () => {
     await como(D, () => db.exec(`insert into public.obras (org_id, id, nome) values ('${org}', 1, 'D1')`));
     expect(await linhas(D, 'select * from public.obras')).toHaveLength(1);
   });
+  it('o nome do cadastro vai junto e cada pessoa corrige o próprio', async () => {
+    expect((await linhas<{ nome: string }>(D, `select nome from public.membros where org_id = '${org}'`))[0].nome).toBe('Diana Reis');
+    await como(D, () => db.exec(`select public.definir_meu_nome('  Diana R. Reis  ')`));
+    expect((await linhas<{ nome: string }>(D, `select nome from public.membros where org_id = '${org}'`))[0].nome).toBe('Diana R. Reis');
+  });
   it('não cria organização direto na tabela nem com nome vazio', async () => {
     expect(await tenta(D, `insert into public.organizacoes (nome) values ('direto')`)).not.toBeNull();
     expect(await tenta(B, `select public.criar_organizacao('   ')`)).not.toBeNull();
@@ -185,7 +195,7 @@ describe('organização nova', () => {
 describe('instalação limpa', () => {
   it('funciona num banco vazio, mesmo rodando duas vezes', async () => {
     const novo = new PGlite();
-    await novo.exec(`create schema auth; create table auth.users (id uuid primary key, email text);
+    await novo.exec(`create schema auth; create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb);
       create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
       create role anon nologin; create role authenticated nologin; grant usage on schema public, auth to anon, authenticated;`);
     await novo.exec(equipes); await novo.exec(equipes);

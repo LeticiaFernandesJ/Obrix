@@ -257,7 +257,7 @@ export default function Cronograma() {
                 <thead><tr>
                   <th className="rownum" style={{ minWidth: 34 }}>#</th>
                   {CS.map((c) => (
-                    <th key={c.k} style={{ minWidth: c.w, width: c.w }} title={c.k === 'pct' ? 'Único campo editável direto na grade. Os demais dados ficam em Detalhes (dois cliques na linha).' : undefined}>{c.t}{c.sub && <><br /><span style={{ fontWeight: 400 }}>{c.sub}</span></>}</th>
+                    <th key={c.k} style={{ minWidth: c.w, width: c.w }} title={c.k === 'pct' ? 'Único campo editável direto na grade. O responsável muda em Detalhes (dois cliques na linha).' : undefined}>{c.t}{c.sub && <><br /><span style={{ fontWeight: 400 }}>{c.sub}</span></>}</th>
                   ))}
                 </tr></thead>
                 <tbody id="gbody">
@@ -272,7 +272,7 @@ export default function Cronograma() {
                       <tr key={t.id} data-i={i} className={(res ? 'summary ' : '') + (k.crit && !res ? 'crit ' : '') + (i === selOk ? 'sel' : '')}
                         onFocus={() => setSel(i)}
                         onDoubleClick={(e) => { if (!cro(i) && !(e.target as HTMLElement).closest('[data-k="pct"]')) setTm({ indice: i, marco: false }); }}
-                        title={cro(i) ? undefined : 'Dois cliques abrem os dados da tarefa. O percentual se edita direto na coluna %.'}>
+                        title={cro(i) ? undefined : 'Dois cliques abrem os dados da tarefa (só o % e o responsável podem mudar). O percentual também se edita direto na coluna %.'}>
                         <td className="rownum" onClick={() => setSel(i)}>{i + 1}</td>
                         {CS.map((col) => {
                           const cl = col.cls;

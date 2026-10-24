@@ -179,12 +179,12 @@ export function CronoActions() {
         <button className="btn" onClick={() => { carregarCrono(exemplo()); fechar(); toast('Exemplo carregado.'); }}>Carregar exemplo de obra</button>
         <button className="btn btn-primary" onClick={fechar}>Entendi</button>
       </>}>
-        <p><b>1. Adicione as tarefas pelo botão Tarefa.</b> A janela pede o nome, a <b>duração em dias úteis</b>, a data de início, as predecessoras e o responsável; as datas se calculam sozinhas. Para mudar uma tarefa depois, dê dois cliques na linha (ou use <b>Detalhes</b>).</p>
+        <p><b>1. Adicione as tarefas pelo botão Tarefa.</b> A janela pede o nome, a <b>duração em dias úteis</b>, a data de início, as predecessoras e o responsável; as datas se calculam sozinhas. Depois de criada, dois cliques na linha (ou <b>Detalhes</b>) abrem os dados, mas só o <b>% concluído</b> e o <b>responsável</b> podem mudar.</p>
         <p><b>2. Ligue as tarefas.</b> No campo <b>Predecessoras</b> da janela escreva o número da linha que precisa terminar antes (ex.: <kbd>5</kbd>). Para começar 2 dias depois: <kbd>5TI+2</kbd>. Para começarem juntas: <kbd>5II</kbd>.</p>
         <p><b>3. Agrupe em fases.</b> Selecione a linha e clique em recuar: a linha de cima vira fase e soma sozinha datas e avanço.</p>
         <p><b>4. Salve a linha de base</b> quando o cronograma for aprovado. É o "previsto" contra o qual todo mundo vai comparar depois.</p>
         <p><b>5. Toda semana:</b> ajuste a <b>data de status</b>, atualize a coluna <b>%</b> de cada serviço (é a única que se edita direto na grade), clique em <b>Registrar medição</b> e depois em <b>Enviar ao PMO</b>.</p>
-        <div className="note"><b>Atalhos:</b> <kbd>Enter</kbd> desce uma linha (não cria tarefa nova) · dois cliques na linha abrem os dados da tarefa · <kbd>Alt</kbd>+<kbd>→</kbd>/<kbd>←</kbd> recua/avança nível · <kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> move a linha · duração <kbd>0</kbd> vira marco (losango).</div>
+        <div className="note"><b>Atalhos:</b> <kbd>Enter</kbd> desce uma linha (não cria tarefa nova) · dois cliques na linha abrem os dados (só % e responsável mudam) · <kbd>Alt</kbd>+<kbd>→</kbd>/<kbd>←</kbd> recua/avança nível · <kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> move a linha · duração <kbd>0</kbd> vira marco (losango).</div>
         <div className="note"><b>Onde ficam os dados?</b> No navegador deste computador. Para compartilhar use <b>Enviar ao PMO</b> (link) ou <b>Salvar arquivo</b> (.json).</div>
       </Modal>
     ),

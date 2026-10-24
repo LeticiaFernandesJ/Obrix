@@ -583,3 +583,10 @@ button:focus-visible, a:focus-visible, [role="tab"]:focus-visible { outline: 2px
   .lg-copy { text-align: center; padding: 6px 18px max(16px, env(safe-area-inset-bottom)); letter-spacing: .18em; font-size: 10.5px; }
 }
 @media (max-width: 380px) { .lg-card { padding: 22px 16px 16px; } .lg-row { font-size: 13px; } }
+
+.user-box .org-nome { font-weight: 700; color: #fff; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.papel-tag { font-style: normal; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; margin-left: 8px; padding: 1px 7px; border-radius: 10px; background: rgba(255,255,255,.14); color: #cfe3ff; }
+.legend-row { display: flex; flex-wrap: wrap; font-size: 12.5px; color: var(--text2); }
+.legend-row > span { display: inline-flex; align-items: center; gap: 8px; }
+
+.obras-split.um { grid-template-columns: 1fr; }

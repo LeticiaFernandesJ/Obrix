@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   BarChart3, Building2, ClipboardList, ShoppingBasket, Clock3, FileText, CalendarRange, LayoutDashboard, FolderKanban,
-  Menu, Download, Save, FileSpreadsheet,
+  Menu, Download, Save, FileSpreadsheet, Users,
 } from 'lucide-react';
 import { useApp } from '../store/AppStore';
 import { useDialogo } from './Dialogo';
@@ -28,6 +28,9 @@ const NAV = [
     { to: '/painel', label: 'Painel PMO', icon: LayoutDashboard },
     { to: '/projeto', label: 'Projeto', icon: FolderKanban },
   ] },
+  { sec: 'Administração', items: [
+    { to: '/equipe', label: 'Equipe', icon: Users },
+  ] },
 ];
 
 const TITULOS: Record<string, [string, string]> = {
@@ -40,6 +43,7 @@ const TITULOS: Record<string, [string, string]> = {
   '/cronograma': ['Cronograma de Obra', 'Controle de cronograma para obras'],
   '/painel': ['Painel PMO', 'Cronograma de Obra'],
   '/projeto': ['Projeto', 'Cronograma de Obra'],
+  '/equipe': ['Equipe', 'Pessoas e permissões da organização'],
 };
 const CRONO = ['/cronograma', '/painel', '/projeto'];
 
@@ -52,7 +56,7 @@ export function LogoObrix() {
 }
 
 function AC21Actions() {
-  const { db, exportarTudo, importarDB, registrarHistorico, toast } = useApp();
+  const { db, exportarTudo, importarDB, registrarHistorico, toast, podeEditar } = useApp();
   const { avisar } = useDialogo();
   const input = useRef<HTMLInputElement>(null);
   const salvar = () => {
@@ -78,7 +82,7 @@ function AC21Actions() {
     <>
       <button className="btn btn-success" onClick={() => exportarExcel(db)}><FileSpreadsheet size={15} /> Exportar Excel</button>
       <button className="btn" onClick={salvar}><Save size={15} /> Salvar</button>
-      <button className="btn" onClick={() => input.current?.click()}><Download size={15} /> Carregar</button>
+      {podeEditar && <button className="btn" onClick={() => input.current?.click()}><Download size={15} /> Carregar</button>}
       <input ref={input} type="file" accept=".json" hidden onChange={carregar} />
     </>
   );
@@ -86,7 +90,7 @@ function AC21Actions() {
 
 export default function Layout() {
   const { pathname } = useLocation();
-  const { toastMsg, readOnly, usuario, sair, nuvem, recarregarNuvem, tentarSincronizar } = useApp();
+  const { toastMsg, readOnly, usuario, sair, nuvem, recarregarNuvem, tentarSincronizar, orgId, orgNome, papel } = useApp();
   const [aberto, setAberto] = useState(false);
   const { podeInstalar, instalarNoIos, instalar } = useInstalar();
   useEffect(() => setAberto(false), [pathname]);
@@ -104,7 +108,7 @@ export default function Layout() {
           <div className="brand-tag">Controle AC21 · Cronograma</div>
         </div>
         <nav className="nav">
-          {(readOnly ? NAV.slice(2) : NAV).map((g) => (
+          {NAV.filter((g) => (readOnly ? g.sec === 'Cronograma de obra' : g.sec !== 'Administração' || !!orgId)).map((g) => (
             <div key={g.sec}>
               <div className="nav-section">{g.sec}</div>
               {g.items.map((it) => (
@@ -124,7 +128,8 @@ export default function Layout() {
         )}
         {usuario ? (
           <div className="user-box">
-            <span className="email" title={usuario}>{usuario}</span>
+            {orgNome && <span className="org-nome" title={orgNome}>{orgNome}</span>}
+            <span className="email" title={usuario}>{usuario}{papel && <em className="papel-tag">{papel === 'admin' ? 'admin' : papel === 'editor' ? 'editor' : 'leitor'}</em>}</span>
             <span className="sync">
               <i className={'sync-dot' + (nuvem === 'salvando' || nuvem === 'carregando' ? ' busy' : nuvem === 'erro' ? ' err' : '')} />
               {nuvem === 'salvo' && <>Salvo na nuvem <button onClick={recarregarNuvem}>atualizar</button></>}

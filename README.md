@@ -33,12 +33,30 @@ Use **somente** a chave `anon`. Nunca coloque a `service_role` no front-end.
 ## Banco de dados (Supabase)
 
 1. Abra **SQL Editor → New query**.
-2. Cole o conteúdo de [`supabase/schema-completo.sql`](supabase/schema-completo.sql) e clique em **Run**.
-   > Atenção: o script recria as sete tabelas do Obrix (`obras`, `itens`, `compras`, `historico`, `cronogramas`, `tarefas`, `medicoes`) e apaga o conteúdo delas. Não mexe em outras tabelas.
+2. Cole o conteúdo de [`supabase/schema-equipes.sql`](supabase/schema-equipes.sql) e clique em **Run**.
+   - **Instalação nova:** cria tudo do zero.
+   - **Quem já usava o formato anterior** (`schema-completo.sql`): o script copia os dados de cada conta para uma organização ("Minha empresa") e guarda as tabelas antigas com o sufixo `_v2`, sem acesso pela API. Depois de conferir que está tudo certo, você pode apagá-las.
+   - Pode ser executado mais de uma vez.
 3. Em **Authentication → Providers → Email**, escolha se exige confirmação de e-mail (**Confirm email**).
 4. Em **Authentication → URL Configuration**, defina o **Site URL** com o endereço onde o app será publicado (usado nos e-mails de confirmação e de recuperação de senha).
 
-O arquivo `supabase/schema.sql` é do formato antigo (tabela única) e não é mais necessário.
+Os arquivos em `supabase/legado/` são formatos antigos. O `schema-completo-v2.sql` só é usado pelo teste da migração.
+
+## Equipes e permissões
+
+Os dados pertencem a uma **organização** (sua empresa ou equipe), não a uma pessoa. Quem cria a conta cria a primeira organização e vira administrador.
+
+| Papel | Pode |
+|---|---|
+| **Administrador** | Tudo, mais convidar pessoas, mudar papéis, remover membros e renomear a organização |
+| **Editor** | Cadastrar e alterar obras, itens, compras e cronogramas |
+| **Leitor** | Só consultar e exportar |
+
+- **Convidar:** em **Equipe → Convidar pessoas**, escolha o papel e gere o link. Envie por WhatsApp ou e-mail. Quem abrir o link entra na equipe depois de criar a conta ou entrar. Cada link vale para uma pessoa e expira em 7 dias; o administrador pode cancelá-lo antes.
+- **Segurança:** as regras ficam no banco (RLS), então valem mesmo fora do app. A organização nunca fica sem administrador.
+- **Vários usuários ao mesmo tempo:** cada alteração grava só as linhas que mudaram, e o app recebe avisos em tempo real quando outra pessoa altera algo. Se duas pessoas mudarem a mesma linha ao mesmo tempo, vale a última gravação.
+- **Histórico:** cada registro mostra o e-mail de quem fez a alteração.
+- **Participar de mais de uma organização:** o app mostra o seletor na tela Equipe.
 
 ## Scripts
 
@@ -46,7 +64,7 @@ O arquivo `supabase/schema.sql` é do formato antigo (tabela única) e não é m
 |---|---|
 | `npm run dev` | Servidor de desenvolvimento |
 | `npm run build` | Verifica os tipos e gera a versão de produção em `dist/` |
-| `npm test` | Roda os testes automáticos (cronograma, contas do AC21 e gravação no banco) |
+| `npm test` | Roda os testes automáticos (cronograma, contas do AC21, gravação no banco e regras de acesso das equipes) |
 | `npm run icones` | Gera de novo os ícones do PWA a partir de `public/assets/obrix-logo.jpg` |
 
 ## Publicação (GitHub Pages)
@@ -65,7 +83,7 @@ src/
   store/        estado global e sincronização com o Supabase
   components/   layout, login, modais, tela de erro
   pages/        telas do AC21 e, em pages/crono, as do cronograma
-supabase/       SQL do banco
+supabase/       SQL do banco (schema-equipes.sql) e teste das regras de acesso
 scripts/        gerador de ícones do PWA
 ```
 

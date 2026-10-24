@@ -7,13 +7,13 @@ import {
 } from '../lib/schedule';
 import { supabase } from '../lib/supabase';
 import { useDialogo } from '../components/Dialogo';
-import { type Snap, deLinhas, enviarMudancas, lerNuvem, paraLinhas, snapDe, snapVazio } from '../lib/nuvem';
+import { type Snap, TABELAS, deLinhas, enviarMudancas, lerNuvem, paraLinhas, snapDe, snapVazio } from '../lib/nuvem';
+import { type Org, type Papel, podeAlterar } from '../lib/equipe';
 
 const K_DB = 'obrix-ac21-v1';
 const K_CRONO = 'cronograma-obra-v2'; // legado (cronograma único)
 const K_CRONOS = 'obrix-cronos-v1';
 const K_TEMA = 'obrix-tema';
-const K_OWNER = 'obrix-owner';
 
 export type StatusNuvem = 'local' | 'carregando' | 'salvando' | 'salvo' | 'erro';
 
@@ -40,6 +40,16 @@ interface Ctx {
   carregarCrono: (obj: Partial<Estado> | null) => void;
   readOnly: boolean;
 
+  /* equipe */
+  orgId: string | null;
+  orgNome: string;
+  orgs: Org[];
+  papel: Papel | null;
+  /** false para leitores e para quem abriu um link somente leitura */
+  podeEditar: boolean;
+  trocarOrg: (id: string) => void;
+  recarregarOrgs: () => void;
+
   usuario: string | null;
   sair: (() => Promise<void>) | null;
   nuvem: StatusNuvem;
@@ -64,21 +74,23 @@ function lerJSON<T>(k: string): T | null {
 }
 function gravar(k: string, v: unknown) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } }
 
-interface ProviderProps { children: ReactNode; userId: string | null; email: string | null; onSignOut: (() => Promise<void>) | null }
+interface ProviderProps {
+  children: ReactNode; userId: string | null; email: string | null; onSignOut: (() => Promise<void>) | null;
+  orgId?: string | null; papel?: Papel | null; orgs?: Org[]; trocarOrg?: (id: string) => void; recarregarOrgs?: () => void;
+}
 
-export function AppProvider({ children, userId, email, onSignOut }: ProviderProps) {
+export function AppProvider({ children, email, onSignOut, orgId = null, papel = null, orgs = [], trocarOrg, recarregarOrgs }: ProviderProps) {
   const { confirmar, avisar } = useDialogo();
-  // cache local de outra conta nunca é aproveitado
-  if (userId) {
-    const dono = (() => { try { return localStorage.getItem(K_OWNER); } catch { return null; } })();
-    if (dono && dono !== userId) { [K_DB, K_CRONOS, K_CRONO].forEach((k) => { try { localStorage.removeItem(k); } catch { /* ok */ } }); }
-  }
+  // cada organização tem o seu próprio cache no navegador
+  const sufixo = orgId ? ':' + orgId : '';
+  const kDb = K_DB + sufixo, kCronos = K_CRONOS + sufixo;
   const [db, setDb] = useState<DB>(() => {
-    return sanitizarDB(lerJSON<DB>(K_DB)) ?? dbVazio();
+    // dados guardados antes das equipes (sem sufixo) são aproveitados uma vez, na primeira organização
+    return sanitizarDB(lerJSON<DB>(kDb) ?? (orgId ? lerJSON<DB>(K_DB) : null)) ?? dbVazio();
   });
   const [obraAtivaId, setObraAtiva] = useState<number | null>(null);
   const [cronos, setCronos] = useState<Record<string, Estado>>(() => {
-    const raw = lerJSON<Record<string, Partial<Estado>>>(K_CRONOS);
+    const raw = lerJSON<Record<string, Partial<Estado>>>(kCronos) ?? (orgId ? lerJSON<Record<string, Partial<Estado>>>(K_CRONOS) : null);
     const out: Record<string, Estado> = {};
     if (raw && typeof raw === 'object') Object.keys(raw).forEach((k) => { out[k] = normalizarEstado(raw[k]); });
     else {
@@ -94,8 +106,12 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
   });
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastT = useRef<number>();
+  const orgAtual = orgs.find((o) => o.id === orgId);
+  const podeEditar = !readOnly && podeAlterar(papel);
   const roRef = useRef(false);
-  roRef.current = readOnly;
+  roRef.current = !podeEditar;
+  const autorRef = useRef(email ?? 'Gerente');
+  autorRef.current = email ?? 'Gerente';
 
   const obraAtual = db.obras.find((o) => o.id === obraAtivaId) ?? db.obras[0] ?? null;
   const chave = obraAtual ? String(obraAtual.id) : 'legacy';
@@ -116,8 +132,8 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
   const calcRef = useRef(calc); calcRef.current = calc;
   const calRef = useRef(cal); calRef.current = cal;
 
-  useEffect(() => { gravar(K_DB, db); }, [db]);
-  useEffect(() => { gravar(K_CRONOS, cronos); }, [cronos]);
+  useEffect(() => { gravar(kDb, db); }, [db, kDb]);
+  useEffect(() => { gravar(kCronos, cronos); }, [cronos, kCronos]);
   /* cronograma antigo (único) é adotado pela primeira obra */
   useEffect(() => {
     if (cronos.legacy && db.obras.length) {
@@ -129,8 +145,8 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
     try { localStorage.setItem(K_TEMA, tema); } catch { /* ok */ }
   }, [tema]);
 
-  /* ---------- Sincronização com o Supabase (tabelas do schema-completo.sql) ---------- */
-  const [nuvem, setNuvem] = useState<StatusNuvem>(userId && supabase ? 'carregando' : 'local');
+  /* ---------- Sincronização com o Supabase (dados da organização) ---------- */
+  const [nuvem, setNuvem] = useState<StatusNuvem>(orgId && supabase ? 'carregando' : 'local');
   const prontoRef = useRef(false);
   const snapRef = useRef<Snap>(snapVazio());
   const ultimoRef = useRef('');
@@ -140,37 +156,57 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
   const estadoRef = useRef({ db, cronos, payload }); estadoRef.current = { db, cronos, payload };
   const baseRef = useRef(payload);          // estado com o qual a sincronização começou
   const editouSemNuvemRef = useRef(false);  // houve edição enquanto a nuvem não estava disponível (ex.: sem internet)
+  const atualizarDepoisRef = useRef(false); // chegou novidade de outra pessoa enquanto havia alteração minha pendente
+  const ultimoEnvioRef = useRef(0);         // quando terminei de enviar (ignora o "eco" do meu próprio envio)
+
+  const atualizarDaNuvem = useCallback(async () => {
+    if (!supabase || !orgId || !prontoRef.current) return;
+    // alteração minha ainda não enviada: espera, para não perder nada
+    if (salvandoRef.current || estadoRef.current.payload !== ultimoRef.current) { atualizarDepoisRef.current = true; return; }
+    try {
+      const L = await lerNuvem(supabase, orgId);
+      if (salvandoRef.current || estadoRef.current.payload !== ultimoRef.current) { atualizarDepoisRef.current = true; return; }
+      const r = deLinhas(L);
+      const novo = JSON.stringify({ db: r.db, cronos: r.cronos });
+      if (novo === ultimoRef.current) return;
+      snapRef.current = snapDe(paraLinhas(r.db, r.cronos));
+      ultimoRef.current = novo;
+      setDb(r.db); setCronos(r.cronos);
+    } catch (e) { console.error('Falha ao atualizar da nuvem', e); }
+  }, [orgId]);
 
   const salvarAgora = useCallback(async () => {
-    if (!supabase || !userId || !prontoRef.current) return;
+    if (!supabase || !orgId || !prontoRef.current || roRef.current) return;
     if (salvandoRef.current) { sujoRef.current = true; return; }
     salvandoRef.current = true; sujoRef.current = false;
     const alvo = estadoRef.current;
     setNuvem('salvando');
     try {
-      await enviarMudancas(supabase, userId, paraLinhas(alvo.db, alvo.cronos), snapRef.current);
+      await enviarMudancas(supabase, orgId, paraLinhas(alvo.db, alvo.cronos), snapRef.current);
       ultimoRef.current = alvo.payload;
+      ultimoEnvioRef.current = Date.now();
       setNuvem('salvo');
     } catch (e) { console.error('Falha ao sincronizar', e); setNuvem('erro'); }
     finally {
       salvandoRef.current = false;
       if (sujoRef.current && estadoRef.current.payload !== ultimoRef.current) void salvarAgora();
+      else if (atualizarDepoisRef.current && estadoRef.current.payload === ultimoRef.current) { atualizarDepoisRef.current = false; void atualizarDaNuvem(); }
     }
-  }, [userId]);
+  }, [orgId, atualizarDaNuvem]);
 
   const carregarNuvem = useCallback(async () => {
-    if (!supabase || !userId) return;
+    if (!supabase || !orgId) return;
     setNuvem('carregando'); prontoRef.current = false;
     try {
-      const L = await lerNuvem(supabase);
+      const L = await lerNuvem(supabase, orgId);
       if (L.obras.length) {
         const r = deLinhas(L);
         snapRef.current = snapDe(paraLinhas(r.db, r.cronos));
         const local = estadoRef.current;
-        const manterLocal = editouSemNuvemRef.current &&
+        const manterLocal = !roRef.current && editouSemNuvemRef.current &&
           (await confirmar('Você fez alterações neste aparelho enquanto estava sem conexão.\n\nEnviar essas alterações para a nuvem substitui o que está lá. Descartar usa os dados da nuvem.', { titulo: 'Alterações sem conexão', confirmar: 'Enviar as minhas', cancelar: 'Descartar e usar a nuvem' }));
         if (manterLocal) {
-          await enviarMudancas(supabase, userId, paraLinhas(local.db, local.cronos), snapRef.current);
+          await enviarMudancas(supabase, orgId, paraLinhas(local.db, local.cronos), snapRef.current);
           ultimoRef.current = local.payload;
         } else {
           ultimoRef.current = JSON.stringify({ db: r.db, cronos: r.cronos });
@@ -178,59 +214,68 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
         }
         editouSemNuvemRef.current = false;
       } else {
-        // nuvem vazia: aproveita a tabela única antiga (se existir) ou os dados deste navegador
-        let origem: { db: DB; cronos: Record<string, Estado> } | null = null;
-        try {
-          const { data } = await supabase.from('obrix_dados').select('data').eq('user_id', userId).maybeSingle();
-          const raw = data?.data as { cronogramas?: Record<string, Partial<Estado>> } | undefined;
-          const limpo = raw ? sanitizarDB(raw) : null;
-          if (limpo && limpo.obras.length) {
-            const ids = new Set(limpo.obras.map((o) => String(o.id)));
-            const cr: Record<string, Estado> = {};
-            Object.keys(raw?.cronogramas ?? {}).forEach((k) => { if (ids.has(k)) cr[k] = normalizarEstado(raw!.cronogramas![k]); });
-            origem = { db: limpo, cronos: cr };
-          }
-        } catch { /* tabela antiga não existe */ }
+        // organização sem dados: aproveita o que já havia neste navegador (só quem pode alterar envia)
         const atual = estadoRef.current;
-        if (!origem && atual.db.obras.length) origem = { db: atual.db, cronos: atual.cronos };
         snapRef.current = snapVazio();
-        if (origem) {
-          await enviarMudancas(supabase, userId, paraLinhas(origem.db, origem.cronos), snapRef.current);
-          ultimoRef.current = JSON.stringify(origem);
-          setDb(origem.db); setCronos(origem.cronos);
-        } else ultimoRef.current = atual.payload;
+        if (atual.db.obras.length && !roRef.current) {
+          await enviarMudancas(supabase, orgId, paraLinhas(atual.db, atual.cronos), snapRef.current);
+          // os dados antigos (sem organização) já subiram: não devem ir também para outra organização
+          [K_DB, K_CRONOS, K_CRONO].forEach((k) => { try { localStorage.removeItem(k); } catch { /* ok */ } });
+        }
+        ultimoRef.current = atual.payload;
       }
       prontoRef.current = true; setNuvem('salvo');
     } catch (e) { console.error('Falha ao carregar da nuvem', e); setNuvem('erro'); }
-  }, [userId]);
+  }, [orgId]);
 
   useEffect(() => {
-    if (!userId || !supabase) return;
-    try { localStorage.setItem(K_OWNER, userId); } catch { /* ok */ }
+    if (!orgId || !supabase) return;
     void carregarNuvem();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [orgId]);
 
   useEffect(() => {
-    if (!userId || !supabase) return;
-    if (!prontoRef.current) { if (payload !== baseRef.current) editouSemNuvemRef.current = true; return; }
-    if (payload === ultimoRef.current) return;
+    if (!orgId || !supabase) return;
+    if (!prontoRef.current) { if (payload !== baseRef.current && !roRef.current) editouSemNuvemRef.current = true; return; }
+    if (payload === ultimoRef.current || roRef.current) return;
     setNuvem('salvando');
     const t = window.setTimeout(() => void salvarAgora(), 800);
     return () => window.clearTimeout(t);
-  }, [payload, userId, salvarAgora]);
+  }, [payload, orgId, salvarAgora]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!orgId) return;
     const h = () => { if (document.visibilityState === 'hidden' && estadoRef.current.payload !== ultimoRef.current) void salvarAgora(); };
     document.addEventListener('visibilitychange', h);
     return () => document.removeEventListener('visibilitychange', h);
-  }, [userId, salvarAgora]);
+  }, [orgId, salvarAgora]);
+
+  /* Quando outra pessoa altera os dados: avisos em tempo real + conferência a cada 45 s e ao voltar para a aba. */
+  useEffect(() => {
+    if (!orgId || !supabase) return;
+    const sb = supabase;
+    let t: number | undefined;
+    const agendar = () => { window.clearTimeout(t); t = window.setTimeout(() => void atualizarDaNuvem(), 1200); };
+    // meu próprio envio também gera avisos: ignora os que chegam logo depois dele
+    const aoMudar = () => { if (Date.now() - ultimoEnvioRef.current > 3000) agendar(); };
+    const canal = sb.channel('obrix-' + orgId);
+    TABELAS.forEach((tabela) => canal.on('postgres_changes', { event: '*', schema: 'public', table: tabela, filter: `org_id=eq.${orgId}` }, aoMudar));
+    canal.subscribe();
+    const visivel = () => { if (document.visibilityState === 'visible') agendar(); };
+    const ronda = window.setInterval(() => { if (document.visibilityState === 'visible') void atualizarDaNuvem(); }, 45000);
+    document.addEventListener('visibilitychange', visivel);
+    window.addEventListener('online', agendar);
+    return () => {
+      window.clearTimeout(t); window.clearInterval(ronda);
+      document.removeEventListener('visibilitychange', visivel); window.removeEventListener('online', agendar);
+      void sb.removeChannel(canal);
+    };
+  }, [orgId, atualizarDaNuvem]);
 
   /* Sair sem perder alterações: tenta enviar o que está pendente; se não der, pede confirmação. */
   const sairSeguro = useCallback(async () => {
     if (!onSignOut) return;
-    if (supabase && userId) {
+    if (supabase && orgId) {
       for (let i = 0; i < 4 && prontoRef.current && estadoRef.current.payload !== ultimoRef.current; i++) {
         if (salvandoRef.current) await new Promise((r) => setTimeout(r, 500)); else await salvarAgora();
       }
@@ -238,16 +283,16 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
       if (pendente && !(await confirmar('Algumas alterações ainda não foram enviadas para a nuvem (sem conexão ou erro).\nSe sair agora, elas serão perdidas.', { titulo: 'Sair mesmo assim?', confirmar: 'Sair e perder', perigo: true }))) return;
     }
     await onSignOut();
-  }, [onSignOut, userId, salvarAgora, confirmar]);
+  }, [onSignOut, orgId, salvarAgora, confirmar]);
 
   useEffect(() => {
-    if (!userId || !supabase) return;
+    if (!orgId || !supabase) return;
     const h = (e: BeforeUnloadEvent) => {
       if (prontoRef.current && estadoRef.current.payload !== ultimoRef.current) { e.preventDefault(); e.returnValue = ''; }
     };
     window.addEventListener('beforeunload', h);
     return () => window.removeEventListener('beforeunload', h);
-  }, [userId]);
+  }, [orgId]);
 
   const toast = useCallback((msg: string) => {
     setToastMsg(msg);
@@ -265,7 +310,7 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
       const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       const ro = m[1] === 'v';
       if (ro) { setShared(est); setReadOnly(true); }
-      else setCronos((c) => ({ ...c, [chaveRef.current]: est }));
+      else if (!roRef.current) setCronos((c) => ({ ...c, [chaveRef.current]: est }));
       window.history.replaceState(null, '', base + (ro ? '/painel' + window.location.hash : '/cronograma'));
       window.dispatchEvent(new PopStateEvent('popstate'));
     }).catch(() => { void avisar('Não consegui ler o link, ele pode ter sido cortado pelo e-mail. Peça o arquivo .json.'); });
@@ -277,14 +322,15 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
 
   /* ---------- AC21 ---------- */
   const mutarDb = useCallback((fn: (d: DB) => void) => {
+    if (roRef.current) { toast('Você tem acesso somente de consulta.'); return; }
     setDb((prev) => {
       const d: DB = JSON.parse(JSON.stringify(prev));
       fn(d);
       return d;
     });
-  }, []);
+  }, [toast]);
   const hist = (d: DB, tipo: string, icone: string, texto: string) => {
-    d.historico.unshift({ id: novoId(), ts: new Date().toISOString(), tipo, icone, texto, user: 'Gerente' } as Historico);
+    d.historico.unshift({ id: novoId(), ts: new Date().toISOString(), tipo, icone, texto, user: autorRef.current } as Historico);
     if (d.historico.length > 500) d.historico.pop();
   };
 
@@ -354,9 +400,10 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
   }), [mutarDb]);
 
   const importarDB = useCallback((dados: unknown) => {
+    if (roRef.current) { toast('Você tem acesso somente de consulta.'); return false; }
     const limpo = sanitizarDB(dados);
     if (!limpo) return false;
-    limpo.historico.unshift({ id: novoId(), ts: new Date().toISOString(), tipo: 'restore', icone: '📂', texto: 'Backup carregado com sucesso', user: 'Gerente' });
+    limpo.historico.unshift({ id: novoId(), ts: new Date().toISOString(), tipo: 'restore', icone: '📂', texto: 'Backup carregado com sucesso', user: autorRef.current });
     setDb(limpo);
     const cr = (dados as { cronogramas?: Record<string, Partial<Estado>> }).cronogramas;
     if (cr && typeof cr === 'object') {
@@ -366,7 +413,7 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
       setCronos(novo);
     }
     return true;
-  }, []);
+  }, [toast]);
   const exportarTudo = useCallback(() => ({ ...db, cronogramas: cronos }), [db, cronos]);
 
   /* ---------- Cronograma ---------- */
@@ -380,6 +427,7 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
     });
   }, []);
   const carregarCrono = useCallback((obj: Partial<Estado> | null) => {
+    if (roRef.current) return;
     const est = normalizarEstado(obj);
     setCronos((prev) => ({ ...prev, [chaveRef.current]: est }));
   }, []);
@@ -388,6 +436,8 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
     db, obraAtivaId, obraAtual, cronos, exportarTudo, setObraAtiva, salvarObra, excluirObra, salvarItem, excluirItem, salvarCompra, excluirCompra,
     registrarHistorico, importarDB,
     crono, cal, calc, updateCrono, carregarCrono, readOnly,
+    orgId, orgNome: orgAtual?.nome ?? '', orgs, papel, podeEditar,
+    trocarOrg: trocarOrg ?? (() => undefined), recarregarOrgs: recarregarOrgs ?? (() => undefined),
     usuario: email, sair: onSignOut ? sairSeguro : null, nuvem, recarregarNuvem: () => { void carregarNuvem(); }, tentarSincronizar: () => { void salvarAgora(); },
     tema, alternarTema: () => setTema((t) => (t === 'dark' ? 'light' : 'dark')),
     toast, toastMsg,

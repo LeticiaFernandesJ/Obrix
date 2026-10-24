@@ -6,7 +6,11 @@ import AuthGate from './components/AuthGate.tsx';
 import { DialogoProvider } from './components/Dialogo.tsx';
 import ErrorBoundary from './components/ErrorBoundary.tsx';
 import { recarregarUmaVez } from './lib/recarregar.ts';
+import { capturarConvite } from './lib/equipe.ts';
 import './index.css';
+
+// link de convite (?convite=...): guarda o código até a pessoa entrar
+capturarConvite();
 
 // nova versão publicada com a aba aberta: o arquivo da tela mudou de nome → recarrega
 window.addEventListener('vite:preloadError', (e) => { e.preventDefault(); recarregarUmaVez(); });

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, BarChart3, Download, Eye, EyeOff, FileText, Lock, Mail, Users } from 'lucide-react';
 import { supabase, supabaseAtivo } from '../lib/supabase';
 import { AppProvider } from '../store/AppStore';
+import OrgGate from './OrgGate';
 import { useInstalar } from '../lib/pwa';
 import { Modal } from './ui';
 
@@ -221,6 +222,15 @@ function sessaoOffline(): Session | null {
   } catch { return null; }
 }
 
+/** Apaga do navegador os dados em cache (usado ao sair, para não deixar nada em computador compartilhado). */
+function limparDadosLocais() {
+  try {
+    Object.keys(localStorage)
+      .filter((k) => /^(obrix-ac21-v1|obrix-cronos-v1|obrix-org-ativa|obrix-owner|cronograma-obra-v2)/.test(k))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch { /* ok */ }
+}
+
 /** Exige login quando o Supabase está configurado. Link de PMO (#v=…) abre sem login. */
 export default function AuthGate({ children }: { children: ReactNode }) {
   const [publico] = useState(() => /^#v=/.test(window.location.hash));
@@ -248,13 +258,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   if (!sessao) return <Login />;
   if (recuperando) return <NovaSenha onFim={() => setRecuperando(false)} />;
   return (
-    <AppProvider key={sessao.user.id} userId={sessao.user.id} email={sessao.user.email ?? ''}
+    <OrgGate key={sessao.user.id} userId={sessao.user.id} email={sessao.user.email ?? ''}
       onSignOut={async () => {
-        ['obrix-ac21-v1', 'obrix-cronos-v1', 'obrix-owner', 'cronograma-obra-v2'].forEach((k) => localStorage.removeItem(k));
+        limparDadosLocais();
         await supabase!.auth.signOut();
       }}>
       <IrParaInicio />
       {children}
-    </AppProvider>
+    </OrgGate>
   );
 }

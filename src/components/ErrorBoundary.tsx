@@ -1,7 +1,8 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { ehErroDeArquivoAntigo, recarregarUmaVez } from '../lib/recarregar';
 
-const CHAVES = ['obrix-ac21-v1', 'cronograma-obra-v2'];
+const PREFIXOS = /^(obrix-ac21-v1|obrix-cronos-v1|obrix-org-ativa|cronograma-obra-v2)/;
+const chaves = () => { try { return Object.keys(localStorage).filter((k) => PREFIXOS.test(k)); } catch { return []; } };
 
 export default class ErrorBoundary extends Component<{ children: ReactNode }, { erro: Error | null }> {
   state = { erro: null as Error | null };
@@ -13,14 +14,14 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, { 
 
   baixarCopia = () => {
     const copia: Record<string, unknown> = {};
-    CHAVES.forEach((k) => { try { copia[k] = JSON.parse(localStorage.getItem(k) || 'null'); } catch { copia[k] = localStorage.getItem(k); } });
+    chaves().forEach((k) => { try { copia[k] = JSON.parse(localStorage.getItem(k) || 'null'); } catch { copia[k] = localStorage.getItem(k); } });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([JSON.stringify(copia, null, 2)], { type: 'application/json' }));
     a.download = 'obrix-copia-de-seguranca.json'; a.click();
   };
   limpar = () => {
     if (!confirm('Apagar os dados salvos neste navegador e recarregar? Baixe a cópia antes se quiser guardá-los.')) return;
-    CHAVES.forEach((k) => localStorage.removeItem(k));
+    chaves().forEach((k) => localStorage.removeItem(k));
     location.href = import.meta.env.BASE_URL;
   };
 

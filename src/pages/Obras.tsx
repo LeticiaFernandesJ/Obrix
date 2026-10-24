@@ -20,7 +20,7 @@ const vazio: Form = { nome: '', codigo: '', local: '', responsavel: '', inicio: 
 const doObra = (o: Obra): Form => ({ ...o, ac21: String(o.ac21 || '') });
 
 export default function Obras() {
-  const { db, cronos, obraAtivaId, setObraAtiva, salvarObra, excluirObra, toast } = useApp();
+  const { db, cronos, obraAtivaId, setObraAtiva, salvarObra, excluirObra, toast, podeEditar } = useApp();
   const { confirmar } = useDialogo();
   const nav = useNavigate();
   const [busca, setBusca] = useState('');
@@ -57,12 +57,12 @@ export default function Obras() {
   return (
     <div className="content">
       <div className="action-row">
-        <button className="btn btn-primary" onClick={nova}><Plus size={15} /> Nova Obra</button>
+        {podeEditar && <button className="btn btn-primary" onClick={nova}><Plus size={15} /> Nova Obra</button>}
         <div className="spacer" />
         <div className="search"><Search size={15} /><input aria-label="Buscar obra" placeholder="Buscar obra..." value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
       </div>
 
-      <div className="obras-split">
+      <div className={"obras-split" + (podeEditar ? "" : " um")}>
         <div className="panel">
           <div className="panel-head"><div className="metric-icon mi-blue"><Building2 size={17} /></div>Obras</div>
           <div className="obra-list-pad">
@@ -100,8 +100,8 @@ export default function Obras() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch' }}>
                     <button className="btn btn-sm" onClick={() => detalhe(o)}><ClipboardList size={13} /> Detalhes</button>
-                    <button className="btn btn-sm" onClick={() => editar(o)}><Pencil size={13} /> Editar</button>
-                    <button className="btn btn-sm btn-danger" onClick={() => excluir(o)}><Trash2 size={13} /> Excluir</button>
+                    {podeEditar && <button className="btn btn-sm" onClick={() => editar(o)}><Pencil size={13} /> Editar</button>}
+                    {podeEditar && <button className="btn btn-sm btn-danger" onClick={() => excluir(o)}><Trash2 size={13} /> Excluir</button>}
                   </div>
                 </div>
               );
@@ -109,7 +109,7 @@ export default function Obras() {
           </div>
         </div>
 
-        <div className="panel">
+        {podeEditar && <div className="panel">
           <div className="panel-head">
             <div className="metric-icon mi-blue">{editId == null ? <Plus size={17} /> : <Pencil size={16} />}</div>
             {editId == null ? 'Nova Obra' : 'Editar Obra'}
@@ -137,7 +137,7 @@ export default function Obras() {
             <button className="btn" onClick={nova}>Cancelar</button>
             <button className="btn btn-primary" onClick={salvar}><Check size={15} /> Salvar Obra</button>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );

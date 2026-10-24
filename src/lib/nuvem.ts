@@ -12,7 +12,7 @@ export const TABELAS = ['obras', 'itens', 'compras', 'historico', 'cronogramas',
 export type Tabela = (typeof TABELAS)[number];
 export type Linhas = Record<Tabela, Row[]>;
 
-/** Colunas da chave primária de cada tabela (além de user_id). */
+/** Colunas da chave primária de cada tabela (além de org_id). */
 export const CHAVES: Record<Tabela, string[]> = {
   obras: ['id'], itens: ['id'], compras: ['id'], historico: ['id'],
   cronogramas: ['obra_id'], tarefas: ['obra_id', 'id'], medicoes: ['obra_id', 'data'],
@@ -132,10 +132,10 @@ export function snapDe(L: Linhas): Snap {
   return s;
 }
 
-async function todas(sb: SupabaseClient, t: Tabela): Promise<Row[]> {
+async function todas(sb: SupabaseClient, orgId: string, t: Tabela): Promise<Row[]> {
   const out: Row[] = [];
   for (let de = 0; ; de += 1000) {
-    let q = sb.from(t).select('*');
+    let q = sb.from(t).select('*').eq('org_id', orgId);
     CHAVES[t].forEach((c) => { q = q.order(c); });
     const { data: rows, error } = await q.range(de, de + 999);
     if (error) throw error;
@@ -145,15 +145,16 @@ async function todas(sb: SupabaseClient, t: Tabela): Promise<Row[]> {
   return out;
 }
 
-export async function lerNuvem(sb: SupabaseClient): Promise<Linhas> {
-  const r = await Promise.all(TABELAS.map((t) => todas(sb, t)));
+/** Lê todos os dados de uma organização (quem está em várias organizações precisa filtrar). */
+export async function lerNuvem(sb: SupabaseClient, orgId: string): Promise<Linhas> {
+  const r = await Promise.all(TABELAS.map((t) => todas(sb, orgId, t)));
   const L = {} as Linhas;
   TABELAS.forEach((t, i) => { L[t] = r[i]; });
   return L;
 }
 
 /** Envia só o que mudou desde o último estado sincronizado. Atualiza `snap` à medida que avança. */
-export async function enviarMudancas(sb: SupabaseClient, userId: string, L: Linhas, snap: Snap): Promise<number> {
+export async function enviarMudancas(sb: SupabaseClient, orgId: string, L: Linhas, snap: Snap): Promise<number> {
   let total = 0;
   const novas: Record<Tabela, Row[]> = {} as Record<Tabela, Row[]>;
   const removidas: Record<Tabela, Row[]> = {} as Record<Tabela, Row[]>;
@@ -174,7 +175,7 @@ export async function enviarMudancas(sb: SupabaseClient, userId: string, L: Linh
     for (const rows of grupos.values()) {
       for (let i = 0; i < rows.length; i += 200) {
         const parte = rows.slice(i, i + 200);
-        let q = sb.from(t).delete().eq('user_id', userId);
+        let q = sb.from(t).delete().eq('org_id', orgId);
         CHAVES[t].slice(0, -1).forEach((c) => { q = q.eq(c, parte[0][c] as string); });
         const { error } = await q.in(ultimo, parte.map((r) => r[ultimo] as string));
         if (error) throw error;
@@ -188,7 +189,7 @@ export async function enviarMudancas(sb: SupabaseClient, userId: string, L: Linh
     const rows = novas[t];
     for (let i = 0; i < rows.length; i += 500) {
       const parte = rows.slice(i, i + 500);
-      const { error } = await sb.from(t).upsert(parte.map((r) => ({ ...r, user_id: userId })), { onConflict: ['user_id', ...CHAVES[t]].join(',') });
+      const { error } = await sb.from(t).upsert(parte.map((r) => ({ ...r, org_id: orgId })), { onConflict: ['org_id', ...CHAVES[t]].join(',') });
       if (error) throw error;
       parte.forEach((r) => snap[t].set(chave(t, r), JSON.stringify(r)));
     }

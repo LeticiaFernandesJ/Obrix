@@ -14,7 +14,7 @@ const BASE = import.meta.env.BASE_URL;
 const importadas = (n: number) => (n === 1 ? '1 tarefa importada.' : `${n} tarefas importadas.`);
 
 export function CronoActions() {
-  const { crono, cal, calc, carregarCrono, readOnly, tema, alternarTema, toast } = useApp();
+  const { crono, cal, calc, carregarCrono, readOnly, podeEditar, tema, alternarTema, toast } = useApp();
   const { avisar } = useDialogo();
   const [m, setM] = useState<M>(null);
   const fechar = () => setM(null);
@@ -176,10 +176,10 @@ export function CronoActions() {
 
   return (
     <>
-      {!readOnly && <button className="btn btn-icon" title="Tela inicial" aria-label="Tela inicial" onClick={() => setM('home')}><Home size={15} /></button>}
-      {!readOnly && <button className="btn" onClick={() => setM('import')}><Upload size={15} /> Importar</button>}
+      {podeEditar && <button className="btn btn-icon" title="Tela inicial" aria-label="Tela inicial" onClick={() => setM('home')}><Home size={15} /></button>}
+      {podeEditar && <button className="btn" onClick={() => setM('import')}><Upload size={15} /> Importar</button>}
       <button className="btn" onClick={() => setM('save')}><Save size={15} /> Salvar arquivo</button>
-      {!readOnly && <button className="btn" onClick={() => setM('open')}><FolderOpen size={15} /> Abrir</button>}
+      {podeEditar && <button className="btn" onClick={() => setM('open')}><FolderOpen size={15} /> Abrir</button>}
       <button className="btn btn-primary" onClick={abrirShare}><Send size={15} /> {readOnly ? 'Copiar link' : 'Enviar ao PMO'}</button>
       <button className="btn btn-icon" title="Claro/escuro" aria-label="Claro/escuro" onClick={alternarTema}>{tema === 'dark' ? <Sun size={15} /> : <Moon size={15} />}</button>
       <button className="btn btn-icon" title="Ajuda" aria-label="Ajuda" onClick={() => setM('help')}><HelpCircle size={15} /></button>

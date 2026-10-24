@@ -10,6 +10,7 @@ const Relatorios = lazy(() => import('./pages/Relatorios'));
 const Cronograma = lazy(() => import('./pages/crono/Cronograma'));
 const Painel = lazy(() => import('./pages/crono/Painel'));
 const Projeto = lazy(() => import('./pages/crono/Projeto'));
+const Equipe = lazy(() => import('./pages/Equipe'));
 import { ComObra } from './pages/crono/CronoHeader';
 
 export default function App() {
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="relatorios" element={<Relatorios />} />
         <Route path="cronograma" element={<ComObra><Cronograma /></ComObra>} />
         <Route path="painel" element={<ComObra><Painel /></ComObra>} />
+        <Route path="equipe" element={<Equipe />} />
         <Route path="projeto" element={<ComObra><Projeto /></ComObra>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

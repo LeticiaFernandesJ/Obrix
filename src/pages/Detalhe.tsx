@@ -55,7 +55,7 @@ function ItemModal({ obra, item, onClose }: { obra: Obra; item: Item | null; onC
 }
 
 export default function Detalhe() {
-  const { db, obraAtivaId, setObraAtiva, excluirItem, excluirCompra, toast } = useApp();
+  const { db, obraAtivaId, setObraAtiva, excluirItem, excluirCompra, toast, podeEditar } = useApp();
   const { confirmar } = useDialogo();
   const [aba, setAba] = useState<Aba>('itens');
   const [f, setF] = useState({ cat: '', tipo: '', forn: '', ini: '', fim: '' });
@@ -115,7 +115,7 @@ export default function Detalhe() {
             <select style={{ width: 'auto', minWidth: 190 }} value={o.id} onChange={(e) => { setObraAtiva(Number(e.target.value)); }}>
               {db.obras.map((ob) => <option key={ob.id} value={ob.id}>{ob.codigo} - {ob.nome}</option>)}
             </select>
-            <button className="btn btn-primary" onClick={() => setItemModal({ item: null })}><Plus size={15} /> Item</button>
+            {podeEditar && <button className="btn btn-primary" onClick={() => setItemModal({ item: null })}><Plus size={15} /> Item</button>}
             <button className="btn btn-success" onClick={() => exportarExcelObra(db, o)}><FileSpreadsheet size={15} /> Excel</button>
           </div>
         </div>
@@ -218,10 +218,10 @@ export default function Detalhe() {
                       <td style={{ fontSize: 12 }}>{it.forn || '-'}</td>
                       <td style={{ fontSize: 12 }}>{it.nf || '-'}</td>
                       <td style={{ fontSize: 12 }}>{fmtData(it.data)}</td>
-                      <td className="td-center"><div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                      <td className="td-center"><div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>{podeEditar && <>
                         <button className="btn btn-sm btn-icon" data-tip="Editar" aria-label="Editar" onClick={() => setItemModal({ item: it })}><Pencil size={14} /></button>
                         <button className="btn btn-sm btn-icon btn-danger" data-tip="Excluir" aria-label="Excluir" onClick={async () => { if (await confirmar(`Remover o item "${it.desc}"?`, { confirmar: 'Remover', perigo: true })) { excluirItem(o.id, it.id); toast('Item removido.'); } }}><Trash2 size={14} /></button>
-                      </div></td>
+                      </>}</div></td>
                     </tr>
                   );
                 })}
@@ -284,7 +284,7 @@ export default function Detalhe() {
       </>)}
 
       {aba === 'compras' && (<>
-        <div className="action-row"><button className="btn btn-primary" onClick={() => setCompraModal({ c: null })}><Plus size={15} /> Registrar Compra</button></div>
+        {podeEditar && <div className="action-row"><button className="btn btn-primary" onClick={() => setCompraModal({ c: null })}><Plus size={15} /> Registrar Compra</button></div>}
         <div className="card">
           <div className="table-wrap">
             <table>
@@ -302,10 +302,10 @@ export default function Detalhe() {
                     <td className="td-right">{fmt(c.unit)}</td>
                     <td className="td-right" style={{ fontWeight: 600 }}>{fmt(c.total)}</td>
                     <td><span className={'badge ' + badgeCompra(c.status)}>{c.status}</span></td>
-                    <td><div style={{ display: 'flex', gap: 4 }}>
+                    <td><div style={{ display: 'flex', gap: 4 }}>{podeEditar && <>
                       <button className="btn btn-sm btn-icon" onClick={() => setCompraModal({ c })}><Pencil size={14} /></button>
                       <button className="btn btn-sm btn-icon btn-danger" onClick={async () => { if (await confirmar(`Excluir a compra "${c.desc}"?`, { confirmar: 'Excluir', perigo: true })) { excluirCompra(c.id); toast('Compra excluída.'); } }}><Trash2 size={14} /></button>
-                    </div></td>
+                    </>}</div></td>
                   </tr>
                 ))}
               </tbody>

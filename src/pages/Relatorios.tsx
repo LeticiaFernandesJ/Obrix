@@ -7,7 +7,7 @@ import {
 } from '../lib/ac21';
 
 export default function Relatorios() {
-  const { db, exportarTudo, importarDB, registrarHistorico, toast } = useApp();
+  const { db, exportarTudo, importarDB, registrarHistorico, toast, podeEditar } = useApp();
   const { avisar } = useDialogo();
   const input = useRef<HTMLInputElement>(null);
   const totalAC21 = db.obras.reduce((s, o) => s + Number(o.ac21), 0);
@@ -52,7 +52,7 @@ export default function Relatorios() {
             <button className="btn btn-success" onClick={() => exportarExcel(db)}><BarChart3 size={16} /> Exportar todas as obras (Excel)</button>
             <button className="btn" onClick={() => exportarExcelCompras(db)}><ShoppingBasket size={16} /> Exportar compras (Excel)</button>
             <button className="btn" onClick={salvar}><Save size={16} /> Salvar backup (JSON)</button>
-            <button className="btn" onClick={() => input.current?.click()}><FolderOpen size={16} /> Carregar backup (JSON)</button>
+            {podeEditar && <button className="btn" onClick={() => input.current?.click()}><FolderOpen size={16} /> Carregar backup (JSON)</button>}
             <button className="btn" onClick={() => window.print()}><Printer size={16} /> Imprimir relatório</button>
             <input ref={input} type="file" accept=".json" hidden onChange={carregar} />
           </div>

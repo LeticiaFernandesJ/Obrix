@@ -5,7 +5,7 @@ import { useApp } from '../../store/AppStore';
 import { Empty } from '../../components/ui';
 
 export function CronoHeader() {
-  const { crono, readOnly, db, obraAtual, setObraAtiva } = useApp();
+  const { crono, readOnly, podeEditar, db, obraAtual, setObraAtiva } = useApp();
   const m = crono.meta;
   const sd = m.statusDate ? m.statusDate.split('-').reverse().join('/') : '';
   const meta = [m.contrato, m.empresa].filter(Boolean).join(' · ');
@@ -19,6 +19,7 @@ export function CronoHeader() {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         {readOnly && <span className="chip ro">somente leitura, visão PMO</span>}
+        {!readOnly && !podeEditar && <span className="chip ro">somente consulta</span>}
         {!readOnly && db.obras.length > 0 && (
           <label className="obra-pick" title="Obra do cronograma">
             <Building2 size={15} />

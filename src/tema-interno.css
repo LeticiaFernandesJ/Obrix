@@ -405,3 +405,5 @@
 .shell .grid td input[readonly] { cursor: default; }
 .shell .grid td input:not([readonly]) { cursor: text; background: color-mix(in srgb, var(--brand-2) 9%, transparent); box-shadow: inset 0 -2px 0 var(--brand-2); font-weight: 650; }
 .shell .grid td input:not([readonly]):focus { background: var(--surface); box-shadow: inset 0 0 0 2px var(--accent); }
+/* campos só de leitura não podem parecer editáveis: sem caixa de foco azul (a linha selecionada já mostra onde você está) */
+.shell .grid td input[readonly]:focus, .shell .grid td input[readonly]:focus-visible { background-color: transparent; box-shadow: none; outline: none; }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   BarChart3, Building2, ClipboardList, ShoppingBasket, Clock3, FileText, CalendarRange, LayoutDashboard, FolderKanban,
-  Menu, Download, Save, FileSpreadsheet, Users, Wallet,
+  Menu, Download, Save, FileSpreadsheet, Users, Wallet, Moon, Sun,
 } from 'lucide-react';
 import { useApp } from '../store/AppStore';
 import { useDialogo } from './Dialogo';
@@ -93,7 +93,7 @@ function AC21Actions() {
 
 export default function Layout() {
   const { pathname } = useLocation();
-  const { toastMsg, readOnly, usuario, nomeUsuario, sair, nuvem, recarregarNuvem, tentarSincronizar, orgId, orgNome, papel } = useApp();
+  const { toastMsg, readOnly, tema, alternarTema, usuario, nomeUsuario, sair, nuvem, recarregarNuvem, tentarSincronizar, orgId, orgNome, papel } = useApp();
   const [aberto, setAberto] = useState(false);
   const { podeInstalar, instalarNoIos, instalar } = useInstalar();
   useEffect(() => setAberto(false), [pathname]);
@@ -155,7 +155,7 @@ export default function Layout() {
               {sub && <div className="topbar-sub">{sub}</div>}
             </div>
           </div>
-          <div className="topbar-actions">{!readOnly && <AlertasSino />}{crono ? <CronoActions /> : <AC21Actions />}</div>
+          <div className="topbar-actions">{!readOnly && <AlertasSino />}<button className="btn btn-icon" title={tema === 'dark' ? 'Modo claro' : 'Modo noturno'} aria-label="Claro/escuro" onClick={alternarTema}>{tema === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button>{crono ? <CronoActions /> : <AC21Actions />}</div>
         </header>
         <Outlet />
       </div>

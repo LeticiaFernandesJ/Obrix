@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronsLeft, ChevronsRight, Diamond, Pencil, Plus, Save, Trash2, BarChart3 } from 'lucide-react';
+import { ArrowDown, ArrowUp, CalendarDays, ChevronsLeft, ChevronsRight, Diamond, Pencil, Plus, Save, Trash2, BarChart3 } from 'lucide-react';
 import { useApp } from '../../store/AppStore';
 import {
   type CampoGrade, type Zoom, aplicarCampo, filhos, linhasVisiveis, novaTarefa, pctRealAtual, predTexto,
@@ -14,19 +14,19 @@ import { TarefaModal } from './TarefaModal';
 
 interface ColDef { k: string; t: string; sub?: string; w: number; cls: string }
 const COLS_BASE: ColDef[] = [
-  { k: 'nome', t: 'Nome da tarefa', w: 240, cls: 'cellname' },
-  { k: 'dur', t: 'Dur.', sub: 'dias úteis', w: 52, cls: 'num' },
-  { k: 'ini', t: 'Início', w: 90, cls: 'dt' },
-  { k: 'fim', t: 'Término', w: 90, cls: 'dt' },
-  { k: 'pred', t: 'Predec.', sub: 'nº da linha', w: 68, cls: 'num' },
-  { k: 'pct', t: '%', sub: 'concl.', w: 48, cls: 'num' },
-  { k: 'peso', t: 'Peso', w: 46, cls: 'num' },
-  { k: 'resp', t: 'Responsável', w: 104, cls: '' },
+  { k: 'nome', t: 'Nome da tarefa', w: 270, cls: 'cellname' },
+  { k: 'dur', t: 'Dur.', sub: 'dias úteis', w: 66, cls: 'num' },
+  { k: 'ini', t: 'Início', w: 116, cls: 'dt' },
+  { k: 'fim', t: 'Término', w: 116, cls: 'dt' },
+  { k: 'pred', t: 'Predec.', sub: 'nº da linha', w: 82, cls: 'num' },
+  { k: 'pct', t: '%', sub: 'concl.', w: 62, cls: 'num' },
+  { k: 'peso', t: 'Peso', w: 56, cls: 'num' },
+  { k: 'resp', t: 'Responsável', w: 140, cls: '' },
 ];
 const COLS_REAL: ColDef[] = [
-  { k: 'rIni', t: 'Início', sub: 'real', w: 78, cls: 'dt' },
-  { k: 'rFim', t: 'Término', sub: 'real', w: 78, cls: 'dt' },
-  { k: 'folga', t: 'Folga', sub: 'dias', w: 56, cls: 'num' },
+  { k: 'rIni', t: 'Início', sub: 'real', w: 100, cls: 'dt' },
+  { k: 'rFim', t: 'Término', sub: 'real', w: 100, cls: 'dt' },
+  { k: 'folga', t: 'Folga', sub: 'dias', w: 64, cls: 'num' },
 ];
 
 /** Input que só confirma a edição ao sair do campo / Enter (equivale ao evento "change"). */
@@ -44,13 +44,15 @@ function Cell({ value, onCommit, readOnly, ...rest }: {
 }
 
 export default function Cronograma() {
-  const { crono, calc, cal, updateCrono, podeEditarArea, podeEditarTarefa, soMinhas, toast } = useApp();
+  const { crono, calc, cal, updateCrono, podeEditarArea, podeEditarTarefa, soMinhas, obraAtivaId, toast } = useApp();
   const readOnly = !podeEditarArea('cronograma');
   const { confirmar } = useDialogo();
   const [sel, setSel] = useState(0);
   const [mostrarReal, setMostrarReal] = useState(false);
   const [tm, setTm] = useState<{ indice: number | null; marco: boolean } | null>(null); // janela da tarefa
-  const [larg, setLarg] = useState(778);
+  // largura da grade: no computador, pouco mais da metade da área útil (420 a 900 px); no celular, só o início (o calendário aparece ao lado).
+  // Dá para arrastar a barra do meio (com mouse ou com o dedo) para ajustar.
+  const [larg, setLarg] = useState(() => (window.innerWidth <= 860 ? Math.max(150, Math.round(window.innerWidth * 0.42)) : Math.max(420, Math.min(900, Math.round((window.innerWidth - 312) * 0.55)))));
   const foco = useRef<{ i: number; k: string } | null>(null);
   const paneL = useRef<HTMLDivElement>(null);
   const paneR = useRef<HTMLDivElement>(null);
@@ -72,6 +74,14 @@ export default function Cronograma() {
     const el = document.querySelector<HTMLInputElement>(`#gbody [data-i="${i}"][data-k="${k}"]`);
     if (el) { el.focus(); el.select?.(); }
   });
+
+  /** ao abrir (e ao trocar o zoom), o calendário já mostra o dia de hoje */
+  useLayoutEffect(() => {
+    const el = paneR.current;
+    if (el && g.xHoje != null) el.scrollLeft = Math.max(0, g.xHoje - el.clientWidth * 0.3);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [obraAtivaId, crono.zoom, T.length > 0]);
+  const irPara = (px: number | null) => { if (px != null) paneR.current?.scrollTo({ left: Math.max(0, px - 90), behavior: 'smooth' }); };
 
   const sincro = (a: HTMLElement | null, b: HTMLElement | null) => {
     if (trava.current || !a || !b) return;
@@ -178,12 +188,12 @@ export default function Cronograma() {
   };
 
   /* ---- redimensionar painel ---- */
-  const arrastar = (e: React.MouseEvent) => {
+  const arrastar = (e: React.PointerEvent) => {
     e.preventDefault(); document.body.style.cursor = 'col-resize';
-    const x0 = e.clientX, w0 = larg;
-    const mv = (ev: MouseEvent) => setLarg(Math.max(220, Math.min(1100, w0 + ev.clientX - x0)));
-    const up = () => { document.body.style.cursor = ''; window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up); };
-    window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
+    const x0 = e.clientX, w0 = larg, minimo = window.innerWidth <= 860 ? 110 : 220;
+    const mv = (ev: PointerEvent) => setLarg(Math.max(minimo, Math.min(1100, w0 + ev.clientX - x0)));
+    const up = () => { document.body.style.cursor = ''; window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); };
+    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
   };
 
   const ro = readOnly;
@@ -236,12 +246,19 @@ export default function Cronograma() {
           <h3>Cronograma</h3>
           <span className="sub">{plural(nLinhas, 'linha', 'linhas')} · {plural(nMarcos, 'marco', 'marcos')} · zoom por {zoomNome[crono.zoom]}</span>
           <div className="spacer" />
-          <div className="legend" style={{ margin: 0 }}>
-            <span><i style={{ background: 'var(--bar-sum)' }} />Fase</span>
-            <span><i style={{ background: 'var(--series-3)' }} />Concluída</span>
-            <span><i style={{ background: 'var(--bar)' }} />Em execução</span>
-            <span><i style={{ background: 'var(--series-2)' }} />Crítica</span>
-          </div>
+          <button className="btn btn-sm" onClick={() => irPara(g.xHoje)} disabled={g.xHoje == null} title="Rolar o calendário até o dia de hoje"><CalendarDays size={13} /> Hoje</button>
+          <button className="btn btn-sm" onClick={() => irPara(g.xInicio)} disabled={g.xInicio == null} title="Rolar o calendário até a primeira tarefa">Início das tarefas</button>
+        </div>
+        <div className="legenda" aria-label="Legenda do calendário">
+          <span><i className="k-fase" />Fase (grupo de tarefas)</span>
+          <span><i className="k-andamento" />Em andamento</span>
+          <span><i className="k-feita" />Concluída</span>
+          <span><i className="k-atrasada" />Atrasada</span>
+          <span><i className="k-critica" />Caminho crítico</span>
+          <span><i className="k-marco" />Marco</span>
+          <span><i className="k-hoje" />Hoje</span>
+          <span><i className="k-folga" />Sem expediente</span>
+          <span><i className="k-base" />Linha de base</span>
         </div>
         <div className="split-wrap">
           <div className="split" style={{ width: '100%' }}>
@@ -304,7 +321,7 @@ export default function Cronograma() {
                 </tbody>
               </table>
             </div>
-            <div className="dragbar" onMouseDown={arrastar} />
+            <div className="dragbar" onPointerDown={arrastar} role="separator" aria-orientation="vertical" aria-label="Arraste para mudar a largura da grade" />
             <div className="pane right" ref={paneR} onScroll={() => sincro(paneR.current, paneL.current)}>
               <div className="tl" style={{ width: g.largura }}>
                 <div className="tlhead" style={{ width: g.largura }} dangerouslySetInnerHTML={{ __html: g.head }} />

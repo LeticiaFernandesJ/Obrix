@@ -318,3 +318,85 @@
 
 .shell .resp-fixo { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; padding: 10px 14px; border-radius: 12px; background: var(--surface-2); font-weight: 600; }
 .shell .toolbar .dica { margin: 0 4px; font-size: 12.5px; color: var(--text2); }
+
+
+/* ── cronograma: grade e calendário mais fáceis de ler ── */
+:root { --row-h: 36px; }
+.shell .crono-card-head { padding: 16px 22px 12px; border-bottom: 0; }
+.shell .legenda { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 0 22px 14px; font-size: 12px; color: var(--text2); border-bottom: 1px solid var(--gray-border); }
+.shell .legenda span { display: inline-flex; align-items: center; gap: 7px; }
+.shell .legenda i { display: inline-block; flex: 0 0 auto; }
+.shell .legenda .k-fase { width: 18px; height: 6px; border-radius: 2px; background: var(--bar-sum); }
+.shell .legenda .k-andamento { width: 18px; height: 10px; border-radius: 5px; background: linear-gradient(90deg, var(--bar) 55%, var(--bar-soft) 55%); }
+.shell .legenda .k-feita { width: 18px; height: 10px; border-radius: 5px; background: var(--series-3); }
+.shell .legenda .k-atrasada { width: 18px; height: 10px; border-radius: 5px; background: var(--critical); }
+.shell .legenda .k-critica { width: 18px; height: 10px; border-radius: 5px; background: var(--series-2); }
+.shell .legenda .k-marco { width: 10px; height: 10px; border-radius: 2px; background: var(--text); transform: rotate(45deg); margin: 0 4px; }
+.shell .legenda .k-hoje { width: 3px; height: 14px; border-radius: 2px; background: var(--critical); margin: 0 6px; }
+.shell .legenda .k-folga { width: 16px; height: 12px; border-radius: 3px; background: color-mix(in srgb, var(--text) 9%, transparent); border: 1px solid var(--grid); }
+.shell .legenda .k-base { width: 18px; height: 4px; border-radius: 2px; background: var(--bl); }
+
+/* grade (esquerda) */
+.shell .grid th { height: 60px; background: var(--surface-2); font-size: 11.5px; color: var(--text2); padding: 0 8px; }
+.shell .grid td input, .shell .grid td select { font-size: 13px; padding: 0 8px; }
+.shell .grid td.dt input, .shell .grid td.num input { font-size: 13px; padding: 0 4px; }
+.shell .grid td.dt input { font-variant-numeric: tabular-nums; }
+.shell .grid tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--text) 2.4%, transparent); }
+.shell .grid tbody tr:hover td { background: var(--hover); }
+.shell .grid tr.sel td { background: var(--sel); }
+.shell .grid tr.summary td { background: color-mix(in srgb, var(--text) 7%, transparent); font-weight: 700; }
+.shell .grid .rownum { font-size: 11.5px; }
+.shell .grid tr.sel .rownum { background: var(--navy); }
+.shell .flag { font-size: 10.5px; padding: 2px 7px; border-radius: 10px; }
+
+/* calendário (direita) */
+.shell .tlhead { height: 60px; background: var(--surface-2); }
+.shell .tlhead .m { height: 30px; padding: 8px 8px; font-size: 12px; font-weight: 700; color: var(--text); border-right: 1px solid var(--axis); }
+.shell .tlhead .m.alt { background: color-mix(in srgb, var(--text) 3.5%, transparent); }
+.shell .tlhead .d { top: 30px; height: 30px; line-height: 30px; font-size: 11.5px; color: var(--text2); }
+.shell .tlhead .d small { display: block; line-height: 11px; padding-top: 3px; font-size: 9px; font-weight: 700; letter-spacing: .04em; color: var(--text3); }
+.shell .tlhead .d:has(small) { line-height: 14px; }
+.shell .tlhead .d.we { background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text3); }
+.shell .tlhead .d.fer { background: color-mix(in srgb, var(--series-2) 18%, transparent); }
+.shell .tlhead .d.hoje { background: var(--critical); color: #fff; font-weight: 700; border-radius: 0 0 6px 6px; }
+.shell .tlhead .d.hoje small { color: #ffe3e3; }
+.shell .tlhead .d.sem { font-size: 11px; font-weight: 600; }
+.shell .tlbody .tlrow { height: var(--row-h); }
+.shell .tlbody .tlrow:nth-child(even) { background: color-mix(in srgb, var(--text) 2.4%, transparent); }
+.shell .tlbody .tlrow.sel { background: var(--sel); }
+.shell .bg-we { background: color-mix(in srgb, var(--text) 5.5%, transparent); }
+.shell .bg-we.fer { background: color-mix(in srgb, var(--series-2) 14%, transparent); }
+.shell .bg-hoje { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--critical) 9%, transparent); pointer-events: none; }
+.shell .bg-line { background: var(--grid); }
+.shell .bg-line.mes { background: var(--axis); width: 1.5px; }
+.shell .today { width: 2.5px; opacity: 1; box-shadow: 0 0 0 1px color-mix(in srgb, var(--critical) 25%, transparent); }
+.shell .today b { top: 4px; left: 5px; font-size: 10.5px; padding: 1px 7px; border-radius: 8px; }
+
+.shell .bar { top: 9px; height: 18px; border-radius: 9px; background: color-mix(in srgb, var(--bar) 24%, var(--surface)); border: 1px solid color-mix(in srgb, var(--bar) 35%, transparent); box-shadow: 0 1px 2px rgba(20, 33, 58, .12); }
+.shell .bar .prog { background: var(--bar); border-radius: 9px 0 0 9px; }
+.shell .bar.andamento .prog { background: var(--bar); }
+.shell .bar.crit { background: color-mix(in srgb, var(--series-2) 24%, var(--surface)); border-color: color-mix(in srgb, var(--series-2) 45%, transparent); }
+.shell .bar.crit .prog { background: var(--series-2); }
+.shell .bar.late { background: color-mix(in srgb, var(--critical) 22%, var(--surface)); border-color: color-mix(in srgb, var(--critical) 50%, transparent); }
+.shell .bar.late .prog { background: var(--critical); }
+.shell .bar.done { background: var(--series-3); border-color: transparent; }
+.shell .bar.sum { top: 12px; height: 8px; border: 0; border-radius: 2px; background: var(--bar-sum); box-shadow: none; }
+.shell .bar.sum:before, .shell .bar.sum:after { border-width: 6px; }
+.shell .ms { top: 10px; width: 16px; height: 16px; border-radius: 3px; background: var(--text); border: 2px solid var(--surface); box-shadow: 0 1px 3px rgba(20, 33, 58, .35); }
+.shell .ms.crit { background: var(--series-2); } .shell .ms.late { background: var(--critical); } .shell .ms.done { background: var(--good); }
+.shell .blbar { top: 29px; height: 4px; }
+.shell .barlbl { top: 9px; font-size: 12px; line-height: 18px; color: var(--text2); }
+.shell .barlbl b { color: var(--text); font-weight: 700; }
+.shell .barlbl.ml b { font-weight: 700; margin-right: 4px; }
+
+@media (max-width: 860px) {
+  .shell .legenda { padding: 0 14px 12px; gap: 6px 14px; }
+  .shell .crono-card-head { padding: 14px 14px 10px; }
+}
+.shell .split-wrap { min-height: 520px; height: calc(100vh - 300px); }
+
+.shell .dragbar { flex: 0 0 8px; margin-left: -4px; touch-action: none; display: grid; place-items: center; }
+.shell .dragbar::after { content: ''; width: 3px; height: 38px; border-radius: 2px; background: var(--axis); opacity: .7; }
+.shell .dragbar:hover::after { background: var(--brand-2); opacity: 1; }
+@media (max-width: 860px) { .shell .dragbar { flex-basis: 14px; margin-left: -7px; } .shell .split-wrap { min-height: 460px; } }
+.shell .tlhead .d.sem.hoje { background: color-mix(in srgb, var(--critical) 16%, transparent); color: var(--critical); border-radius: 0; box-shadow: inset 0 -3px 0 var(--critical); }

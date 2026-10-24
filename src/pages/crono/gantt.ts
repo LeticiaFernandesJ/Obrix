@@ -1,9 +1,17 @@
 import { DIA, MES, MESL, dow, hojeN, n2brc, parseData } from '../../lib/dates';
 import { type Cal, type Calc, type Estado, ehUtil, esc, linhasVisiveis } from '../../lib/schedule';
 
-export const PX = { d: 26, s: 6.6, m: 2.5, q: 1.0 } as const;
+export const PX = { d: 32, s: 8.5, m: 3, q: 1.1 } as const;
+/** altura de cada linha (precisa ser igual à da grade: --row-h no CSS) */
+export const ALTURA_LINHA = 36;
+const INICIAL = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']; // dom, seg, ter, qua, qui, sex, sáb
+const DIA_SEMANA = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
 
-export interface GanttOut { head: string; body: string; largura: number; altura: number }
+export interface GanttOut {
+  head: string; body: string; largura: number; altura: number;
+  /** posição (px) de hoje e do início da primeira tarefa, para os botões de atalho */
+  xHoje: number | null; xInicio: number | null;
+}
 
 /** Gera o HTML do cabeçalho e do corpo do Gantt (mesmo desenho do arquivo original). */
 export function montarGantt(S: Estado, c: Calc[], cal: Cal, sel: number): GanttOut {
@@ -26,19 +34,24 @@ export function montarGantt(S: Estado, c: Calc[], cal: Cal, sel: number): GanttO
   /* cabeçalho */
   let h = '';
   if (S.zoom === 'd' || S.zoom === 's') {
-    let n = T0;
+    let n = T0, alt = 0;
     while (n <= T1) {
       const d = new Date(n * DIA), y = d.getUTCFullYear(), m = d.getUTCMonth();
       let e = n; while (e <= T1) { const dd = new Date(e * DIA); if (dd.getUTCMonth() !== m) break; e++; }
-      h += `<div class="m" style="left:${x(n)}px;width:${(e - n) * PXD}px">${MESL[m]} ${y}</div>`; n = e;
+      h += `<div class="m${alt++ % 2 ? ' alt' : ''}" style="left:${x(n)}px;width:${(e - n) * PXD}px">${MESL[m]} ${y}</div>`; n = e;
     }
     if (S.zoom === 'd') {
       for (let k = T0; k <= T1; k++) {
-        const we = !ehUtil(cal, k);
-        h += `<div class="d${we ? ' we' : ''}" style="left:${x(k)}px;width:${PXD}px">${new Date(k * DIA).getUTCDate()}</div>`;
+        const w = dow(k), fer = cal.fer.has(k), we = !ehUtil(cal, k);
+        const cls = 'd' + (we ? ' we' : '') + (fer ? ' fer' : '') + (k === hoje ? ' hoje' : '');
+        const quando = `${DIA_SEMANA[w]}, ${n2brc(k)}${fer ? ' (feriado ou parada)' : we ? ' (não trabalha)' : ''}`;
+        h += `<div class="${cls}" title="${quando}" style="left:${x(k)}px;width:${PXD}px"><small>${INICIAL[w]}</small>${new Date(k * DIA).getUTCDate()}</div>`;
       }
     } else {
-      for (let k = T0; k <= T1; k += 7) h += `<div class="d" style="left:${x(k)}px;width:${7 * PXD}px">${n2brc(k)}</div>`;
+      for (let k = T0; k <= T1; k += 7) {
+        const atual = hoje >= k && hoje <= k + 6;
+        h += `<div class="d sem${atual ? ' hoje' : ''}" title="Semana de ${n2brc(k)} a ${n2brc(k + 6)}" style="left:${x(k)}px;width:${7 * PXD}px">${n2brc(k)}</div>`;
+      }
     }
   } else {
     let n = T0;
@@ -62,12 +75,15 @@ export function montarGantt(S: Estado, c: Calc[], cal: Cal, sel: number): GanttO
   const vis = linhasVisiveis(S.tarefas);
   let fundo = '';
   if (S.zoom === 'd' || S.zoom === 's') {
-    for (let k = T0; k <= T1; k++) if (!ehUtil(cal, k)) fundo += `<div class="bg-we" style="left:${x(k)}px;width:${PXD}px"></div>`;
+    for (let k = T0; k <= T1; k++) if (!ehUtil(cal, k)) fundo += `<div class="bg-we${cal.fer.has(k) ? ' fer' : ''}" style="left:${x(k)}px;width:${PXD}px"></div>`;
   }
+  if (S.zoom === 'd' && hoje >= T0 && hoje <= T1) fundo += `<div class="bg-hoje" style="left:${x(hoje)}px;width:${PXD}px"></div>`;
   for (let k = T0; k <= T1; k++) {
-    if (new Date(k * DIA).getUTCDate() === 1) fundo += `<div class="bg-line" style="left:${x(k)}px"></div>`;
+    if (new Date(k * DIA).getUTCDate() === 1) fundo += `<div class="bg-line mes" style="left:${x(k)}px"></div>`;
+    else if (S.zoom === 's' && dow(k) === 1) fundo += `<div class="bg-line" style="left:${x(k)}px"></div>`;
   }
 
+  const ref = sd ?? hoje; // data de status: o que já devia estar pronto fica "atrasada"
   const pos: Record<number, { L: number; W: number; r: number }> = {};
   let rows = '';
   vis.forEach((i, r) => {
@@ -81,12 +97,14 @@ export function montarGantt(S: Estado, c: Calc[], cal: Cal, sel: number): GanttO
       if (k.res) {
         inner += `<div class="bar sum" data-i="${i}" style="left:${L}px;width:${W}px"></div>`;
       } else if (t.marco || k.dur === 0) {
-        inner += `<div class="ms ${k.crit ? 'crit' : ''} ${+t.pct >= 100 ? 'done' : ''}" data-i="${i}" style="left:${L - 6}px"></div>`;
-        inner += `<span class="barlbl" style="left:${L + 12}px">${esc(t.nome)}</span>`;
+        const feito = +t.pct >= 100, atrasado = !feito && k.fim < ref;
+        inner += `<div class="ms ${feito ? 'done' : atrasado ? 'late' : k.crit ? 'crit' : ''}" data-i="${i}" style="left:${L - 8}px"></div>`;
+        inner += `<span class="barlbl ml" style="left:${L + 16}px"><b>${esc(t.nome)}</b> ${n2brc(k.ini)}</span>`;
       } else {
         const p = Math.max(0, Math.min(100, +t.pct || 0));
-        inner += `<div class="bar ${+t.pct >= 100 ? 'done' : k.crit ? 'crit' : ''}" data-i="${i}" style="left:${L}px;width:${W}px"><div class="prog" style="width:${p}%"></div></div>`;
-        if (PXD > 3) inner += `<span class="barlbl" style="left:${L + W + 6}px">${p > 0 ? p + '%' : ''} ${esc(t.resp || '')}</span>`;
+        const feito = p >= 100, atrasada = !feito && k.fim < ref;
+        inner += `<div class="bar ${feito ? 'done' : atrasada ? 'late' : k.crit ? 'crit' : p > 0 ? 'andamento' : ''}" data-i="${i}" style="left:${L}px;width:${W}px"><div class="prog" style="width:${p}%"></div></div>`;
+        if (PXD > 3 && (p > 0 || t.resp)) inner += `<span class="barlbl" style="left:${L + W + 8}px">${p > 0 ? `<b>${p}%</b> ` : ''}${esc(t.resp || '')}</span>`;
       }
     }
     rows += `<div class="tlrow ${i === sel ? 'sel' : ''}" data-i="${i}">${inner}</div>`;
@@ -99,8 +117,8 @@ export function montarGantt(S: Estado, c: Calc[], cal: Cal, sel: number): GanttO
     const t = S.tarefas[i], k = c[i]; if (!pos[i]) return;
     (t.pred || []).forEach((p) => {
       const j = ix[p.id]; if (j == null || !pos[j]) return;
-      const A = pos[j], B = pos[i], RH = 30;
-      const ay = A.r * RH + 15, by = B.r * RH + 15;
+      const A = pos[j], B = pos[i], RH = ALTURA_LINHA;
+      const ay = A.r * RH + RH / 2, by = B.r * RH + RH / 2;
       const ax = p.tipo === 'II' || p.tipo === 'IT' ? A.L : A.L + A.W;
       const bx = p.tipo === 'TT' || p.tipo === 'IT' ? B.L + B.W : B.L;
       const cr = k && k.crit && c[j] && c[j].crit ? ' crit' : '';
@@ -118,8 +136,8 @@ export function montarGantt(S: Estado, c: Calc[], cal: Cal, sel: number): GanttO
   if (sd != null && sd !== hoje && sd >= T0 && sd <= T1)
     marc += `<div class="today" style="left:${x(sd)}px;background:var(--text3)"><b style="background:var(--text3)">status</b></div>`;
 
-  const altura = vis.length * 30;
+  const altura = vis.length * ALTURA_LINHA;
   const body = fundo + rows + marc +
     `<svg class="links" style="width:${largura}px;height:${altura}px">${sv}</svg>`;
-  return { head: h, body, largura, altura };
+  return { head: h, body, largura, altura, xHoje: hoje >= T0 && hoje <= T1 ? x(hoje) : null, xInicio: a != null ? x(Math.max(T0, a as number)) : null };
 }

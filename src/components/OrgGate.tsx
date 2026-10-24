@@ -123,7 +123,7 @@ export default function OrgGate({ userId, email, onSignOut, children }: {
 
   return (
     <AppProvider key={ativa.id} userId={userId} email={email} nome={ativa.meuNome} onSignOut={onSignOut}
-      orgId={ativa.id} papel={ativa.papel} orgs={orgs} trocarOrg={trocar} recarregarOrgs={() => void carregar(false)}>
+      orgId={ativa.id} papel={ativa.papel} permissoes={ativa.permissoes} orgs={orgs} trocarOrg={trocar} recarregarOrgs={() => void carregar(false)}>
       {children}
     </AppProvider>
   );

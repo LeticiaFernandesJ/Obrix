@@ -20,7 +20,9 @@ const vazio: Form = { nome: '', codigo: '', local: '', responsavel: '', inicio: 
 const doObra = (o: Obra): Form => ({ ...o, ac21: String(o.ac21 || '') });
 
 export default function Obras() {
-  const { db, cronos, obraAtivaId, setObraAtiva, salvarObra, excluirObra, toast, podeEditar } = useApp();
+  const { db, cronos, obraAtivaId, setObraAtiva, salvarObra, excluirObra, toast, podeEditarArea } = useApp();
+  const podeEditar = podeEditarArea('obras');
+  const podeExcluir = podeEditar && podeEditarArea('compras') && podeEditarArea('cronograma');
   const { confirmar } = useDialogo();
   const nav = useNavigate();
   const [busca, setBusca] = useState('');
@@ -103,7 +105,7 @@ export default function Obras() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch' }}>
                     <button className="btn btn-sm" onClick={() => detalhe(o)}><ClipboardList size={13} /> Detalhes</button>
                     {podeEditar && <button className="btn btn-sm" onClick={() => editar(o)}><Pencil size={13} /> Editar</button>}
-                    {podeEditar && <button className="btn btn-sm btn-danger" onClick={() => excluir(o)}><Trash2 size={13} /> Excluir</button>}
+                    {podeExcluir && <button className="btn btn-sm btn-danger" onClick={() => excluir(o)}><Trash2 size={13} /> Excluir</button>}
                   </div>
                 </div>
               );

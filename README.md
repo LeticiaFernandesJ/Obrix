@@ -59,8 +59,10 @@ Os dados pertencem a uma **organização** (sua empresa ou equipe), não a uma p
 | **Administrador** | Tudo, mais convidar pessoas, mudar papéis, remover membros e renomear a organização |
 | **Editor** | Cadastrar e alterar obras, itens, compras e cronogramas |
 | **Leitor** | Só consultar e exportar |
+| **Personalizado** | Você escolhe, para cada área, se a pessoa não vê, só vê ou também altera: **Obras e itens**, **Compras e financeiro**, **Cronograma** e **Histórico**. Ex.: ver tudo e alterar só as compras |
 
 - **Convidar:** em **Equipe → Convidar pessoas**, escolha o papel e gere o link. Envie por WhatsApp ou e-mail. Quem abrir o link entra na equipe depois de criar a conta ou entrar. Cada link vale para uma pessoa e expira em 7 dias; o administrador pode cancelá-lo antes.
+- **Acesso personalizado:** em **Equipe**, escolha o papel Personalizado ao convidar ou em "Editar acesso" de um membro. As obras e itens sempre podem ser vistos por quem é da equipe, e o histórico nunca é editável. Quem altera só uma área não consegue gravar nas outras, mesmo fora do app.
 - **Segurança:** as regras ficam no banco (RLS), então valem mesmo fora do app. A organização nunca fica sem administrador.
 - **Vários usuários ao mesmo tempo:** cada alteração grava só as linhas que mudaram, e o app recebe avisos em tempo real quando outra pessoa altera algo. Se duas pessoas mudarem a mesma linha ao mesmo tempo, vale a última gravação.
 - **Histórico:** cada registro mostra o e-mail de quem fez a alteração.

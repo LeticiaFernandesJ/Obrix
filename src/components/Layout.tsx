@@ -8,6 +8,7 @@ import { useApp } from '../store/AppStore';
 import { useDialogo } from './Dialogo';
 import { useInstalar } from '../lib/pwa';
 import { AlertasSino } from './AlertasSino';
+import type { Area } from '../lib/equipe';
 import { exportarExcel } from '../lib/ac21';
 import { CronoActions } from '../pages/crono/CronoActions';
 
@@ -35,6 +36,12 @@ const NAV = [
   ] },
 ];
 
+/** Telas que dependem de uma área de acesso (quem não tem acesso não vê o menu nem abre o endereço). */
+const AREA_DA_ROTA: Record<string, Area> = {
+  '/compras': 'compras', '/financeiro': 'compras', '/historico': 'historico',
+  '/cronograma': 'cronograma', '/painel': 'cronograma', '/projeto': 'cronograma',
+};
+
 const TITULOS: Record<string, [string, string]> = {
   '/': ['Visão Geral', 'Gestão de Verbas por Obra'],
   '/obras': ['Obras', 'Gestão de Verbas por Obra'],
@@ -59,7 +66,8 @@ export function LogoObrix() {
 }
 
 function AC21Actions() {
-  const { db, exportarTudo, importarDB, registrarHistorico, toast, podeEditar } = useApp();
+  const { db, exportarTudo, importarDB, registrarHistorico, toast, podeEditarArea } = useApp();
+  const podeEditar = (['obras', 'compras', 'cronograma'] as const).every((a) => podeEditarArea(a));
   const { avisar } = useDialogo();
   const input = useRef<HTMLInputElement>(null);
   const salvar = () => {
@@ -93,7 +101,7 @@ function AC21Actions() {
 
 export default function Layout() {
   const { pathname } = useLocation();
-  const { toastMsg, readOnly, tema, alternarTema, usuario, nomeUsuario, sair, nuvem, recarregarNuvem, tentarSincronizar, orgId, orgNome, papel } = useApp();
+  const { toastMsg, readOnly, podeVerArea, tema, alternarTema, usuario, nomeUsuario, sair, nuvem, recarregarNuvem, tentarSincronizar, orgId, orgNome, papel } = useApp();
   const [aberto, setAberto] = useState(false);
   const { podeInstalar, instalarNoIos, instalar } = useInstalar();
   useEffect(() => setAberto(false), [pathname]);
@@ -101,6 +109,7 @@ export default function Layout() {
   const [titulo, sub] = TITULOS[path] || ['Obrix', ''];
   const crono = CRONO.includes(path);
   if (readOnly && !crono) return <Navigate to="/painel" replace />;
+  if (AREA_DA_ROTA[path] && !podeVerArea(AREA_DA_ROTA[path])) return <Navigate to="/" replace />;
 
   return (
     <div className="shell">
@@ -114,7 +123,7 @@ export default function Layout() {
           {NAV.filter((g) => (readOnly ? g.sec === 'Cronograma de obra' : g.sec !== 'Administração' || !!orgId)).map((g) => (
             <div key={g.sec}>
               <div className="nav-section">{g.sec}</div>
-              {g.items.map((it) => (
+              {g.items.filter((it) => !AREA_DA_ROTA[it.to] || podeVerArea(AREA_DA_ROTA[it.to])).map((it) => (
                 <NavLink key={it.to} to={it.to} end={it.end} className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}>
                   <it.icon size={17} /> {it.label}
                 </NavLink>

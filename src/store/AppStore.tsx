@@ -7,8 +7,8 @@ import {
 } from '../lib/schedule';
 import { supabase } from '../lib/supabase';
 import { useDialogo } from '../components/Dialogo';
-import { type Snap, TABELAS, deLinhas, enviarMudancas, lerNuvem, paraLinhas, snapDe, snapVazio } from '../lib/nuvem';
-import { type Org, type Papel, podeAlterar } from '../lib/equipe';
+import { type Snap, type Tabela, TABELAS, deLinhas, enviarMudancas, lerNuvem, paraLinhas, snapDe, snapVazio } from '../lib/nuvem';
+import { type Area, type Org, type Papel, type Permissoes, podeAlterar, podeEditarArea, podeVerArea } from '../lib/equipe';
 
 const K_DB = 'obrix-ac21-v1';
 const K_CRONO = 'cronograma-obra-v2'; // legado (cronograma único)
@@ -45,8 +45,13 @@ interface Ctx {
   orgNome: string;
   orgs: Org[];
   papel: Papel | null;
-  /** false para leitores e para quem abriu um link somente leitura */
+  permissoes: Permissoes | null;
+  /** false para quem não altera nada (leitor, link somente leitura) */
   podeEditar: boolean;
+  /** pode alterar esta área (obras, compras, cronograma)? */
+  podeEditarArea: (area: Area) => boolean;
+  /** enxerga esta área? (compras, cronograma e histórico podem ficar escondidos) */
+  podeVerArea: (area: Area) => boolean;
   trocarOrg: (id: string) => void;
   recarregarOrgs: () => void;
 
@@ -77,10 +82,10 @@ function gravar(k: string, v: unknown) { try { localStorage.setItem(k, JSON.stri
 
 interface ProviderProps {
   children: ReactNode; userId: string | null; email: string | null; nome?: string; onSignOut: (() => Promise<void>) | null;
-  orgId?: string | null; papel?: Papel | null; orgs?: Org[]; trocarOrg?: (id: string) => void; recarregarOrgs?: () => void;
+  orgId?: string | null; papel?: Papel | null; permissoes?: Permissoes | null; orgs?: Org[]; trocarOrg?: (id: string) => void; recarregarOrgs?: () => void;
 }
 
-export function AppProvider({ children, email, nome = '', onSignOut, orgId = null, papel = null, orgs = [], trocarOrg, recarregarOrgs }: ProviderProps) {
+export function AppProvider({ children, email, nome = '', onSignOut, orgId = null, papel = null, permissoes = null, orgs = [], trocarOrg, recarregarOrgs }: ProviderProps) {
   const { confirmar, avisar } = useDialogo();
   // cada organização tem o seu próprio cache no navegador
   const sufixo = orgId ? ':' + orgId : '';
@@ -108,9 +113,21 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastT = useRef<number>();
   const orgAtual = orgs.find((o) => o.id === orgId);
-  const podeEditar = !readOnly && podeAlterar(papel);
+  const podeEditar = !readOnly && podeAlterar(papel, permissoes);
+  const editaArea = (a: Area) => !readOnly && podeEditarArea(papel, permissoes, a);
+  const veArea = (a: Area) => readOnly || podeVerArea(papel, permissoes, a);
   const roRef = useRef(false);
   roRef.current = !podeEditar;
+  const areaRef = useRef(editaArea);
+  areaRef.current = editaArea;
+  /** tabelas que esta pessoa pode gravar (o banco recusa as demais) */
+  const tabelasRef = useRef<ReadonlySet<Tabela>>(new Set(TABELAS));
+  tabelasRef.current = new Set<Tabela>([
+    ...(editaArea('obras') ? (['obras', 'itens'] as Tabela[]) : []),
+    ...(editaArea('compras') ? (['compras'] as Tabela[]) : []),
+    ...(editaArea('cronograma') ? (['cronogramas', 'tarefas', 'medicoes'] as Tabela[]) : []),
+    ...(podeEditar ? (['historico'] as Tabela[]) : []),
+  ]);
   const autorRef = useRef(email ?? 'Gerente');
   autorRef.current = email ?? 'Gerente';
 
@@ -183,7 +200,7 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
     const alvo = estadoRef.current;
     setNuvem('salvando');
     try {
-      await enviarMudancas(supabase, orgId, paraLinhas(alvo.db, alvo.cronos), snapRef.current);
+      await enviarMudancas(supabase, orgId, paraLinhas(alvo.db, alvo.cronos), snapRef.current, tabelasRef.current);
       ultimoRef.current = alvo.payload;
       ultimoEnvioRef.current = Date.now();
       setNuvem('salvo');
@@ -207,7 +224,7 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
         const manterLocal = !roRef.current && editouSemNuvemRef.current &&
           (await confirmar('Você fez alterações neste aparelho enquanto estava sem conexão.\n\nEnviar essas alterações para a nuvem substitui o que está lá. Descartar usa os dados da nuvem.', { titulo: 'Alterações sem conexão', confirmar: 'Enviar as minhas', cancelar: 'Descartar e usar a nuvem' }));
         if (manterLocal) {
-          await enviarMudancas(supabase, orgId, paraLinhas(local.db, local.cronos), snapRef.current);
+          await enviarMudancas(supabase, orgId, paraLinhas(local.db, local.cronos), snapRef.current, tabelasRef.current);
           ultimoRef.current = local.payload;
         } else {
           ultimoRef.current = JSON.stringify({ db: r.db, cronos: r.cronos });
@@ -218,8 +235,8 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
         // organização sem dados: aproveita o que já havia neste navegador (só quem pode alterar envia)
         const atual = estadoRef.current;
         snapRef.current = snapVazio();
-        if (atual.db.obras.length && !roRef.current) {
-          await enviarMudancas(supabase, orgId, paraLinhas(atual.db, atual.cronos), snapRef.current);
+        if (atual.db.obras.length && !roRef.current && areaRef.current('obras')) {
+          await enviarMudancas(supabase, orgId, paraLinhas(atual.db, atual.cronos), snapRef.current, tabelasRef.current);
           // os dados antigos (sem organização) já subiram: não devem ir também para outra organização
           [K_DB, K_CRONOS, K_CRONO].forEach((k) => { try { localStorage.removeItem(k); } catch { /* ok */ } });
         }
@@ -322,8 +339,9 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
   }, []);
 
   /* ---------- AC21 ---------- */
-  const mutarDb = useCallback((fn: (d: DB) => void) => {
+  const mutarDb = useCallback((fn: (d: DB) => void, area?: Area) => {
     if (roRef.current) { toast('Você tem acesso somente de consulta.'); return; }
+    if (area && !areaRef.current(area)) { toast('Você não tem permissão para alterar esta área.'); return; }
     setDb((prev) => {
       const d: DB = JSON.parse(JSON.stringify(prev));
       fn(d);
@@ -347,9 +365,11 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
       if (ant !== dados.ac21) hist(d, 'ac21_alterado', '💰', `AC21 de "${dados.nome}" alterado: ${fmt(ant)} → ${fmt(dados.ac21)}`);
       else hist(d, 'obra_editada', '✏️', `Dados da obra "${dados.nome}" atualizados`);
     }
-  }), [mutarDb]);
+  }, 'obras'), [mutarDb]);
 
   const excluirObra = useCallback((id: number) => {
+    // apagar a obra leva junto as compras e o cronograma: precisa poder alterar as três áreas
+    if (!areaRef.current('obras') || !areaRef.current('compras') || !areaRef.current('cronograma')) { toast('Para excluir uma obra você precisa poder alterar obras, compras e cronograma.'); return; }
     mutarDb((d) => {
       const o = d.obras.find((x) => x.id === id); if (!o) return;
       hist(d, 'obra_excluida', '🗑️', `Obra "${o.nome}" removida`);
@@ -358,7 +378,7 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
     });
     setObraAtiva((cur) => (cur === id ? null : cur));
     setCronos((c) => { const { [String(id)]: _removido, ...resto } = c; return resto; });
-  }, [mutarDb]);
+  }, [mutarDb, toast]);
 
   const salvarItem: Ctx['salvarItem'] = useCallback((obraId, item, id) => mutarDb((d) => {
     const o = d.obras.find((x) => x.id === obraId); if (!o) return;
@@ -373,14 +393,14 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
         : `Item "${item.desc}" editado na obra ${o.codigo}`);
       o.itens[idx] = { id, ...item };
     }
-  }), [mutarDb]);
+  }, 'obras'), [mutarDb]);
 
   const excluirItem = useCallback((obraId: number, id: number) => mutarDb((d) => {
     const o = d.obras.find((x) => x.id === obraId); if (!o) return;
     const it = o.itens.find((i) => i.id === id); if (!it) return;
     hist(d, 'item_excluido', '🗑️', `Item "${it.desc}" removido da obra ${o.codigo}`);
     o.itens = o.itens.filter((i) => i.id !== id);
-  }), [mutarDb]);
+  }, 'obras'), [mutarDb]);
 
   const salvarCompra: Ctx['salvarCompra'] = useCallback((c, id) => mutarDb((d) => {
     const obra = d.obras.find((o) => o.id === c.obraId);
@@ -392,16 +412,17 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
       d.compras[idx] = { id, ...c };
       hist(d, 'compra_editada', '✏️', `Compra "${c.desc}" atualizada · ${fmt(c.total)}`);
     }
-  }), [mutarDb]);
+  }, 'compras'), [mutarDb]);
 
   const excluirCompra = useCallback((id: number) => mutarDb((d) => {
     const c = d.compras.find((x) => x.id === id); if (!c) return;
     hist(d, 'compra_excluida', '🗑️', `Compra "${c.desc}" removida`);
     d.compras = d.compras.filter((x) => x.id !== id);
-  }), [mutarDb]);
+  }, 'compras'), [mutarDb]);
 
   const importarDB = useCallback((dados: unknown) => {
     if (roRef.current) { toast('Você tem acesso somente de consulta.'); return false; }
+    if (!areaRef.current('obras') || !areaRef.current('compras') || !areaRef.current('cronograma')) { toast('Carregar um backup substitui tudo: só quem altera obras, compras e cronograma pode.'); return false; }
     const limpo = sanitizarDB(dados);
     if (!limpo) return false;
     limpo.historico.unshift({ id: novoId(), ts: new Date().toISOString(), tipo: 'restore', icone: '📂', texto: 'Backup carregado com sucesso', user: autorRef.current });
@@ -419,7 +440,7 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
 
   /* ---------- Cronograma ---------- */
   const updateCrono: Ctx['updateCrono'] = useCallback((fn) => {
-    if (roRef.current) return;
+    if (roRef.current || !areaRef.current('cronograma')) return;
     const k = chaveRef.current;
     setCronos((prev) => {
       const S: Estado = JSON.parse(JSON.stringify(prev[k] ?? sementeRef.current));
@@ -428,7 +449,7 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
     });
   }, []);
   const carregarCrono = useCallback((obj: Partial<Estado> | null) => {
-    if (roRef.current) return;
+    if (roRef.current || !areaRef.current('cronograma')) return;
     const est = normalizarEstado(obj);
     setCronos((prev) => ({ ...prev, [chaveRef.current]: est }));
   }, []);
@@ -437,7 +458,7 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
     db, obraAtivaId, obraAtual, cronos, exportarTudo, setObraAtiva, salvarObra, excluirObra, salvarItem, excluirItem, salvarCompra, excluirCompra,
     registrarHistorico, importarDB,
     crono, cal, calc, updateCrono, carregarCrono, readOnly,
-    orgId, orgNome: orgAtual?.nome ?? '', orgs, papel, podeEditar,
+    orgId, orgNome: orgAtual?.nome ?? '', orgs, papel, permissoes, podeEditar, podeEditarArea: editaArea, podeVerArea: veArea,
     trocarOrg: trocarOrg ?? (() => undefined), recarregarOrgs: recarregarOrgs ?? (() => undefined),
     usuario: email, nomeUsuario: nome, sair: onSignOut ? sairSeguro : null, nuvem, recarregarNuvem: () => { void carregarNuvem(); }, tentarSincronizar: () => { void salvarAgora(); },
     tema, alternarTema: () => setTema((t) => (t === 'dark' ? 'light' : 'dark')),

@@ -10,7 +10,8 @@ import { Empty } from '../components/ui';
 export const badgeCompra = (s: string) => (s === 'Pago' ? 'badge-ok' : s === 'Pendente' ? 'badge-warn' : 'badge-blue');
 
 export default function Compras() {
-  const { db, excluirCompra, toast, podeEditar } = useApp();
+  const { db, excluirCompra, toast, podeEditarArea } = useApp();
+  const podeEditar = podeEditarArea('compras');
   const { confirmar } = useDialogo();
   const [f, setF] = useState({ obra: '', cat: '', status: '', ini: '', fim: '' });
   const [modal, setModal] = useState<{ c: Compra | null } | null>(null);

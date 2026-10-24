@@ -63,7 +63,9 @@ function ItemModal({ obra, item, onClose }: { obra: Obra; item: Item | null; onC
 }
 
 export default function Detalhe() {
-  const { db, cronos, obraAtivaId, setObraAtiva, excluirItem, excluirCompra, toast, podeEditar } = useApp();
+  const { db, cronos, obraAtivaId, setObraAtiva, excluirItem, excluirCompra, toast, podeEditarArea, podeVerArea } = useApp();
+  const podeEditar = podeEditarArea('obras');
+  const podeEditarCompras = podeEditarArea('compras');
   const { confirmar } = useDialogo();
   const [aba, setAba] = useState<Aba>('itens');
   const [f, setF] = useState({ cat: '', tipo: '', forn: '', ini: '', fim: '' });
@@ -188,7 +190,7 @@ export default function Detalhe() {
         <button className={'tab-btn' + (aba === 'itens' ? ' active' : '')} onClick={() => setAba('itens')}><ClipboardList size={15} /> Itens ({o.itens.length})</button>
         <button className={'tab-btn' + (aba === 'graficos' ? ' active' : '')} onClick={() => setAba('graficos')}><BarChart2 size={15} /> Gráficos</button>
         <button className={'tab-btn' + (aba === 'desempenho' ? ' active' : '')} onClick={() => setAba('desempenho')}><Activity size={15} /> Desempenho</button>
-        <button className={'tab-btn' + (aba === 'compras' ? ' active' : '')} onClick={() => setAba('compras')}><ShoppingBasket size={15} /> Compras ({comprasObra.length})</button>
+        {podeVerArea('compras') && <button className={'tab-btn' + (aba === 'compras' ? ' active' : '')} onClick={() => setAba('compras')}><ShoppingBasket size={15} /> Compras ({comprasObra.length})</button>}
       </div>
 
       {aba === 'itens' && (<>
@@ -359,7 +361,7 @@ export default function Detalhe() {
       ))}
 
       {aba === 'compras' && (<>
-        {podeEditar && <div className="action-row"><button className="btn btn-primary" onClick={() => setCompraModal({ c: null })}><Plus size={15} /> Registrar Compra</button></div>}
+        {podeEditarCompras && <div className="action-row"><button className="btn btn-primary" onClick={() => setCompraModal({ c: null })}><Plus size={15} /> Registrar Compra</button></div>}
         <div className="card">
           <div className="table-wrap">
             <table>
@@ -378,7 +380,7 @@ export default function Detalhe() {
                     <td className="td-right">{fmt(c.unit)}</td>
                     <td className="td-right" style={{ fontWeight: 600 }}>{fmt(c.total)}</td>
                     <td><span className={'badge ' + badgeCompra(c.status)}>{c.status}</span></td>
-                    <td><div style={{ display: 'flex', gap: 4 }}>{podeEditar && <>
+                    <td><div style={{ display: 'flex', gap: 4 }}>{podeEditarCompras && <>
                       <button className="btn btn-sm btn-icon" onClick={() => setCompraModal({ c })}><Pencil size={14} /></button>
                       <button className="btn btn-sm btn-icon btn-danger" onClick={async () => { if (await confirmar(`Excluir a compra "${c.desc}"?`, { confirmar: 'Excluir', perigo: true })) { excluirCompra(c.id); toast('Compra excluída.'); } }}><Trash2 size={14} /></button>
                     </>}</div></td>

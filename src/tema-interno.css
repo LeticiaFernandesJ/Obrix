@@ -244,3 +244,11 @@
   .shell .modal-footer .btn { flex: 1 1 auto; }
 }
 @media (max-width: 860px) { .shell .hist-user { display: block; width: fit-content; } }
+
+/* ── acesso personalizado (Equipe) ── */
+.shell .perm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; margin-top: 12px; }
+.shell .perm-grid .dica { margin: 0; font-size: 12px; }
+.shell .perm-box { margin-top: 18px; padding: 18px 20px; border-radius: 16px; background: var(--surface-2); }
+.shell .perm-titulo { font-size: 14px; font-weight: 700; }
+.shell .perm-resumo { margin-top: 6px; font-size: 12px; color: var(--text3); line-height: 1.5; }
+@media (max-width: 860px) { .shell .perm-grid { grid-template-columns: 1fr; } }

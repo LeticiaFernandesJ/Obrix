@@ -59,6 +59,18 @@ describe('envio incremental', () => {
     await enviarMudancas(cliente, 'u', paraLinhas(d, { '2': E }), snap);
     expect(log).toEqual(['delete compras id=7', 'upsert itens 1']);
   });
+  it('acesso parcial: só grava as tabelas permitidas e deixa as outras como estavam', async () => {
+    const { cliente, log } = falso(); const snap = snapVazio(); const d = db();
+    await enviarMudancas(cliente, 'u', paraLinhas(d, { '2': E }), snap);
+    log.length = 0;
+    d.compras[0].total = 2000; d.obras[0].nome = 'Outro nome'; d.historico = [];
+    await enviarMudancas(cliente, 'u', paraLinhas(d, { '2': E }), snap, new Set(['compras'] as const));
+    expect(log).toEqual(['upsert compras 1']);
+    // o que não foi permitido continua pendente: com permissão total, vai agora
+    log.length = 0;
+    await enviarMudancas(cliente, 'u', paraLinhas(d, { '2': E }), snap);
+    expect(log.sort()).toEqual(['delete historico id=15', 'upsert obras 1']);
+  });
   it('apaga filhos antes do pai', async () => {
     const { cliente, log } = falso(); const snap = snapVazio(); const d = db();
     await enviarMudancas(cliente, 'u', paraLinhas(d, { '2': E }), snap);

@@ -15,7 +15,8 @@ const BASE = import.meta.env.BASE_URL;
 const importadas = (n: number) => (n === 1 ? '1 tarefa importada.' : `${n} tarefas importadas.`);
 
 export function CronoActions() {
-  const { crono, cal, calc, carregarCrono, readOnly, podeEditar, toast } = useApp();
+  const { crono, cal, calc, carregarCrono, readOnly, podeEditarArea, toast } = useApp();
+  const podeEditar = podeEditarArea('cronograma');
   const { avisar } = useDialogo();
   const [m, setM] = useState<M>(null);
   const fechar = () => setM(null);

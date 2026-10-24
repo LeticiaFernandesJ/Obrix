@@ -21,26 +21,33 @@ create table if not exists public.membros (
   org_id     uuid not null references public.organizacoes(id) on delete cascade,
   user_id    uuid not null references auth.users(id) on delete cascade,
   email      text not null default '',
-  papel      text not null check (papel in ('admin', 'editor', 'leitor')),
+  papel      text not null check (papel in ('admin', 'editor', 'leitor', 'personalizado')),
   created_at timestamptz not null default now(),
   primary key (org_id, user_id)
 );
 create index if not exists membros_user_idx on public.membros (user_id);
 -- nome completo de quem faz parte (vem do cadastro; cada pessoa pode corrigir o próprio)
 alter table public.membros add column if not exists nome text not null default '';
+-- acesso personalizado: {"obras":"ver|editar", "compras":"nenhum|ver|editar", "cronograma":"...", "historico":"..."}
+alter table public.membros add column if not exists permissoes jsonb;
+alter table public.membros drop constraint if exists membros_papel_check;
+alter table public.membros add constraint membros_papel_check check (papel in ('admin', 'editor', 'leitor', 'personalizado'));
 
 -- Convite por link: o token secreto vai no endereço, vale uma vez e expira.
 create table if not exists public.convites (
   id            uuid primary key default gen_random_uuid(),
   org_id        uuid not null references public.organizacoes(id) on delete cascade,
   token         uuid not null unique default gen_random_uuid(),
-  papel         text not null check (papel in ('admin', 'editor', 'leitor')),
+  papel         text not null check (papel in ('admin', 'editor', 'leitor', 'personalizado')),
   email         text not null default '',          -- só uma anotação: "para quem é"
   convidado_por uuid references auth.users(id) on delete set null default auth.uid(),
   expira_em     timestamptz not null default (now() + interval '7 days'),
   created_at    timestamptz not null default now()
 );
 create index if not exists convites_org_idx on public.convites (org_id);
+alter table public.convites add column if not exists permissoes jsonb;
+alter table public.convites drop constraint if exists convites_papel_check;
+alter table public.convites add constraint convites_papel_check check (papel in ('admin', 'editor', 'leitor', 'personalizado'));
 
 -- ───────────────────────── 2) FUNÇÕES AUXILIARES (usadas pelas regras de acesso) ─────────────────────────
 create or replace function public.meu_papel(p_org uuid) returns text
@@ -51,9 +58,30 @@ create or replace function public.eh_membro(p_org uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
   select exists (select 1 from public.membros where org_id = p_org and user_id = (select auth.uid()))
 $$;
+-- Nível de acesso de quem está logado numa área (obras, compras, cronograma, historico): 'nenhum', 'ver' ou 'editar'.
+-- Administrador edita tudo; editor edita tudo menos o histórico; leitor só vê; personalizado segue o que o administrador marcou.
+create or replace function public.nivel_area(p_org uuid, p_area text) returns text
+language sql stable security definer set search_path = '' as $$
+  select case m.papel
+    when 'admin' then 'editar'
+    when 'editor' then case p_area when 'historico' then 'ver' else 'editar' end
+    when 'leitor' then 'ver'
+    else coalesce(m.permissoes ->> p_area, 'ver')
+  end
+  from public.membros m where m.org_id = p_org and m.user_id = (select auth.uid())
+$$;
+create or replace function public.pode_ver(p_org uuid, p_area text) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select coalesce(public.nivel_area(p_org, p_area), 'nenhum') in ('ver', 'editar')
+$$;
+create or replace function public.pode_area(p_org uuid, p_area text) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select coalesce(public.nivel_area(p_org, p_area), 'nenhum') = 'editar'
+$$;
+-- Pode alterar alguma coisa (usado para gravar o histórico das alterações).
 create or replace function public.pode_editar(p_org uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
-  select exists (select 1 from public.membros where org_id = p_org and user_id = (select auth.uid()) and papel in ('admin', 'editor'))
+  select public.pode_area(p_org, 'obras') or public.pode_area(p_org, 'compras') or public.pode_area(p_org, 'cronograma')
 $$;
 create or replace function public.eh_admin(p_org uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
@@ -81,8 +109,8 @@ begin
   select * into v_conv from public.convites where token = p_token and expira_em > now();
   if not found then raise exception 'Convite inválido ou expirado'; end if;
   select email, coalesce(raw_user_meta_data->>'nome', '') into v_email, v_nome from auth.users where id = (select auth.uid());
-  insert into public.membros (org_id, user_id, email, nome, papel)
-    values (v_conv.org_id, (select auth.uid()), coalesce(v_email, ''), coalesce(v_nome, ''), v_conv.papel)
+  insert into public.membros (org_id, user_id, email, nome, papel, permissoes)
+    values (v_conv.org_id, (select auth.uid()), coalesce(v_email, ''), coalesce(v_nome, ''), v_conv.papel, v_conv.permissoes)
     on conflict (org_id, user_id) do nothing;
   delete from public.convites where id = v_conv.id;
   return v_conv.org_id;
@@ -112,8 +140,10 @@ create trigger trg_garantir_admin before update or delete on public.membros
   for each row execute function public.garantir_admin();
 
 revoke all on function public.meu_papel(uuid), public.eh_membro(uuid), public.pode_editar(uuid), public.eh_admin(uuid),
+  public.nivel_area(uuid, text), public.pode_ver(uuid, text), public.pode_area(uuid, text),
   public.criar_organizacao(text), public.aceitar_convite(uuid), public.definir_meu_nome(text) from public, anon;
 grant execute on function public.meu_papel(uuid), public.eh_membro(uuid), public.pode_editar(uuid), public.eh_admin(uuid),
+  public.nivel_area(uuid, text), public.pode_ver(uuid, text), public.pode_area(uuid, text),
   public.criar_organizacao(text), public.aceitar_convite(uuid), public.definir_meu_nome(text) to authenticated;
 
 -- ───────────────────────── 3) GUARDAR OS DADOS ANTIGOS (se existirem) ─────────────────────────
@@ -344,18 +374,24 @@ create policy membros_apagar on public.membros for delete to authenticated using
 drop policy if exists convites_todos on public.convites;
 create policy convites_todos on public.convites for all to authenticated using (public.eh_admin(org_id)) with check (public.eh_admin(org_id));
 
+-- Cada tabela pertence a uma área de acesso. Obras e itens sempre podem ser vistos por quem é da equipe.
 do $$
-declare t text; p text;
+declare t text; p text; area text; ver text; criar text; alterar text;
 begin
   foreach t in array array['obras','itens','compras','historico','cronogramas','tarefas','medicoes'] loop
+    area := case t when 'obras' then 'obras' when 'itens' then 'obras' when 'compras' then 'compras'
+                   when 'historico' then 'historico' else 'cronograma' end;
+    ver := case when area = 'obras' then 'public.eh_membro(org_id)' else format('public.pode_ver(org_id, %L)', area) end;
+    criar := case when t = 'historico' then 'public.pode_editar(org_id)' else format('public.pode_area(org_id, %L)', area) end;
+    alterar := case when t = 'historico' then 'public.pode_editar(org_id)' else format('public.pode_area(org_id, %L)', area) end;
     execute format('alter table public.%I enable row level security', t);
     for p in select policyname from pg_policies where schemaname = 'public' and tablename = t loop
       execute format('drop policy %I on public.%I', p, t);
     end loop;
-    execute format('create policy %I on public.%I for select to authenticated using (public.eh_membro(org_id))', t || '_ver', t);
-    execute format('create policy %I on public.%I for insert to authenticated with check (public.pode_editar(org_id))', t || '_criar', t);
-    execute format('create policy %I on public.%I for update to authenticated using (public.pode_editar(org_id)) with check (public.pode_editar(org_id))', t || '_alterar', t);
-    execute format('create policy %I on public.%I for delete to authenticated using (public.pode_editar(org_id))', t || '_apagar', t);
+    execute format('create policy %I on public.%I for select to authenticated using (%s)', t || '_ver', t, ver);
+    execute format('create policy %I on public.%I for insert to authenticated with check (%s)', t || '_criar', t, criar);
+    execute format('create policy %I on public.%I for update to authenticated using (%s) with check (%s)', t || '_alterar', t, alterar, alterar);
+    execute format('create policy %I on public.%I for delete to authenticated using (%s)', t || '_apagar', t, alterar);
     execute format('revoke all on public.%I from anon', t);
     execute format('grant select, insert, update, delete on public.%I to authenticated', t);
   end loop;

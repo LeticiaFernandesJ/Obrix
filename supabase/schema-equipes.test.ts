@@ -192,6 +192,62 @@ describe('organização nova', () => {
   });
 });
 
+describe('acesso personalizado por área', () => {
+  let org = '';
+  const sql = (txt: string) => como(D, () => db.exec(txt));
+  beforeAll(async () => {
+    org = (await linhas<{ org: string }>(D, `select public.criar_organizacao('Org Personalizada') as org`))[0].org;
+    await sql(`insert into public.obras (org_id, id, nome) values ('${org}', 1, 'Obra P');
+      insert into public.itens (org_id, id, obra_id, descricao) values ('${org}', 2, 1, 'item');
+      insert into public.cronogramas (org_id, obra_id, nome) values ('${org}', 1, 'crono');
+      insert into public.tarefas (org_id, obra_id, id, ordem, nome) values ('${org}', 1, 't1', 0, 'tarefa');`);
+    // convite personalizado: pode ver tudo e alterar só as compras, sem acesso ao cronograma
+    await sql(`insert into public.convites (org_id, papel, permissoes) values ('${org}', 'personalizado', '{"compras":"editar","cronograma":"nenhum"}')`);
+    const t = (await linhas<{ token: string }>(D, `select token from public.convites where org_id = '${org}'`))[0].token;
+    await linhas(B, `select public.aceitar_convite('${t}')`);
+  });
+  it('o convite leva as permissões para o membro', async () => {
+    const m = await q<{ papel: string; p: Record<string, string> }>(`select papel, permissoes as p from public.membros where org_id = '${org}' and user_id = '${B}'`);
+    expect(m[0].papel).toBe('personalizado'); expect(m[0].p).toEqual({ compras: 'editar', cronograma: 'nenhum' });
+  });
+  it('vê as obras e os itens, mesmo sem ter marcado a área', async () => {
+    expect(await linhas(B, `select 1 from public.obras where org_id = '${org}'`)).toHaveLength(1);
+    expect(await linhas(B, `select 1 from public.itens where org_id = '${org}'`)).toHaveLength(1);
+  });
+  it('altera e cria compras, mas não obras nem itens', async () => {
+    expect(await tenta(B, `insert into public.compras (org_id, id, obra_id, descricao, total) values ('${org}', 10, 1, 'cimento', 100)`)).toBeNull();
+    expect(await tenta(B, `update public.compras set total = 200 where org_id = '${org}' and id = 10`)).toBeNull();
+    expect(await linhas(B, `select total from public.compras where org_id = '${org}'`)).toHaveLength(1);
+    expect(await tenta(B, `insert into public.obras (org_id, id, nome) values ('${org}', 5, 'nova')`)).not.toBeNull();
+    await tenta(B, `update public.obras set nome = 'x' where org_id = '${org}' and id = 1`);
+    expect((await q<{ nome: string }>(`select nome from public.obras where org_id = '${org}' and id = 1`))[0].nome).toBe('Obra P');
+    expect(await tenta(B, `insert into public.itens (org_id, id, obra_id, descricao) values ('${org}', 7, 1, 'i2')`)).not.toBeNull();
+  });
+  it('área marcada como "nenhum" fica invisível e sem escrita', async () => {
+    expect(await linhas(B, `select 1 from public.cronogramas where org_id = '${org}'`)).toHaveLength(0);
+    expect(await linhas(B, `select 1 from public.tarefas where org_id = '${org}'`)).toHaveLength(0);
+    expect(await tenta(B, `insert into public.cronogramas (org_id, obra_id, nome) values ('${org}', 1, 'outro')`)).not.toBeNull();
+  });
+  it('quem altera alguma área grava o histórico; o histórico visível segue a área', async () => {
+    expect(await tenta(B, `insert into public.historico (org_id, id, tipo, texto) values ('${org}', 1, 'compra', 'feito')`)).toBeNull();
+    expect(await linhas(B, `select 1 from public.historico where org_id = '${org}'`)).toHaveLength(1);
+  });
+  it('o administrador muda as permissões e vale na hora; só ele pode', async () => {
+    expect(await tenta(B, `update public.membros set permissoes = '{"obras":"editar"}' where org_id = '${org}' and user_id = '${B}'`)).toBeNull();
+    expect((await q<{ p: Record<string, string> }>(`select permissoes as p from public.membros where org_id = '${org}' and user_id = '${B}'`))[0].p).toEqual({ compras: 'editar', cronograma: 'nenhum' });
+    await sql(`update public.membros set permissoes = '{"compras":"ver","cronograma":"ver","historico":"nenhum"}' where org_id = '${org}' and user_id = '${B}'`);
+    expect(await linhas(B, `select 1 from public.tarefas where org_id = '${org}'`)).toHaveLength(1);
+    expect(await tenta(B, `update public.compras set total = 300 where org_id = '${org}' and id = 10`)).toBeNull();
+    expect((await q<{ total: string }>(`select total from public.compras where org_id = '${org}' and id = 10`))[0].total).toBe('200.00');
+    expect(await linhas(B, `select 1 from public.historico where org_id = '${org}'`)).toHaveLength(0);
+  });
+  it('papel desconhecido ou permissão vazia vira só consulta', async () => {
+    await sql(`update public.membros set permissoes = null where org_id = '${org}' and user_id = '${B}'`);
+    expect(await tenta(B, `insert into public.compras (org_id, id, obra_id, descricao, total) values ('${org}', 11, 1, 'x', 1)`)).not.toBeNull();
+    expect(await tenta(D, `update public.membros set papel = 'chefe' where org_id = '${org}' and user_id = '${B}'`)).not.toBeNull();
+  });
+});
+
 describe('instalação limpa', () => {
   it('funciona num banco vazio, mesmo rodando duas vezes', async () => {
     const novo = new PGlite();

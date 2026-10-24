@@ -5,7 +5,8 @@ import { useApp } from '../../store/AppStore';
 import { Empty } from '../../components/ui';
 
 export function CronoHeader() {
-  const { crono, readOnly, podeEditar, db, obraAtual, setObraAtiva } = useApp();
+  const { crono, readOnly, podeEditarArea, db, obraAtual, setObraAtiva } = useApp();
+  const podeEditar = podeEditarArea('cronograma');
   const m = crono.meta;
   const sd = m.statusDate ? m.statusDate.split('-').reverse().join('/') : '';
   const meta = [m.contrato, m.empresa].filter(Boolean).join(' · ');

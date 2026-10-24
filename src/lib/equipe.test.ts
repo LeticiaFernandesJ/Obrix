@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LISTA_PAPEIS, PAPEIS, capturarConvite, conviteGuardado, limparConvite, podeAlterar, traduzirErro } from './equipe';
+import {
+  LISTA_PAPEIS, PAPEIS, capturarConvite, conviteGuardado, limparConvite, nivelDaArea, normalizarPermissoes, permissoesDoPapel, podeAlterar,
+  podeEditarArea, podeVerArea, resumoPermissoes, traduzirErro,
+} from './equipe';
 
 describe('papéis', () => {
   it('só administrador e editor alteram dados; sem papel (uso local) também pode', () => {
@@ -57,5 +60,44 @@ describe('link de convite', () => {
   it('limpa depois de usado', () => {
     capturarConvite(); limparConvite();
     expect(conviteGuardado()).toBeNull();
+  });
+});
+
+describe('acesso por área (papel Personalizado)', () => {
+  const soCompras = { obras: 'ver', compras: 'editar', cronograma: 'ver', historico: 'ver' } as const;
+
+  it('administrador, editor e leitor seguem as regras fixas', () => {
+    expect(nivelDaArea('admin', null, 'historico')).toBe('editar');
+    expect(nivelDaArea('editor', null, 'compras')).toBe('editar');
+    expect(nivelDaArea('editor', null, 'historico')).toBe('ver');
+    expect(nivelDaArea('leitor', null, 'obras')).toBe('ver');
+    expect(nivelDaArea(null, null, 'cronograma')).toBe('editar');
+  });
+  it('"vê tudo e altera só as compras"', () => {
+    expect(podeEditarArea('personalizado', soCompras, 'compras')).toBe(true);
+    expect(podeEditarArea('personalizado', soCompras, 'obras')).toBe(false);
+    expect(podeEditarArea('personalizado', soCompras, 'cronograma')).toBe(false);
+    expect(podeVerArea('personalizado', soCompras, 'cronograma')).toBe(true);
+    expect(podeAlterar('personalizado', soCompras)).toBe(true);
+  });
+  it('área marcada como "nenhum" some; sem marcação vira só consulta', () => {
+    expect(podeVerArea('personalizado', { cronograma: 'nenhum' }, 'cronograma')).toBe(false);
+    expect(nivelDaArea('personalizado', {}, 'compras')).toBe('ver');
+    expect(nivelDaArea('personalizado', null, 'compras')).toBe('ver');
+    expect(podeAlterar('personalizado', {})).toBe(false);
+  });
+  it('as obras nunca ficam escondidas e o histórico nunca é editável', () => {
+    expect(nivelDaArea('personalizado', { obras: 'nenhum' }, 'obras')).toBe('ver');
+    expect(nivelDaArea('personalizado', { historico: 'editar' }, 'historico')).toBe('ver');
+    expect(normalizarPermissoes({ obras: 'nenhum', historico: 'editar', compras: 'editar' })).toEqual({ obras: 'ver', compras: 'editar', cronograma: 'ver', historico: 'ver' });
+  });
+  it('o ponto de partida ao personalizar copia o papel atual', () => {
+    expect(permissoesDoPapel('editor')).toEqual({ obras: 'editar', compras: 'editar', cronograma: 'editar', historico: 'ver' });
+    expect(permissoesDoPapel('leitor')).toEqual({ obras: 'ver', compras: 'ver', cronograma: 'ver', historico: 'ver' });
+  });
+  it('o resumo diz o que a pessoa altera e o que não vê', () => {
+    expect(resumoPermissoes('personalizado', { compras: 'editar', cronograma: 'nenhum' })).toBe('Altera: compras e financeiro. Sem acesso: cronograma');
+    expect(resumoPermissoes('personalizado', {})).toBe('Não altera nada');
+    expect(resumoPermissoes('editor')).toBe('');
   });
 });

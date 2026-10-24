@@ -11,7 +11,8 @@ const classeSituacao: Record<TipoSituacao, string> = {
 };
 
 export default function Financeiro() {
-  const { db, salvarCompra, toast, podeEditar } = useApp();
+  const { db, salvarCompra, toast, podeEditarArea } = useApp();
+  const podeEditar = podeEditarArea('compras');
   const [obra, setObra] = useState('');
   const [edicao, setEdicao] = useState<Compra | null>(null);
   const hoje = hojeISO();

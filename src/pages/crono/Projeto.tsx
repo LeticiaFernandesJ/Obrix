@@ -6,8 +6,8 @@ import { n2br, n2iso, parseData } from '../../lib/dates';
 import { CronoHeader } from './CronoHeader';
 
 export default function Projeto() {
-  const { crono, updateCrono, podeEditar, toast } = useApp();
-  const readOnly = !podeEditar;
+  const { crono, updateCrono, podeEditarArea, toast } = useApp();
+  const readOnly = !podeEditarArea('cronograma');
   const m = crono.meta;
   const [sab, setSab] = useState(crono.cal.sab);
   const [dom, setDom] = useState(crono.cal.dom);

@@ -154,11 +154,13 @@ export async function lerNuvem(sb: SupabaseClient, orgId: string): Promise<Linha
 }
 
 /** Envia só o que mudou desde o último estado sincronizado. Atualiza `snap` à medida que avança. */
-export async function enviarMudancas(sb: SupabaseClient, orgId: string, L: Linhas, snap: Snap): Promise<number> {
+/** `permitidas`: só estas tabelas são gravadas (quem tem acesso parcial não mexe nas outras). */
+export async function enviarMudancas(sb: SupabaseClient, orgId: string, L: Linhas, snap: Snap, permitidas?: ReadonlySet<Tabela>): Promise<number> {
   let total = 0;
   const novas: Record<Tabela, Row[]> = {} as Record<Tabela, Row[]>;
   const removidas: Record<Tabela, Row[]> = {} as Record<Tabela, Row[]>;
   TABELAS.forEach((t) => {
+    if (permitidas && !permitidas.has(t)) { novas[t] = []; removidas[t] = []; return; }
     const atual = new Map(L[t].map((r) => [chave(t, r), r] as const));
     novas[t] = L[t].filter((r) => snap[t].get(chave(t, r)) !== JSON.stringify(r));
     removidas[t] = [...snap[t].keys()].filter((k) => !atual.has(k)).map((k) => {

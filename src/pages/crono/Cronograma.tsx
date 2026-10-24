@@ -43,8 +43,8 @@ function Cell({ value, onCommit, readOnly, ...rest }: {
 }
 
 export default function Cronograma() {
-  const { crono, calc, cal, updateCrono, podeEditar, toast } = useApp();
-  const readOnly = !podeEditar;
+  const { crono, calc, cal, updateCrono, podeEditarArea, toast } = useApp();
+  const readOnly = !podeEditarArea('cronograma');
   const { confirmar } = useDialogo();
   const [sel, setSel] = useState(0);
   const [mostrarReal, setMostrarReal] = useState(false);

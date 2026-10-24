@@ -28,6 +28,7 @@ describe('tela Equipe (primeira renderização)', () => {
     expect(html).toContain('Administrador');
     expect(html).toContain('Convidar pessoas');
     expect(html).toContain('Salvar nome');
+    expect(html).toContain('Personalizado'); // papel com acesso escolhido por área
     expect(html).toContain('Ana Souza'); expect(html).toContain('Salvar meu nome');
     expect(html).not.toContain('Trocar de organização'); // só uma organização
   });

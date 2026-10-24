@@ -7,7 +7,8 @@ import {
 } from '../lib/ac21';
 
 export default function Relatorios() {
-  const { db, exportarTudo, importarDB, registrarHistorico, toast, podeEditar } = useApp();
+  const { db, exportarTudo, importarDB, registrarHistorico, toast, podeEditarArea } = useApp();
+  const podeEditar = (['obras', 'compras', 'cronograma'] as const).every((a) => podeEditarArea(a));
   const { avisar } = useDialogo();
   const input = useRef<HTMLInputElement>(null);
   const totalAC21 = db.obras.reduce((s, o) => s + Number(o.ac21), 0);

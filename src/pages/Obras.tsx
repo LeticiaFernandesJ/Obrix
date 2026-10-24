@@ -5,8 +5,10 @@ import { useApp } from '../store/AppStore';
 import {
   CORES, STATUS_OBRA, badgeStatusObra, corPct, fmt, fmtData, nivelPct, pctInt, rotuloNivel,
   totalComprometido, totalPago, type Obra, type StatusObra,
+  plural,
 } from '../lib/ac21';
-import { Empty, Progress } from '../components/ui';
+import { useDialogo } from '../components/Dialogo';
+import { Empty, Progress, CampoDinheiro } from '../components/ui';
 import { resumoCrono } from '../lib/schedule';
 import { n2br } from '../lib/dates';
 
@@ -19,6 +21,7 @@ const doObra = (o: Obra): Form => ({ ...o, ac21: String(o.ac21 || '') });
 
 export default function Obras() {
   const { db, cronos, obraAtivaId, setObraAtiva, salvarObra, excluirObra, toast } = useApp();
+  const { confirmar } = useDialogo();
   const nav = useNavigate();
   const [busca, setBusca] = useState('');
   const [editId, setEditId] = useState<number | null>(null); // null = nova
@@ -44,9 +47,9 @@ export default function Obras() {
     toast(editId == null ? 'Obra cadastrada.' : 'Obra atualizada.');
     nova();
   };
-  const excluir = (o: Obra) => {
+  const excluir = async (o: Obra) => {
     const nc = db.compras.filter((c) => c.obraId === o.id).length;
-    if (!confirm(`Excluir a obra "${o.nome}"? Serão removidos também seus ${o.itens.length} item(ns) e ${nc} compra(s). Esta ação não pode ser desfeita.`)) return;
+    if (!(await confirmar(`Excluir a obra "${o.nome}"? Serão removidos também seus ${plural(o.itens.length, 'item', 'itens')} e ${plural(nc, 'compra', 'compras')}. Esta ação não pode ser desfeita.`, { confirmar: 'Excluir obra', perigo: true }))) return;
     excluirObra(o.id); if (editId === o.id) nova();
   };
   const detalhe = (o: Obra) => { setObraAtiva(o.id); nav('/detalhe'); };
@@ -56,7 +59,7 @@ export default function Obras() {
       <div className="action-row">
         <button className="btn btn-primary" onClick={nova}><Plus size={15} /> Nova Obra</button>
         <div className="spacer" />
-        <div className="search"><Search size={15} /><input placeholder="Buscar obra..." value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
+        <div className="search"><Search size={15} /><input aria-label="Buscar obra" placeholder="Buscar obra..." value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
       </div>
 
       <div className="obras-split">
@@ -78,7 +81,7 @@ export default function Obras() {
                       <span className={'badge badge-' + (nv === 'ok' ? 'ok' : nv)}>{rotuloNivel[nv]}</span>
                       <span className={'badge ' + badgeStatusObra(o.status)}>{o.status}</span>
                     </div>
-                    <div className="sub-line">{o.codigo} · {o.local} · Resp.: {o.responsavel || '—'} · {fmtData(o.inicio)} → {fmtData(o.fim)}</div>
+                    <div className="sub-line">{o.codigo} · {o.local} · Resp.: {o.responsavel || '-'} · {fmtData(o.inicio)} → {fmtData(o.fim)}</div>
                     <div className="obra-kpis">
                       <div><div className="k">AC21</div><strong>{fmt(o.ac21)}</strong></div>
                       <div><div className="k">Comprometido</div><strong style={{ color: corPct(p) }}>{fmt(comp)}</strong></div>
@@ -92,11 +95,11 @@ export default function Obras() {
                     <div className="fisico" title="Avanço físico do cronograma desta obra">
                       <CalendarRange size={13} />
                       {fis ? (<><span>Físico {Math.round(fis.pct)}%</span><Progress value={fis.pct} color="var(--series-3)" /><span>{fis.fim != null ? 'término ' + n2br(fis.fim) : ''}</span></>)
-                        : <span style={{ color: 'var(--text3)' }}>Sem cronograma — abra Cronograma no menu</span>}
+                        : <span style={{ color: 'var(--text3)' }}>Sem cronograma. Abra Cronograma no menu</span>}
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch' }}>
-                    <button className="btn btn-sm" onClick={() => detalhe(o)}><ClipboardList size={13} /> Detalhe</button>
+                    <button className="btn btn-sm" onClick={() => detalhe(o)}><ClipboardList size={13} /> Detalhes</button>
                     <button className="btn btn-sm" onClick={() => editar(o)}><Pencil size={13} /> Editar</button>
                     <button className="btn btn-sm btn-danger" onClick={() => excluir(o)}><Trash2 size={13} /> Excluir</button>
                   </div>
@@ -113,21 +116,21 @@ export default function Obras() {
           </div>
           <div className="panel-body">
             <div className="form-grid">
-              <div className="form-group form-full"><label>Nome da Obra <span className="req">*</span></label>
-                <input value={f.nome} onChange={(e) => set('nome', e.target.value)} placeholder="Ex: Reforma Sede Porto Alegre" /></div>
-              <div className="form-group"><label>Código</label><input value={f.codigo} onChange={(e) => set('codigo', e.target.value)} placeholder="Ex: AC21-POA-001" /></div>
-              <div className="form-group"><label>Localização</label><input value={f.local} onChange={(e) => set('local', e.target.value)} placeholder="Cidade, Estado" /></div>
-              <div className="form-group"><label>Responsável</label><input value={f.responsavel} onChange={(e) => set('responsavel', e.target.value)} placeholder="Nome do responsável" /></div>
-              <div className="form-group"><label>Data de Início</label><input type="date" value={f.inicio} onChange={(e) => set('inicio', e.target.value)} /></div>
-              <div className="form-group"><label>Previsão de Término</label><input type="date" value={f.fim} onChange={(e) => set('fim', e.target.value)} /></div>
-              <div className="form-group"><label>AC21 Aprovado (R$) <span className="req">*</span></label>
-                <input type="number" min="0" step="0.01" value={f.ac21} onChange={(e) => set('ac21', e.target.value)} placeholder="0.00" /></div>
-              <div className="form-group"><label>Status</label>
-                <select value={f.status} onChange={(e) => set('status', e.target.value as StatusObra)}>
+              <div className="form-group form-full"><label htmlFor="obras-1">Nome da Obra <span className="req">*</span></label>
+                <input id="obras-1" value={f.nome} onChange={(e) => set('nome', e.target.value)} placeholder="Ex: Reforma Sede Porto Alegre" /></div>
+              <div className="form-group"><label htmlFor="obras-2">Código</label><input id="obras-2" value={f.codigo} onChange={(e) => set('codigo', e.target.value)} placeholder="Ex: AC21-POA-001" /></div>
+              <div className="form-group"><label htmlFor="obras-3">Localização</label><input id="obras-3" value={f.local} onChange={(e) => set('local', e.target.value)} placeholder="Cidade, Estado" /></div>
+              <div className="form-group"><label htmlFor="obras-4">Responsável</label><input id="obras-4" value={f.responsavel} onChange={(e) => set('responsavel', e.target.value)} placeholder="Nome do responsável" /></div>
+              <div className="form-group"><label htmlFor="obras-5">Data de Início</label><input id="obras-5" type="date" value={f.inicio} onChange={(e) => set('inicio', e.target.value)} /></div>
+              <div className="form-group"><label htmlFor="obras-6">Previsão de Término</label><input id="obras-6" type="date" value={f.fim} onChange={(e) => set('fim', e.target.value)} /></div>
+              <div className="form-group"><label htmlFor="obras-7">AC21 Aprovado (R$) <span className="req">*</span></label>
+                <CampoDinheiro id="obras-7" value={f.ac21} onChange={(v) => set('ac21', v)} /></div>
+              <div className="form-group"><label htmlFor="obras-8">Status</label>
+                <select id="obras-8" value={f.status} onChange={(e) => set('status', e.target.value as StatusObra)}>
                   {STATUS_OBRA.map((s) => <option key={s}>{s}</option>)}
                 </select></div>
-              <div className="form-group form-full"><label>Observações</label>
-                <textarea value={f.obs} onChange={(e) => set('obs', e.target.value)} placeholder="Anotações gerais sobre a obra..." /></div>
+              <div className="form-group form-full"><label htmlFor="obras-9">Observações</label>
+                <textarea id="obras-9" value={f.obs} onChange={(e) => set('obs', e.target.value)} placeholder="Anotações gerais sobre a obra..." /></div>
             </div>
           </div>
           <div className="panel-foot">

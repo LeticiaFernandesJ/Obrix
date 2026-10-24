@@ -23,8 +23,8 @@ export default function Projeto() {
   };
 
   const f = (id: keyof typeof m, label: string, ph?: string) => (
-    <div className="field"><label>{label}</label>
-      <input value={m[id]} readOnly={readOnly} placeholder={ph} onChange={(e) => setMeta(id, e.target.value)} /></div>
+    <div className="field"><label htmlFor={'proj-' + id}>{label}</label>
+      <input id={'proj-' + id} value={m[id]} readOnly={readOnly} placeholder={ph} onChange={(e) => setMeta(id, e.target.value)} /></div>
   );
 
   return (
@@ -36,17 +36,18 @@ export default function Projeto() {
           {f('nome', 'Nome do projeto / obra')}
           <div className="row2">{f('contrato', 'Contrato')}{f('empresa', 'Empresa contratada')}</div>
           <div className="row2">{f('resp', 'Responsável (encarregado)')}{f('pmo', 'Contato do PMO')}</div>
-          <div className="field"><label>Observações da semana (vai junto no envio ao PMO)</label>
-            <textarea style={{ minHeight: 100 }} readOnly={readOnly} value={m.obs} onChange={(e) => setMeta('obs', e.target.value)} /></div>
+          <div className="field"><label htmlFor="projeto-1">Observações da semana (vai junto no envio ao PMO)</label>
+            <textarea id="projeto-1" style={{ minHeight: 100 }} readOnly={readOnly} value={m.obs} onChange={(e) => setMeta('obs', e.target.value)} /></div>
         </div>
         <div className="card">
           <div className="icon-title"><div className="metric-icon mi-blue"><CalendarDays size={17} /></div><h3>Calendário de trabalho</h3></div>
-          <div className="legend" style={{ marginBottom: 12, gap: 22 }}>
-            <label><input type="checkbox" disabled={readOnly} checked={sab} onChange={(e) => setSab(e.target.checked)} /> trabalha sábado</label>
-            <label><input type="checkbox" disabled={readOnly} checked={dom} onChange={(e) => setDom(e.target.checked)} /> trabalha domingo</label>
+          <div className="opcoes">
+            <label className="opcao"><input type="checkbox" disabled={readOnly} checked={sab} onChange={(e) => setSab(e.target.checked)} /> <span>Trabalha aos sábados</span></label>
+            <label className="opcao"><input type="checkbox" disabled={readOnly} checked={dom} onChange={(e) => setDom(e.target.checked)} /> <span>Trabalha aos domingos</span></label>
           </div>
-          <div className="field"><label>Feriados / paradas (uma data por linha, AAAA-MM-DD ou DD/MM/AAAA)</label>
-            <textarea style={{ minHeight: 120 }} readOnly={readOnly} value={fer} onChange={(e) => setFer(e.target.value)} /></div>
+          <div className="field"><label htmlFor="projeto-2">Feriados e paradas</label>
+            <div className="dica">Uma data por linha, no formato AAAA-MM-DD ou DD/MM/AAAA.</div>
+            <textarea id="projeto-2" style={{ minHeight: 120 }} readOnly={readOnly} value={fer} onChange={(e) => setFer(e.target.value)} /></div>
           {!readOnly && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <button className="btn btn-primary" onClick={aplicar}>Aplicar calendário</button>
@@ -73,7 +74,7 @@ export default function Projeto() {
           </table></div>
         ) : <div className="empty">Nenhuma medição registrada. Use “Registrar medição” a cada semana para desenhar a curva realizada.</div>}
         <div className="creditos">
-          <span><b>Cronograma de Obra</b> — desenvolvido pelo Engenheiro Joilson de Paula</span>
+          <span><b>Cronograma de Obra</b> · desenvolvido pelo Engenheiro Joilson de Paula</span>
           <span>Ferramenta livre de licença: sem servidor e sem cadastro.</span>
         </div>
       </div>

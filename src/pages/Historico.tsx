@@ -14,21 +14,21 @@ export default function Historico() {
       <div className="card">
         <div className="card-title">Filtros</div>
         <div className="filter-bar">
-          <div className="form-group"><label>Tipo</label>
-            <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
+          <div className="form-group"><label htmlFor="historico-1">Tipo</label>
+            <select id="historico-1" value={tipo} onChange={(e) => setTipo(e.target.value)}>
               <option value="">Todos</option>{tipos.map((t) => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
             </select></div>
-          <div className="form-group"><label>Data</label><input type="date" value={dt} onChange={(e) => setDt(e.target.value)} /></div>
+          <div className="form-group"><label htmlFor="historico-2">Data</label><input id="historico-2" type="date" value={dt} onChange={(e) => setDt(e.target.value)} /></div>
           <button className="btn btn-ghost" onClick={() => { setTipo(''); setDt(''); }}><X size={14} /> Limpar</button>
         </div>
       </div>
       <div className="card">
-        <div className="card-title">{hist.length} registro(s) encontrado(s)</div>
+        <div className="card-title">{hist.length === 1 ? '1 registro encontrado' : `${hist.length} registros encontrados`}</div>
         {hist.length === 0 ? <div className="empty">Nenhum registro.</div> : hist.map((h) => (
           <div className="hist-item" key={h.id}>
             <span className="hist-time">{fmtTs(h.ts)}</span>
             <span>{h.icone}</span>
-            <span className="hist-text">{h.texto}<span className="hist-user">— {h.user}</span></span>
+            <span className="hist-text">{h.texto.split(String.fromCharCode(8212)).join('-')}<span className="hist-user">- {h.user}</span></span>
           </div>
         ))}
       </div>

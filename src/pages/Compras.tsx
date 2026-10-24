@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CheckCircle2, Clock, FileSpreadsheet, Pencil, Plus, ShoppingBasket, Trash2, X } from 'lucide-react';
 import { useApp } from '../store/AppStore';
 import { CATS_COMPRA, exportarExcelCompras, fmt, fmtData, fmtNum, type Compra } from '../lib/ac21';
+import { useDialogo } from '../components/Dialogo';
 import { CompraModal } from '../components/CompraModal';
 import { Empty } from '../components/ui';
 
@@ -9,6 +10,7 @@ export const badgeCompra = (s: string) => (s === 'Pago' ? 'badge-ok' : s === 'Pe
 
 export default function Compras() {
   const { db, excluirCompra, toast } = useApp();
+  const { confirmar } = useDialogo();
   const [f, setF] = useState({ obra: '', cat: '', status: '', ini: '', fim: '' });
   const [modal, setModal] = useState<{ c: Compra | null } | null>(null);
   const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
@@ -50,20 +52,20 @@ export default function Compras() {
       <div className="card">
         <div className="card-title">Filtros</div>
         <div className="filter-bar">
-          <div className="form-group"><label>Obra</label>
-            <select value={f.obra} onChange={(e) => set('obra', e.target.value)}>
+          <div className="form-group"><label htmlFor="compras-1">Obra</label>
+            <select id="compras-1" value={f.obra} onChange={(e) => set('obra', e.target.value)}>
               <option value="">Todas</option>{db.obras.map((o) => <option key={o.id} value={o.id}>{o.codigo || o.nome}</option>)}
             </select></div>
-          <div className="form-group"><label>Categoria</label>
-            <select value={f.cat} onChange={(e) => set('cat', e.target.value)}>
+          <div className="form-group"><label htmlFor="compras-2">Categoria</label>
+            <select id="compras-2" value={f.cat} onChange={(e) => set('cat', e.target.value)}>
               <option value="">Todas</option>{CATS_COMPRA.map((c) => <option key={c}>{c}</option>)}
             </select></div>
-          <div className="form-group"><label>Status</label>
-            <select value={f.status} onChange={(e) => set('status', e.target.value)}>
-              <option value="">Todos</option><option value="Pago">Pago</option><option value="Pendente">Pendente</option><option value="Parcial">Parcial Pago</option>
+          <div className="form-group"><label htmlFor="compras-3">Status</label>
+            <select id="compras-3" value={f.status} onChange={(e) => set('status', e.target.value)}>
+              <option value="">Todos</option><option value="Pago">Pago</option><option value="Pendente">Pendente</option><option value="Parcial">Parcialmente pago</option>
             </select></div>
-          <div className="form-group"><label>De</label><input type="date" value={f.ini} onChange={(e) => set('ini', e.target.value)} /></div>
-          <div className="form-group"><label>Até</label><input type="date" value={f.fim} onChange={(e) => set('fim', e.target.value)} /></div>
+          <div className="form-group"><label htmlFor="compras-4">De</label><input id="compras-4" type="date" value={f.ini} onChange={(e) => set('ini', e.target.value)} /></div>
+          <div className="form-group"><label htmlFor="compras-5">Até</label><input id="compras-5" type="date" value={f.fim} onChange={(e) => set('fim', e.target.value)} /></div>
           <button className="btn btn-ghost" onClick={() => setF({ obra: '', cat: '', status: '', ini: '', fim: '' })}><X size={14} /> Limpar</button>
         </div>
       </div>
@@ -81,19 +83,19 @@ export default function Compras() {
                 return (
                   <tr key={c.id}>
                     <td style={{ fontWeight: 500 }}>{c.desc}</td>
-                    <td style={{ fontSize: 12 }}>{obra ? obra.codigo : '—'}</td>
+                    <td style={{ fontSize: 12 }}>{obra ? obra.codigo : '-'}</td>
                     <td><span className="badge badge-gray">{c.cat}</span></td>
                     <td style={{ fontSize: 12 }}>{c.forn}</td>
-                    <td style={{ fontSize: 12 }}>{c.nf || '—'}</td>
+                    <td style={{ fontSize: 12 }}>{c.nf || '-'}</td>
                     <td style={{ fontSize: 12 }}>{fmtData(c.data)}</td>
                     <td className="td-right">{fmtNum(c.qtde)} {c.unid}</td>
                     <td className="td-right">{fmt(c.unit)}</td>
                     <td className="td-right" style={{ fontWeight: 600 }}>{fmt(c.total)}</td>
                     <td><span className={'badge ' + badgeCompra(c.status)}>{c.status}</span></td>
                     <td><div style={{ display: 'flex', gap: 4 }}>
-                      <button className="btn btn-sm btn-icon" data-tip="Editar" onClick={() => setModal({ c })}><Pencil size={14} /></button>
-                      <button className="btn btn-sm btn-icon btn-danger" data-tip="Excluir" onClick={() => {
-                        if (confirm(`Excluir a compra "${c.desc}"?`)) { excluirCompra(c.id); toast('Compra excluída.'); }
+                      <button className="btn btn-sm btn-icon" data-tip="Editar" aria-label="Editar" onClick={() => setModal({ c })}><Pencil size={14} /></button>
+                      <button className="btn btn-sm btn-icon btn-danger" data-tip="Excluir" aria-label="Excluir" onClick={async () => {
+                        if (await confirmar(`Excluir a compra "${c.desc}"?`, { confirmar: 'Excluir', perigo: true })) { excluirCompra(c.id); toast('Compra excluída.'); }
                       }}><Trash2 size={14} /></button>
                     </div></td>
                   </tr>

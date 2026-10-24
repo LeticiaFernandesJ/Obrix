@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type DB, fmt, novoId, pct, pctInt, sanitizarDB, totalComprometido, totalPago } from './ac21';
+import { type DB, fmt, mascaraMoeda, novoId, pct, pctInt, sanitizarDB, totalComprometido, totalPago, valorDaMascara } from './ac21';
 
 const db: DB = {
   nextId: 10, historico: [],
@@ -52,5 +52,29 @@ describe('novoId', () => {
     expect(new Set(ids).size).toBe(5000);
     expect([...ids].sort((a, b) => a - b)).toEqual(ids);
     expect(Number.isSafeInteger(ids[ids.length - 1])).toBe(true);
+  });
+});
+
+describe('máscara de dinheiro', () => {
+  it('mostra no formato brasileiro', () => {
+    expect(mascaraMoeda('1234.5')).toBe('1.234,50');
+    expect(mascaraMoeda('500000')).toBe('500.000,00');
+    expect(mascaraMoeda('0.05')).toBe('0,05');
+    expect(mascaraMoeda('')).toBe('');
+    expect(mascaraMoeda('abc')).toBe('');
+  });
+  it('converte o que foi digitado (os dois últimos números são os centavos)', () => {
+    expect(valorDaMascara('1')).toBe('0.01');
+    expect(valorDaMascara('123456')).toBe('1234.56');
+    expect(valorDaMascara('1.234,56')).toBe('1234.56');
+    expect(valorDaMascara('R$ 44558554455')).toBe('445585544.55');
+    expect(valorDaMascara('')).toBe('');
+    expect(valorDaMascara('abc')).toBe('');
+  });
+  it('apagar um dígito volta ao valor anterior', () => {
+    expect(valorDaMascara('1.234,5')).toBe('123.45'); // apagou o último "6" de 1.234,56
+  });
+  it('limita o tamanho para não perder precisão', () => {
+    expect(Number.isSafeInteger(Math.round(Number(valorDaMascara('9'.repeat(30))) * 100))).toBe(true);
   });
 });

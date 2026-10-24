@@ -6,6 +6,7 @@ import {
   type Calc, type Cal, type Estado, calcular, desempacotar, makeCal, normalizarEstado, novoEstado,
 } from '../lib/schedule';
 import { supabase } from '../lib/supabase';
+import { useDialogo } from '../components/Dialogo';
 import { type Snap, deLinhas, enviarMudancas, lerNuvem, paraLinhas, snapDe, snapVazio } from '../lib/nuvem';
 
 const K_DB = 'obrix-ac21-v1';
@@ -66,6 +67,7 @@ function gravar(k: string, v: unknown) { try { localStorage.setItem(k, JSON.stri
 interface ProviderProps { children: ReactNode; userId: string | null; email: string | null; onSignOut: (() => Promise<void>) | null }
 
 export function AppProvider({ children, userId, email, onSignOut }: ProviderProps) {
+  const { confirmar, avisar } = useDialogo();
   // cache local de outra conta nunca é aproveitado
   if (userId) {
     const dono = (() => { try { return localStorage.getItem(K_OWNER); } catch { return null; } })();
@@ -166,7 +168,7 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
         snapRef.current = snapDe(paraLinhas(r.db, r.cronos));
         const local = estadoRef.current;
         const manterLocal = editouSemNuvemRef.current &&
-          confirm('Você fez alterações neste aparelho enquanto estava sem conexão.\n\nOK = enviar essas alterações para a nuvem (substitui o que está lá).\nCancelar = descartar e usar os dados da nuvem.');
+          (await confirmar('Você fez alterações neste aparelho enquanto estava sem conexão.\n\nEnviar essas alterações para a nuvem substitui o que está lá. Descartar usa os dados da nuvem.', { titulo: 'Alterações sem conexão', confirmar: 'Enviar as minhas', cancelar: 'Descartar e usar a nuvem' }));
         if (manterLocal) {
           await enviarMudancas(supabase, userId, paraLinhas(local.db, local.cronos), snapRef.current);
           ultimoRef.current = local.payload;
@@ -233,10 +235,10 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
         if (salvandoRef.current) await new Promise((r) => setTimeout(r, 500)); else await salvarAgora();
       }
       const pendente = prontoRef.current ? estadoRef.current.payload !== ultimoRef.current : editouSemNuvemRef.current;
-      if (pendente && !confirm('Algumas alterações ainda não foram enviadas para a nuvem (sem conexão ou erro).\nSe sair agora, elas serão perdidas.\n\nSair mesmo assim?')) return;
+      if (pendente && !(await confirmar('Algumas alterações ainda não foram enviadas para a nuvem (sem conexão ou erro).\nSe sair agora, elas serão perdidas.', { titulo: 'Sair mesmo assim?', confirmar: 'Sair e perder', perigo: true }))) return;
     }
     await onSignOut();
-  }, [onSignOut, userId, salvarAgora]);
+  }, [onSignOut, userId, salvarAgora, confirmar]);
 
   useEffect(() => {
     if (!userId || !supabase) return;
@@ -266,7 +268,7 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
       else setCronos((c) => ({ ...c, [chaveRef.current]: est }));
       window.history.replaceState(null, '', base + (ro ? '/painel' + window.location.hash : '/cronograma'));
       window.dispatchEvent(new PopStateEvent('popstate'));
-    }).catch(() => alert('Não consegui ler o link — ele pode ter sido cortado pelo e-mail. Peça o arquivo .json.'));
+    }).catch(() => { void avisar('Não consegui ler o link, ele pode ter sido cortado pelo e-mail. Peça o arquivo .json.'); });
   };
     carregarHash();
     window.addEventListener('hashchange', carregarHash);
@@ -337,7 +339,7 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
     const obra = d.obras.find((o) => o.id === c.obraId);
     if (id == null) {
       d.compras.push({ id: novoId(), ...c });
-      hist(d, 'compra', '🛒', `Compra "${c.desc}" registrada — ${c.forn} · ${fmt(c.total)} · ${obra?.codigo || ''}`);
+      hist(d, 'compra', '🛒', `Compra "${c.desc}" registrada - ${c.forn} · ${fmt(c.total)} · ${obra?.codigo || ''}`);
     } else {
       const idx = d.compras.findIndex((x) => x.id === id); if (idx < 0) return;
       d.compras[idx] = { id, ...c };

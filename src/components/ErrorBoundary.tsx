@@ -1,11 +1,15 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { ehErroDeArquivoAntigo, recarregarUmaVez } from '../lib/recarregar';
 
 const CHAVES = ['obrix-ac21-v1', 'cronograma-obra-v2'];
 
 export default class ErrorBoundary extends Component<{ children: ReactNode }, { erro: Error | null }> {
   state = { erro: null as Error | null };
   static getDerivedStateFromError(erro: Error) { return { erro }; }
-  componentDidCatch(erro: Error, info: ErrorInfo) { console.error(erro, info); }
+  componentDidCatch(erro: Error, info: ErrorInfo) {
+    console.error(erro, info);
+    if (ehErroDeArquivoAntigo(erro)) recarregarUmaVez();
+  }
 
   baixarCopia = () => {
     const copia: Record<string, unknown> = {};

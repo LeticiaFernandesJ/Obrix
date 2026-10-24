@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Check } from 'lucide-react';
-import { Modal } from './ui';
+import { Modal, CampoDinheiro } from './ui';
 import { useApp } from '../store/AppStore';
 import { CATS_COMPRA, hojeISO, type Compra, type StatusCompra } from '../lib/ac21';
 
@@ -50,27 +50,27 @@ export function CompraModal({ compra, obraId, onClose }: Props) {
       <button className="btn btn-primary" onClick={salvar}><Check size={15} /> {compra ? 'Salvar Compra' : 'Registrar Compra'}</button>
     </>}>
       <div className="form-grid">
-        <div className="form-group form-full"><label>Descrição da Compra *</label><input value={f.desc} onChange={(e) => set('desc', e.target.value)} placeholder="Ex: 500 blocos cerâmicos 14x19x29" /></div>
-        <div className="form-group"><label>Obra *</label>
-          <select value={f.obraId} onChange={(e) => set('obraId', Number(e.target.value))}>
-            {db.obras.length === 0 && <option value={0}>— nenhuma obra —</option>}
-            {db.obras.map((o) => <option key={o.id} value={o.id}>{o.codigo} — {o.nome}</option>)}
+        <div className="form-group form-full"><label htmlFor="compramodal-1">Descrição da Compra *</label><input id="compramodal-1" value={f.desc} onChange={(e) => set('desc', e.target.value)} placeholder="Ex: 500 blocos cerâmicos 14x19x29" /></div>
+        <div className="form-group"><label htmlFor="compramodal-2">Obra *</label>
+          <select id="compramodal-2" value={f.obraId} onChange={(e) => set('obraId', Number(e.target.value))}>
+            {db.obras.length === 0 && <option value={0}>Nenhuma obra cadastrada</option>}
+            {db.obras.map((o) => <option key={o.id} value={o.id}>{o.codigo} - {o.nome}</option>)}
           </select></div>
-        <div className="form-group"><label>Categoria</label>
-          <select value={f.cat} onChange={(e) => set('cat', e.target.value)}>{CATS_COMPRA.map((c) => <option key={c}>{c}</option>)}</select></div>
-        <div className="form-group"><label>Fornecedor *</label><input value={f.forn} onChange={(e) => set('forn', e.target.value)} placeholder="Nome do fornecedor" /></div>
-        <div className="form-group"><label>CNPJ / CPF</label><input value={f.cnpj} onChange={(e) => set('cnpj', e.target.value)} placeholder="00.000.000/0000-00" /></div>
-        <div className="form-group"><label>Nº NF</label><input value={f.nf} onChange={(e) => set('nf', e.target.value)} placeholder="Ex: NF-0042" /></div>
-        <div className="form-group"><label>Data da Compra *</label><input type="date" value={f.data} onChange={(e) => set('data', e.target.value)} /></div>
-        <div className="form-group"><label>Qtde</label><input type="number" min="0" step="0.01" value={f.qtde} onChange={(e) => onQtde(e.target.value)} placeholder="1" /></div>
-        <div className="form-group"><label>Unidade</label><input value={f.unid} onChange={(e) => set('unid', e.target.value)} placeholder="Ex: un, m², kg, L" /></div>
-        <div className="form-group"><label>Valor Unitário (R$)</label><input type="number" min="0" step="0.01" value={f.unit} onChange={(e) => onUnit(e.target.value)} placeholder="0.00" /></div>
-        <div className="form-group"><label>Valor Total (R$) *</label><input type="number" min="0" step="0.01" value={f.total} onChange={(e) => onTotal(e.target.value)} placeholder="0.00" /></div>
-        <div className="form-group"><label>Status</label>
-          <select value={f.status} onChange={(e) => set('status', e.target.value)}>
-            <option value="Pago">Pago</option><option value="Pendente">Pendente</option><option value="Parcial">Parcial Pago</option>
+        <div className="form-group"><label htmlFor="compramodal-3">Categoria</label>
+          <select id="compramodal-3" value={f.cat} onChange={(e) => set('cat', e.target.value)}>{CATS_COMPRA.map((c) => <option key={c}>{c}</option>)}</select></div>
+        <div className="form-group"><label htmlFor="compramodal-4">Fornecedor *</label><input id="compramodal-4" value={f.forn} onChange={(e) => set('forn', e.target.value)} placeholder="Nome do fornecedor" /></div>
+        <div className="form-group"><label htmlFor="compramodal-5">CNPJ / CPF</label><input id="compramodal-5" value={f.cnpj} onChange={(e) => set('cnpj', e.target.value)} placeholder="00.000.000/0000-00" /></div>
+        <div className="form-group"><label htmlFor="compramodal-6">Nº NF</label><input id="compramodal-6" value={f.nf} onChange={(e) => set('nf', e.target.value)} placeholder="Ex: NF-0042" /></div>
+        <div className="form-group"><label htmlFor="compramodal-7">Data da Compra *</label><input id="compramodal-7" type="date" value={f.data} onChange={(e) => set('data', e.target.value)} /></div>
+        <div className="form-group"><label htmlFor="compramodal-8">Qtde</label><input id="compramodal-8" type="number" min="0" step="0.01" value={f.qtde} onChange={(e) => onQtde(e.target.value)} placeholder="1" /></div>
+        <div className="form-group"><label htmlFor="compramodal-9">Unidade</label><input id="compramodal-9" value={f.unid} onChange={(e) => set('unid', e.target.value)} placeholder="Ex: un, m², kg, L" /></div>
+        <div className="form-group"><label htmlFor="compramodal-10">Valor Unitário (R$)</label><CampoDinheiro id="compramodal-10" value={f.unit} onChange={(v) => onUnit(v)} /></div>
+        <div className="form-group"><label htmlFor="compramodal-11">Valor Total (R$) *</label><CampoDinheiro id="compramodal-11" value={f.total} onChange={(v) => onTotal(v)} /></div>
+        <div className="form-group"><label htmlFor="compramodal-12">Status</label>
+          <select id="compramodal-12" value={f.status} onChange={(e) => set('status', e.target.value)}>
+            <option value="Pago">Pago</option><option value="Pendente">Pendente</option><option value="Parcial">Parcialmente pago</option>
           </select></div>
-        <div className="form-group form-full"><label>Observações</label><textarea value={f.obs} onChange={(e) => set('obs', e.target.value)} placeholder="Notas sobre esta compra..." /></div>
+        <div className="form-group form-full"><label htmlFor="compramodal-13">Observações</label><textarea id="compramodal-13" value={f.obs} onChange={(e) => set('obs', e.target.value)} placeholder="Notas sobre esta compra..." /></div>
       </div>
     </Modal>
   );

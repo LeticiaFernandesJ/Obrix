@@ -18,12 +18,12 @@ export function CronoHeader() {
         <div className="meta">{meta}{meta && sd ? ' · ' : ''}{sd && <>data de status {sd}</>}</div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        {readOnly && <span className="chip ro">somente leitura — visão PMO</span>}
+        {readOnly && <span className="chip ro">somente leitura, visão PMO</span>}
         {!readOnly && db.obras.length > 0 && (
           <label className="obra-pick" title="Obra do cronograma">
             <Building2 size={15} />
             <select value={obraAtual?.id ?? ''} onChange={(e) => setObraAtiva(Number(e.target.value))}>
-              {db.obras.map((o) => <option key={o.id} value={o.id}>{o.codigo ? o.codigo + ' — ' : ''}{o.nome}</option>)}
+              {db.obras.map((o) => <option key={o.id} value={o.id}>{o.codigo ? o.codigo + ' - ' : ''}{o.nome}</option>)}
             </select>
           </label>
         )}

@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useApp } from '../../store/AppStore';
-import { curvaPrevista, difUtil, fmtN, pctPrevistoEm, pctRealAtual, tendencia } from '../../lib/schedule';
+import { curvaPrevista, difUtil, diasTxt, fmtN, pctPrevistoEm, pctRealAtual, tendencia } from '../../lib/schedule';
 import { hojeN, n2br, n2brc, parseData } from '../../lib/dates';
 import { CronoHeader } from './CronoHeader';
 import { dicaCurva, exportarCurvaCSV, exportarCurvaPNG, htmlCurvaS } from './curvaS';
@@ -57,15 +57,15 @@ export default function Painel() {
         <Kpi t="Avanço realizado" v={fmtN(real, 1) + '%'} s={`previsto ${fmtN(prev, 1)}%`} />
         <Kpi t="Desvio de prazo" v={(desvio >= 0 ? '+' : '') + fmtN(desvio, 1) + ' p.p.'}
           s={desvio >= -0.5 ? 'em dia com o previsto' : desvio >= -5 ? 'atenção' : 'atrasado'} c={cls(desvio)} />
-        <Kpi t="Término previsto" v={fimProj != null ? n2br(fimProj) : '—'}
-          s={desl == null ? (iniProj != null ? 'início ' + n2br(iniProj) : '') : desl === 0 ? 'igual à linha de base' : desl > 0 ? `+${desl} dias vs. base` : `${desl} dias vs. base`}
+        <Kpi t="Término previsto" v={fimProj != null ? n2br(fimProj) : '-'}
+          s={desl == null ? (iniProj != null ? 'início ' + n2br(iniProj) : '') : desl === 0 ? 'igual à linha de base' : desl > 0 ? `+${diasTxt(desl)} vs. base` : `${diasTxt(desl)} vs. base`}
           c={desl == null ? '' : desl <= 0 ? 'good' : desl <= 7 ? 'warn' : 'bad'} />
         {tend && tend.fimProj && !tend.concluida && (
           <Kpi t="Término pela tendência" v={n2br(tend.fimProj)}
-            s={`IDP ${fmtN(tend.spi, 2)} · ${tend.atraso > 0 ? '+' + tend.atraso + ' dias sobre o plano' : tend.atraso < 0 ? tend.atraso + ' dias' : 'no plano'}`}
+            s={`IDP ${fmtN(tend.spi, 2)} · ${tend.atraso > 0 ? '+' + diasTxt(tend.atraso) + ' sobre o plano' : tend.atraso < 0 ? diasTxt(tend.atraso) : 'no plano'}`}
             c={tend.atraso <= 0 ? 'good' : tend.atraso <= 7 ? 'warn' : 'bad'} />
         )}
-        <Kpi t="Tarefas atrasadas" v={String(atrasadas.length)} s={`${concl} concluídas de ${totalFolhas}`} c={atrasadas.length ? (atrasadas.length > 3 ? 'bad' : 'warn') : 'good'} />
+        <Kpi t="Tarefas atrasadas" v={String(atrasadas.length)} s={`${concl} ${concl === 1 ? 'concluída' : 'concluídas'} de ${totalFolhas}`} c={atrasadas.length ? (atrasadas.length > 3 ? 'bad' : 'warn') : 'good'} />
         <Kpi t="Dias úteis restantes" v={String(restam)} s={fimProj != null ? 'até ' + n2br(fimProj) : ''} />
       </div>
 
@@ -76,7 +76,7 @@ export default function Painel() {
       <div className="grid2 wide" style={{ marginBottom: 14 }}>
         <div className="mini-card">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <h3 style={{ flex: 1, margin: 0 }}>Curva S — avanço acumulado (%)</h3>
+            <h3 style={{ flex: 1, margin: 0 }}>Curva S: avanço acumulado (%)</h3>
             <div className="acoes-graf">
               <button className="btn" onClick={() => exportarCurvaPNG(crono, c, cal, toast)}>Imagem</button>
               <button className="btn" onClick={() => exportarCurvaCSV(crono, c, cal, toast)}>Tabela</button>
@@ -111,15 +111,15 @@ export default function Painel() {
 
       <div className="grid2 wide" style={{ marginBottom: 14 }}>
         <div className="mini-card">
-          <h3>Atenção — atrasadas ou críticas</h3>
+          <h3>Atenção: atrasadas ou críticas</h3>
           {lista.length ? (
             <table className="list"><thead><tr><th>Tarefa</th><th className="n">Término</th><th className="n">%</th><th className="n">Situação</th></tr></thead><tbody>
               {lista.map((o) => {
                 const at = (o.k.fim as number) < sd && (+o.t.pct || 0) < 100, dias = at ? difUtil(cal, o.k.fim, sd) - 1 : 0;
                 return (
-                  <tr key={o.t.id}><td>{o.t.nome || '—'}<br /><span style={{ color: 'var(--muted)' }}>{o.t.resp}</span></td>
+                  <tr key={o.t.id}><td>{o.t.nome || '-'}<br /><span style={{ color: 'var(--muted)' }}>{o.t.resp}</span></td>
                     <td className="n">{n2br(o.k.fim)}</td><td className="n">{Math.round(o.k.pct)}%</td>
-                    <td className="n" style={{ color: at ? 'var(--critical)' : 'var(--warning)', fontWeight: 600 }}>{at ? dias + ' dias' : 'caminho crítico'}</td></tr>
+                    <td className="n" style={{ color: at ? 'var(--critical)' : 'var(--warning)', fontWeight: 600 }}>{at ? diasTxt(dias) : 'caminho crítico'}</td></tr>
                 );
               })}
             </tbody></table>
@@ -130,7 +130,7 @@ export default function Painel() {
           {fases.length ? (
             <table className="list"><tbody>
               {fases.map((o) => (
-                <tr key={o.t.id}><td style={{ width: '45%' }}><b style={{ fontWeight: 600 }}>{o.t.nome || '—'}</b><br /><span style={{ color: 'var(--muted)' }}>{n2brc(o.k.ini)} – {n2brc(o.k.fim)}</span></td>
+                <tr key={o.t.id}><td style={{ width: '45%' }}><b style={{ fontWeight: 600 }}>{o.t.nome || '-'}</b><br /><span style={{ color: 'var(--muted)' }}>{n2brc(o.k.ini)} – {n2brc(o.k.fim)}</span></td>
                   <td><div className="bar-mini"><i style={{ width: Math.round(o.k.pct) + '%' }} /></div></td>
                   <td className="n" style={{ width: 44 }}>{Math.round(o.k.pct)}%</td></tr>
               ))}
@@ -144,7 +144,7 @@ export default function Painel() {
         {prox.length ? (
           <table className="list"><thead><tr><th>Tarefa</th><th>Início</th><th>Término</th><th>Dur.</th><th>%</th><th>Responsável</th></tr></thead><tbody>
             {prox.map((o) => (
-              <tr key={o.t.id}><td style={{ fontWeight: 600 }}>{o.t.nome || '—'}</td><td>{n2br(o.k.ini)}</td><td>{n2br(o.k.fim)}</td><td>{o.k.dur}d</td>
+              <tr key={o.t.id}><td style={{ fontWeight: 600 }}>{o.t.nome || '-'}</td><td>{n2br(o.k.ini)}</td><td>{n2br(o.k.fim)}</td><td>{o.k.dur}d</td>
                 <td><span className="pill">{Math.round(o.k.pct)}%</span></td><td>{o.t.resp}</td></tr>
             ))}
           </tbody></table>

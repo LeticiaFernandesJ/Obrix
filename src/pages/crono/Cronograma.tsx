@@ -7,6 +7,8 @@ import {
 import { hojeN, n2br, n2iso, parseData } from '../../lib/dates';
 import { fmtN, esc } from '../../lib/schedule';
 import { montarGantt } from './gantt';
+import { useDialogo } from '../../components/Dialogo';
+import { plural } from '../../lib/ac21';
 import { CronoHeader } from './CronoHeader';
 
 interface ColDef { k: string; t: string; sub?: string; w: number; cls: string }
@@ -42,6 +44,7 @@ function Cell({ value, onCommit, readOnly, ...rest }: {
 
 export default function Cronograma() {
   const { crono, calc, cal, updateCrono, readOnly, toast } = useApp();
+  const { confirmar } = useDialogo();
   const [sel, setSel] = useState(0);
   const [mostrarReal, setMostrarReal] = useState(false);
   const [larg, setLarg] = useState(778);
@@ -105,9 +108,9 @@ export default function Cronograma() {
     if (d < 0 && selOk > 0) setSel(selOk - 1);
     else if (d > 0 && selOk + bloco < T.length) setSel(selOk + 1);
   };
-  const excluir = () => {
+  const excluir = async () => {
     if (!T[selOk]) return;
-    if (!confirm('Excluir a linha selecionada (e suas subtarefas)?')) return;
+    if (!(await confirmar('Excluir a linha selecionada (e suas subtarefas)?', { confirmar: 'Excluir', perigo: true }))) return;
     updateCrono((S) => {
       const bloco = 1 + filhos(S.tarefas, selOk).length;
       const ids = S.tarefas.slice(selOk, selOk + bloco).map((t) => t.id);
@@ -118,7 +121,7 @@ export default function Cronograma() {
   };
   const linhaBase = () => {
     updateCrono((S, _c, ca) => { ca.forEach((x, i) => { if (x.ini != null) S.tarefas[i].bl = { i: x.ini, f: x.fim }; }); S.baseline = true; });
-    toast('Linha de base salva — o previsto original ficou registrado.');
+    toast('Linha de base salva. O previsto original ficou registrado.');
   };
   const medicao = () => {
     const d = crono.meta.statusDate || n2iso(hojeN()), p = pctRealAtual(calc);
@@ -159,7 +162,7 @@ export default function Cronograma() {
     const b = (e.target as HTMLElement).closest<HTMLElement>('.bar,.ms');
     if (!b) { el.classList.remove('on'); return; }
     const i = +(b.dataset.i as string), t = T[i], k = calc[i]; if (!t || !k) return;
-    el.innerHTML = `<b>${esc(t.nome || '(sem nome)')}</b><span>${n2br(k.ini)} → ${n2br(k.fim)} · ${k.dur} dias úteis<br>` +
+    el.innerHTML = `<b>${esc(t.nome || '(sem nome)')}</b><span>${n2br(k.ini)} → ${n2br(k.fim)} · ${k.dur} ${k.dur === 1 ? 'dia útil' : 'dias úteis'}<br>` +
       `avanço ${Math.round(k.pct)}%${k.res ? '' : ` · folga ${k.folga} d${k.crit ? ' · caminho crítico' : ''}`}` +
       `${t.resp ? '<br>resp.: ' + esc(t.resp) : ''}${t.bl && t.bl.i != null ? '<br>base: ' + n2br(t.bl.i) + ' → ' + n2br(t.bl.f) : ''}</span>`;
     el.style.left = Math.min(window.innerWidth - 300, e.clientX + 14) + 'px';
@@ -193,11 +196,11 @@ export default function Cronograma() {
           <button className="btn" onClick={() => addTarefa(false)}><Plus size={15} /> Tarefa</button>
           <button className="btn" onClick={() => addTarefa(true)} title="Inserir marco (duração 0)"><Diamond size={14} /> Marco</button>
           <div className="sep" />
-          <button className="btn btn-icon" title="Diminuir nível (Alt+←)" onClick={() => indentar(-1)}><ChevronsLeft size={15} /></button>
-          <button className="btn btn-icon" title="Aumentar nível (Alt+→)" onClick={() => indentar(1)}><ChevronsRight size={15} /></button>
-          <button className="btn btn-icon" title="Mover para cima (Alt+↑)" onClick={() => mover(-1)}><ArrowUp size={15} /></button>
-          <button className="btn btn-icon" title="Mover para baixo (Alt+↓)" onClick={() => mover(1)}><ArrowDown size={15} /></button>
-          <button className="btn btn-icon" title="Excluir linha" onClick={excluir}><Trash2 size={15} /></button>
+          <button className="btn btn-icon" title="Diminuir nível (Alt+←)" aria-label="Diminuir nível (Alt+←)" onClick={() => indentar(-1)}><ChevronsLeft size={15} /></button>
+          <button className="btn btn-icon" title="Aumentar nível (Alt+→)" aria-label="Aumentar nível (Alt+→)" onClick={() => indentar(1)}><ChevronsRight size={15} /></button>
+          <button className="btn btn-icon" title="Mover para cima (Alt+↑)" aria-label="Mover para cima (Alt+↑)" onClick={() => mover(-1)}><ArrowUp size={15} /></button>
+          <button className="btn btn-icon" title="Mover para baixo (Alt+↓)" aria-label="Mover para baixo (Alt+↓)" onClick={() => mover(1)}><ArrowDown size={15} /></button>
+          <button className="btn btn-icon" title="Excluir linha" aria-label="Excluir linha" onClick={excluir}><Trash2 size={15} /></button>
           <div className="sep" />
           <label>Zoom
             <select value={crono.zoom} onChange={(e) => updateCrono((S) => { S.zoom = e.target.value as Zoom; })}>
@@ -206,8 +209,8 @@ export default function Cronograma() {
           <label>Data de status
             <input type="date" value={crono.meta.statusDate || ''} onChange={(e) => updateCrono((S) => { S.meta.statusDate = e.target.value || n2iso(hojeN()); })} /></label>
           <div className="sep" />
-          <button className="btn" title="Congela as datas atuais como previsto" onClick={linhaBase}><Save size={14} /> Salvar linha de base</button>
-          <button className="btn" title="Registra o avanço de hoje na curva S" onClick={medicao}><BarChart3 size={14} /> Registrar medição</button>
+          <button className="btn" title="Congela as datas atuais como previsto" aria-label="Congela as datas atuais como previsto" onClick={linhaBase}><Save size={14} /> Salvar linha de base</button>
+          <button className="btn" title="Registra o avanço de hoje na curva S" aria-label="Registra o avanço de hoje na curva S" onClick={medicao}><BarChart3 size={14} /> Registrar medição</button>
           <div className="spacer" />
           <label><input type="checkbox" checked={mostrarReal} onChange={(e) => setMostrarReal(e.target.checked)} /> colunas de realizado</label>
         </div>
@@ -216,7 +219,7 @@ export default function Cronograma() {
       <div className="crono-card">
         <div className="crono-card-head">
           <h3>Cronograma</h3>
-          <span className="sub">{nLinhas} linhas · {nMarcos} marcos · zoom por {zoomNome[crono.zoom]}</span>
+          <span className="sub">{plural(nLinhas, 'linha', 'linhas')} · {plural(nMarcos, 'marco', 'marcos')} · zoom por {zoomNome[crono.zoom]}</span>
           <div className="spacer" />
           <div className="legend" style={{ margin: 0 }}>
             <span><i style={{ background: 'var(--bar-sum)' }} />Fase</span>
@@ -238,7 +241,7 @@ export default function Cronograma() {
                 <tbody id="gbody">
                   {T.length === 0 && (
                     <tr><td colSpan={CS.length + 1} className="td-empty" style={{ height: 80 }}>
-                      Nenhuma tarefa ainda. Clique em <b>+ Tarefa</b>, use <b>Importar</b> para colar do Excel, ou <b>Abrir</b> um arquivo.</td></tr>
+                      Nenhuma tarefa ainda. Clique em <b>+ Tarefa</b>, use <b>Importar</b> para colar do Excel ou clique em <b>Abrir</b> para carregar um arquivo.</td></tr>
                   )}
                   {vis.map((i) => {
                     const t = T[i], k = calc[i]; if (!k) return null;

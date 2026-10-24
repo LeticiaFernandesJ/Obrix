@@ -1,4 +1,4 @@
--- Obrix — esquema completo em tabelas (obras, itens, compras, histórico e cronograma)
+-- Obrix - esquema completo em tabelas (obras, itens, compras, histórico e cronograma)
 -- Cole em: Supabase > SQL Editor > New query > Run.
 --
 -- ATENÇÃO: este script recria as 7 tabelas do Obrix (apaga o conteúdo delas, se houver).

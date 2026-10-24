@@ -5,6 +5,7 @@ import {
   Menu, Download, Save, FileSpreadsheet,
 } from 'lucide-react';
 import { useApp } from '../store/AppStore';
+import { useDialogo } from './Dialogo';
 import { useInstalar } from '../lib/pwa';
 import { exportarExcel } from '../lib/ac21';
 import { CronoActions } from '../pages/crono/CronoActions';
@@ -15,7 +16,7 @@ const NAV = [
   { sec: 'Principal', items: [
     { to: '/', label: 'Visão Geral', icon: BarChart3, end: true },
     { to: '/obras', label: 'Obras', icon: Building2 },
-    { to: '/detalhe', label: 'Detalhe da Obra', icon: ClipboardList },
+    { to: '/detalhe', label: 'Detalhes da Obra', icon: ClipboardList },
   ] },
   { sec: 'Controle', items: [
     { to: '/compras', label: 'Compras', icon: ShoppingBasket },
@@ -32,7 +33,7 @@ const NAV = [
 const TITULOS: Record<string, [string, string]> = {
   '/': ['Visão Geral', 'Gestão de Verbas por Obra'],
   '/obras': ['Obras', 'Gestão de Verbas por Obra'],
-  '/detalhe': ['Detalhe da Obra', 'Gestão de Verbas por Obra'],
+  '/detalhe': ['Detalhes da Obra', 'Gestão de Verbas por Obra'],
   '/compras': ['Compras', ''],
   '/historico': ['Histórico de Alterações', ''],
   '/relatorios': ['Relatórios', ''],
@@ -44,7 +45,7 @@ const CRONO = ['/cronograma', '/painel', '/projeto'];
 
 export function LogoObrix() {
   return (
-    <span className="logo-card" aria-label="Obrix — Gestão inteligente de obras">
+    <span className="logo-card" aria-label="Obrix - Gestão inteligente de obras">
       <span className="logo-crop"><img src={BASE + 'assets/obrix-logo.jpg'} alt="Obrix" /></span>
     </span>
   );
@@ -52,6 +53,7 @@ export function LogoObrix() {
 
 function AC21Actions() {
   const { db, exportarTudo, importarDB, registrarHistorico, toast } = useApp();
+  const { avisar } = useDialogo();
   const input = useRef<HTMLInputElement>(null);
   const salvar = () => {
     const blob = new Blob([JSON.stringify(exportarTudo(), null, 2)], { type: 'application/json' });
@@ -68,7 +70,7 @@ function AC21Actions() {
         const ok = importarDB(JSON.parse(String(ev.target?.result)));
         if (!ok) throw new Error('arquivo de backup inválido (sem lista de obras)');
         toast('Dados carregados com sucesso!');
-      } catch (err) { alert('Erro ao carregar o arquivo: ' + (err as Error).message); }
+      } catch (err) { void avisar('Erro ao carregar o arquivo: ' + (err as Error).message, 'Não foi possível carregar'); }
     };
     r.readAsText(f); e.target.value = '';
   };
@@ -95,6 +97,7 @@ export default function Layout() {
 
   return (
     <div className="shell">
+      {aberto && <div className="side-backdrop" onClick={() => setAberto(false)} aria-hidden="true" />}
       <aside className={'sidebar' + (aberto ? ' open' : '')}>
         <div className="brand-box">
           <LogoObrix />

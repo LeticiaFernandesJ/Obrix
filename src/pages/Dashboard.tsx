@@ -21,8 +21,8 @@ export default function Dashboard() {
     <div className="content">
       {obras.map((o) => {
         const comp = pctInt(totalComprometido(db, o), o.ac21);
-        if (comp >= 100) return <div key={o.id} className="alert alert-danger"><AlertTriangle size={17} /><span>AC21 <b>{o.codigo}</b> — {o.nome}: custo comprometido <b>ESTOURADO</b> ({comp}% do AC21)</span></div>;
-        if (comp >= 90) return <div key={o.id} className="alert alert-warn"><AlertTriangle size={17} /><span>AC21 <b>{o.codigo}</b> — {o.nome}: comprometido atingiu {comp}% do AC21 (atenção!)</span></div>;
+        if (comp >= 100) return <div key={o.id} className="alert alert-danger"><AlertTriangle size={17} /><span>AC21 <b>{o.codigo}</b> - {o.nome}: custo comprometido <b>ESTOURADO</b> ({comp}% do AC21)</span></div>;
+        if (comp >= 90) return <div key={o.id} className="alert alert-warn"><AlertTriangle size={17} /><span>AC21 <b>{o.codigo}</b> - {o.nome}: comprometido atingiu {comp}% do AC21 (atenção!)</span></div>;
         return null;
       })}
 
@@ -30,7 +30,7 @@ export default function Dashboard() {
         <div className="metric">
           <div className="metric-head"><div className="metric-label">Total AC21 Aprovado</div><div className="metric-icon mi-blue"><CreditCard size={18} /></div></div>
           <div className="metric-value" style={{ color: 'var(--blue)' }}>{fmt(totalAC21)}</div>
-          <div className="metric-sub">{obras.length} obra(s) ativa(s)</div>
+          <div className="metric-sub">{obras.length === 1 ? '1 obra ativa' : `${obras.length} obras ativas`}</div>
         </div>
         <div className="metric">
           <div className="metric-head">
@@ -41,7 +41,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="metric-value" style={{ color: corPct(pgComp) }}>{fmt(totComp)}</div>
-          <div className="metric-sub">Orçado itens + compras (pagas e pendentes)</div>
+          <div className="metric-sub">Orçado dos itens + compras (pagas e pendentes)</div>
           <div className="metric-bar"><div className="metric-bar-fill" style={{ width: Math.min(pgComp, 100) + '%', background: corPct(pgComp) }} /></div>
         </div>
         <div className="metric">
@@ -94,7 +94,7 @@ export default function Dashboard() {
           <div className="card-title">Distribuição do AC21 entre Obras</div>
           {obras.length > 0 && (
             <div className="legend-row">
-              {obras.map((o, i) => <span key={o.id}><i style={{ background: CORES[i % CORES.length] }} />{o.codigo || o.nome} — {fmt(o.ac21)}</span>)}
+              {obras.map((o, i) => <span key={o.id}><i style={{ background: CORES[i % CORES.length] }} />{o.codigo || o.nome} - {fmt(o.ac21)}</span>)}
             </div>
           )}
           {obras.length === 0 ? (
@@ -134,7 +134,7 @@ export default function Dashboard() {
                       <span className="dot" style={{ background: CORES[i % CORES.length] }} />
                       <Link to="/detalhe" onClick={() => setObraAtiva(o.id)}>{o.nome}</Link></span></td>
                     <td><code>{o.codigo}</code></td>
-                    <td>{o.responsavel || '—'}</td>
+                    <td>{o.responsavel || '-'}</td>
                     <td className="td-right">{fmt(o.ac21)}</td>
                     <td className="td-right" style={{ fontWeight: 700, color: corPct(pComp) }}>{fmt(comp)}</td>
                     <td className="td-right" style={{ fontWeight: 700, color: corPct(pComp) }}>{pComp}%</td>
@@ -142,7 +142,7 @@ export default function Dashboard() {
                     <td style={{ minWidth: 130 }}>
                       <div className="progress"><div className="progress-fill" style={{ width: Math.min(pComp, 100) + '%', background: corPct(pComp) }} /></div>
                     </td>
-                    <td style={{ minWidth: 90, fontWeight: 600 }}>{fis ? Math.round(fis.pct) + '%' : <span style={{ color: 'var(--text3)', fontWeight: 400 }}>—</span>}</td>
+                    <td style={{ minWidth: 90, fontWeight: 600 }}>{fis ? Math.round(fis.pct) + '%' : <span style={{ color: 'var(--text3)', fontWeight: 400 }}>-</span>}</td>
                     <td><span className={'badge badge-' + (nv === 'ok' ? 'ok' : nv)}>{rotuloNivel[nv]}</span></td>
                     <td><span className={'badge ' + badgeStatusObra(o.status)}>{o.status}</span></td>
                     <td className="td-right" style={{ color: sl < 0 ? 'var(--red)' : 'var(--green)', fontWeight: 700 }}>{fmt(sl)}</td>

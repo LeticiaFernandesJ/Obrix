@@ -1,12 +1,14 @@
 import { useRef } from 'react';
 import { FolderOpen, Printer, Save, ShoppingBasket, Table2, BarChart3 } from 'lucide-react';
 import { useApp } from '../store/AppStore';
+import { useDialogo } from '../components/Dialogo';
 import {
   corPct, exportarExcel, exportarExcelCompras, fmt, nivelPct, pct, pctInt, rotuloNivel, totalComprometido, totalPago,
 } from '../lib/ac21';
 
 export default function Relatorios() {
   const { db, exportarTudo, importarDB, registrarHistorico, toast } = useApp();
+  const { avisar } = useDialogo();
   const input = useRef<HTMLInputElement>(null);
   const totalAC21 = db.obras.reduce((s, o) => s + Number(o.ac21), 0);
   const totPg = db.obras.reduce((s, o) => s + totalPago(db, o), 0);
@@ -27,7 +29,7 @@ export default function Relatorios() {
       try { const ok = importarDB(JSON.parse(String(ev.target?.result)));
         if (!ok) throw new Error('arquivo de backup inválido (sem lista de obras)');
         toast('Dados carregados com sucesso!'); }
-      catch (err) { alert('Erro ao carregar o arquivo: ' + (err as Error).message); }
+      catch (err) { void avisar('Erro ao carregar o arquivo: ' + (err as Error).message, 'Não foi possível carregar'); }
     };
     r.readAsText(f); e.target.value = '';
   };
@@ -38,7 +40,7 @@ export default function Relatorios() {
         <div className="card">
           <div className="card-title">Resumo Geral</div>
           <div className="resumo-row"><span>Total AC21 aprovado</span><b style={{ color: 'var(--blue)' }}>{fmt(totalAC21)}</b></div>
-          <div className="resumo-row"><span><Table2 size={13} style={{ verticalAlign: -2, marginRight: 6, color: 'var(--text3)' }} />Total comprometido (orçado itens + compras)</span><b style={{ color: 'var(--green)' }}>{fmt(totComp)}</b></div>
+          <div className="resumo-row"><span><Table2 size={13} style={{ verticalAlign: -2, marginRight: 6, color: 'var(--text3)' }} />Total comprometido (orçado dos itens + compras)</span><b style={{ color: 'var(--green)' }}>{fmt(totComp)}</b></div>
           <div className="resumo-row"><span>% comprometido do AC21</span><b style={{ color: pc }}>{pct(totComp, totalAC21)}%</b></div>
           <div className="resumo-row"><span>Total efetivamente pago</span><b>{fmt(totPg)}</b></div>
           <div className="resumo-row"><span>Total em compras (todas)</span><b>{fmt(totCompras)}</b></div>

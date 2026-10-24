@@ -1,6 +1,6 @@
 -- LEGADO: o app agora usa as tabelas de supabase/schema-completo.sql. Este arquivo não é mais necessário.
 -- (Se você já salvou dados aqui, eles são importados automaticamente no primeiro login.)
--- Obrix — esquema do Supabase
+-- Obrix - esquema do Supabase
 -- Cole este arquivo inteiro em: Supabase > SQL Editor > New query > Run.
 -- Uma linha por usuário, contendo as obras, itens, compras, histórico e cronogramas.
 

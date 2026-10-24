@@ -37,7 +37,7 @@ export const fmtNum = (v: unknown) =>
 export const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 1000) / 10 : 0);
 export const pctInt = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
 export function fmtData(s?: string) {
-  if (!s) return '—';
+  if (!s) return '-';
   const [y, m, d] = s.split('-');
   return `${d}/${m}/${y}`;
 }
@@ -112,7 +112,7 @@ export async function exportarExcelObra(db: DB, o: Obra) {
   const XLSX = await carregarXLSX();
   const wb = XLSX.utils.book_new();
   const rows: unknown[][] = [
-    [`CONTROLE AC21 — ${o.nome}`],
+    [`CONTROLE AC21 - ${o.nome}`],
     [`Código: ${o.codigo}  |  Local: ${o.local}  |  AC21: R$ ${o.ac21.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`],
     [],
     ['Descrição', 'Categoria', 'Tipo', 'Orçado (R$)', 'Pago (R$)', 'Saldo Item (R$)', 'Fornecedor', 'NF', 'Data', 'Observações'],
@@ -170,6 +170,9 @@ export function sanitizarDB(raw: unknown): DB | null {
   return { obras, compras, historico, nextId: nextId + 1 };
 }
 
+/** "1 obra" / "3 obras": concordância de número. */
+export const plural = (n: number, singular: string, plur: string) => `${n} ${n === 1 ? singular : plur}`;
+
 /* =========================== IDS =========================== */
 let ultimoId = 0;
 /**
@@ -182,4 +185,18 @@ export function novoId(): number {
   if (id <= ultimoId) id = ultimoId + 1;
   ultimoId = id;
   return id;
+}
+
+/* =========================== MÁSCARA DE DINHEIRO =========================== */
+/** "1234.5" → "1.234,50" (texto exibido no campo). Vazio continua vazio. */
+export function mascaraMoeda(valor: string): string {
+  if (valor === '' || valor == null) return '';
+  const n = Number(valor);
+  if (!Number.isFinite(n)) return '';
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+/** O que a pessoa digitou → valor numérico em texto ("1.234,50" → "1234.50"). Digita-se só números; os dois últimos são os centavos. */
+export function valorDaMascara(digitado: string): string {
+  const d = digitado.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 14);
+  return d === '' ? '' : (parseInt(d, 10) / 100).toFixed(2);
 }

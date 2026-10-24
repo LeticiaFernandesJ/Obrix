@@ -1,9 +1,9 @@
-# Obrix — Gestão inteligente de obras
+# Obrix - Gestão inteligente de obras
 
 Sistema web (PWA) que reúne, em um só lugar:
 
-- **Controle de verbas AC21** — obras, itens orçados e não orçados, compras, histórico de alterações, relatórios e exportação para Excel.
-- **Cronograma de obra** — um por obra, com Gantt, dependências, caminho crítico, linha de base, curva S, painel para o PMO e envio por link ou arquivo.
+- **Controle de verbas AC21**: obras, itens orçados e não orçados, compras, histórico de alterações, relatórios e exportação para Excel.
+- **Cronograma de obra**: um por obra, com Gantt, dependências, caminho crítico, linha de base, curva S, painel para o PMO e envio por link ou arquivo.
 
 Os dados ficam no **Supabase** (login por e-mail e senha, cada usuário vê só os seus dados) e também em cache no navegador para uso offline.
 
@@ -73,4 +73,3 @@ scripts/        gerador de ícones do PWA
 
 - **Links do PMO** (`#v=…`) carregam os dados dentro do endereço: quem tiver o link vê o cronograma, e ele não pode ser cancelado. Para restringir, envie o arquivo `.json`.
 - **Sem internet**, as alterações ficam no aparelho e são enviadas quando a conexão volta. Ao reconectar, o app pergunta o que fazer se a nuvem tiver mudado.
-- A pasta `server/` (API MySQL do template original) não é usada pelo Obrix.

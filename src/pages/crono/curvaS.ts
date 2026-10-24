@@ -1,6 +1,6 @@
 import { DIA, MES, hojeN, n2br, n2brc, parseData } from '../../lib/dates';
 import {
-  type Cal, type Calc, type CurvaPrev, type Estado, type Tendencia, baixar, curvaPrevista, esc, fmtN, nomeArquivo, pctPrevistoEm,
+  type Cal, type Calc, type CurvaPrev, type Estado, type Tendencia, baixar, curvaPrevista, diasTxt, esc, fmtN, nomeArquivo, pctPrevistoEm,
   pctRealAtual, realEm, serieReal, tendencia,
 } from '../../lib/schedule';
 
@@ -77,7 +77,7 @@ export function htmlCurvaS(S: Estado, c: Calc[], cal: Cal): { html: string; g: G
   const { corpo, g, pv, rv } = r; const tend = g.tend;
   const alvo = tend && tend.fimProj && !tend.concluida
     ? `<span>Término pela tendência: <b>${n2br(tend.fimProj)}</b>` +
-      `<b style="color:${tend.atraso > 0 ? 'var(--critical)' : 'var(--good)'}"> ${tend.atraso > 0 ? '+' + tend.atraso : tend.atraso} dias</b></span>` : '';
+      `<b style="color:${tend.atraso > 0 ? 'var(--critical)' : 'var(--good)'}"> ${tend.atraso > 0 ? '+' + diasTxt(tend.atraso) : diasTxt(tend.atraso)}</b></span>` : '';
   const html = `<svg viewBox="0 0 ${g.W} ${g.H}" style="width:100%;height:auto;display:block" class="svgS">${corpo}</svg>
   <div style="display:flex;gap:18px;margin-top:10px;flex-wrap:wrap;font-size:12px;justify-content:space-between">
     <span>Previsto: <b style="font-variant-numeric:tabular-nums">${fmtN(pv, 1)}%</b></span>
@@ -115,7 +115,7 @@ export function exportarCurvaPNG(S: Estado, c: Calc[], cal: Cal, avisar: (m: str
   if (tend && tend.fimProj && !tend.concluida) sub += `  ·  tendência de término ${n2br(tend.fimProj)}`;
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W * 2}" height="${H * 2}" viewBox="0 0 ${W} ${H}">
     <rect width="${W}" height="${H}" fill="${cor('--surface-1')}"/>
-    <text x="14" y="26" font-family="sans-serif" font-size="16" font-weight="700" fill="${cor('--text-primary')}">${esc((S.meta.nome || 'Cronograma') + ' — Curva S')}</text>
+    <text x="14" y="26" font-family="sans-serif" font-size="16" font-weight="700" fill="${cor('--text-primary')}">${esc((S.meta.nome || 'Cronograma') + ' - Curva S')}</text>
     <text x="14" y="46" font-family="sans-serif" font-size="12" fill="${cor('--muted')}">${esc(sub)}</text>
     <g transform="translate(0,${HT})" font-family="sans-serif">${corpo}</g>
     ${leg(14, 'Previsto', cor('--series-1'))}${leg(120, 'Realizado', cor('--series-2'))}
@@ -157,7 +157,7 @@ export function exportarCurvaCSV(S: Estado, c: Calc[], cal: Cal, avisar: (m: str
   let x1 = cp.dias[cp.dias.length - 1]; if (tend && tend.fimProj) x1 = Math.max(x1, tend.fimProj);
   const datas: number[] = []; for (let n = cp.dias[0]; n <= x1; n += 7) datas.push(n);
   if (!datas.includes(sd) && sd >= cp.dias[0] && sd <= x1) { datas.push(sd); datas.sort((a, b) => a - b); }
-  const L = ['Semana;Data;Previsto acumulado (%);Realizado acumulado (%);Tendencia (%);Observacao'];
+  const L = ['Semana;Data;Previsto acumulado (%);Realizado acumulado (%);Tendência (%);Observação'];
   let s = 1;
   datas.forEach((n) => {
     const rv = realEm(n, serie);
@@ -168,10 +168,10 @@ export function exportarCurvaCSV(S: Estado, c: Calc[], cal: Cal, avisar: (m: str
   L.push(`Previsto na data de status (%);${fmtN(pctPrevistoEm(sd, cp), 2)}`);
   L.push(`Realizado (%);${fmtN(pctRealAtual(c), 2)}`);
   if (tend && !tend.concluida) {
-    L.push(`Indice de desempenho de prazo (IDP);${fmtN(tend.spi, 3)}`);
-    L.push(`Termino previsto (linha de base/plano);${n2br(cp.dias[cp.dias.length - 1])}`);
-    L.push(`Termino pela tendencia;${n2br(tend.fimProj)}`);
-    L.push(`Desvio (dias uteis);${tend.atraso}`);
+    L.push(`Índice de desempenho de prazo (IDP);${fmtN(tend.spi, 3)}`);
+    L.push(`Término previsto (linha de base/plano);${n2br(cp.dias[cp.dias.length - 1])}`);
+    L.push(`Término pela tendência;${n2br(tend.fimProj)}`);
+    L.push(`Desvio (dias úteis);${tend.atraso}`);
   }
   baixar(nomeArquivo(S, 'csv').replace(/\.csv$/, '-curva-s.csv'), '﻿' + L.join('\r\n'), 'text/csv;charset=utf-8');
   avisar('Tabela da curva S baixada.');

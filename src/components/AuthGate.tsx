@@ -78,7 +78,7 @@ function Login() {
           email: email.trim(), password: senha, options: { emailRedirectTo: location.origin + BASE },
         });
         if (error) setMsg({ tipo: 'erro', texto: traduzir(error.message) });
-        else if (!data.session) setMsg({ tipo: 'ok', texto: 'Cadastro criado! Enviamos um e-mail de confirmação — clique no link e depois volte para entrar.' });
+        else if (!data.session) setMsg({ tipo: 'ok', texto: 'Cadastro criado! Enviamos um e-mail de confirmação. Clique no link e depois volte para entrar.' });
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: location.origin + BASE });
         setMsg(error ? { tipo: 'erro', texto: traduzir(error.message) } : { tipo: 'ok', texto: 'Se o e-mail existir, enviamos um link para redefinir a senha.' });
@@ -104,7 +104,7 @@ function Login() {
         </section>
 
         <form className="lg-card" onSubmit={enviar}>
-          <span className="logo-crop lg-logo"><img src={BASE + 'assets/obrix-logo.jpg'} alt="Obrix — Gestão inteligente de obras" /></span>
+          <span className="logo-crop lg-logo"><img src={BASE + 'assets/obrix-logo.jpg'} alt="Obrix - Gestão inteligente de obras" /></span>
           <h1>{t.titulo}</h1>
           <p className="lg-sub">{t.sub}</p>
 
@@ -198,7 +198,7 @@ function NovaSenha({ onFim }: { onFim: () => void }) {
   );
 }
 
-/** Ao abrir o sistema (ou entrar), sempre começa na Visão Geral — exceto em links compartilhados (#v / #p). */
+/** Ao abrir o sistema (ou entrar), sempre começa na Visão Geral, exceto em links compartilhados (#v / #p). */
 function IrParaInicio() {
   const nav = useNavigate();
   useEffect(() => {

@@ -8,7 +8,8 @@ import {
   CATS_ITEM, CORES, badgeStatusObra, corPct, exportarExcelObra, fmt, fmtData, fmtNum, nivelPct, pct, pctInt, rotuloNivel,
   totalComprasTodas, totalComprometido, totalCompras, totalPago, type Item, type Obra, type TipoItem,
 } from '../lib/ac21';
-import { ChartCanvas, Empty, Modal, Progress, brMoneyTick, type TT } from '../components/ui';
+import { ChartCanvas, Empty, Modal, Progress, brMoneyTick, type TT, CampoDinheiro } from '../components/ui';
+import { useDialogo } from '../components/Dialogo';
 import { CompraModal } from '../components/CompraModal';
 import { badgeCompra } from './Compras';
 import type { Compra } from '../lib/ac21';
@@ -39,15 +40,15 @@ function ItemModal({ obra, item, onClose }: { obra: Obra; item: Item | null; onC
       <button className="btn btn-primary" onClick={salvar}><Check size={15} /> Salvar Item</button>
     </>}>
       <div className="form-grid">
-        <div className="form-group form-full"><label>Descrição *</label><input value={f.desc} onChange={(e) => set('desc', e.target.value)} placeholder="Ex: Alvenaria bloco cerâmico 14x19x29" /></div>
-        <div className="form-group"><label>Categoria</label><select value={f.cat} onChange={(e) => set('cat', e.target.value)}>{CATS_ITEM.map((c) => <option key={c}>{c}</option>)}</select></div>
-        <div className="form-group"><label>Tipo de Item</label><select value={f.tipo} onChange={(e) => set('tipo', e.target.value)}><option value="orcado">Orçado</option><option value="nao_orcado">Não Orçado</option></select></div>
-        <div className="form-group"><label>Valor Orçado (R$)</label><input type="number" min="0" step="0.01" value={f.orcado} onChange={(e) => set('orcado', e.target.value)} placeholder="0.00" /></div>
-        <div className="form-group"><label>Valor Pago (R$)</label><input type="number" min="0" step="0.01" value={f.pago} onChange={(e) => set('pago', e.target.value)} placeholder="0.00" /></div>
-        <div className="form-group"><label>Fornecedor</label><input value={f.forn} onChange={(e) => set('forn', e.target.value)} placeholder="Nome do fornecedor" /></div>
-        <div className="form-group"><label>Nº NF / Pedido</label><input value={f.nf} onChange={(e) => set('nf', e.target.value)} placeholder="Ex: NF-2025-0042" /></div>
-        <div className="form-group"><label>Data do Pagamento</label><input type="date" value={f.data} onChange={(e) => set('data', e.target.value)} /></div>
-        <div className="form-group form-full"><label>Observações</label><textarea value={f.obs} onChange={(e) => set('obs', e.target.value)} placeholder="Notas sobre este item..." /></div>
+        <div className="form-group form-full"><label htmlFor="detalhe-1">Descrição *</label><input id="detalhe-1" value={f.desc} onChange={(e) => set('desc', e.target.value)} placeholder="Ex: Alvenaria bloco cerâmico 14x19x29" /></div>
+        <div className="form-group"><label htmlFor="detalhe-2">Categoria</label><select id="detalhe-2" value={f.cat} onChange={(e) => set('cat', e.target.value)}>{CATS_ITEM.map((c) => <option key={c}>{c}</option>)}</select></div>
+        <div className="form-group"><label htmlFor="detalhe-3">Tipo de Item</label><select id="detalhe-3" value={f.tipo} onChange={(e) => set('tipo', e.target.value)}><option value="orcado">Orçado</option><option value="nao_orcado">Não Orçado</option></select></div>
+        <div className="form-group"><label htmlFor="detalhe-4">Valor Orçado (R$)</label><CampoDinheiro id="detalhe-4" value={f.orcado} onChange={(v) => set('orcado', v)} /></div>
+        <div className="form-group"><label htmlFor="detalhe-5">Valor Pago (R$)</label><CampoDinheiro id="detalhe-5" value={f.pago} onChange={(v) => set('pago', v)} /></div>
+        <div className="form-group"><label htmlFor="detalhe-6">Fornecedor</label><input id="detalhe-6" value={f.forn} onChange={(e) => set('forn', e.target.value)} placeholder="Nome do fornecedor" /></div>
+        <div className="form-group"><label htmlFor="detalhe-7">Nº NF / Pedido</label><input id="detalhe-7" value={f.nf} onChange={(e) => set('nf', e.target.value)} placeholder="Ex: NF-2025-0042" /></div>
+        <div className="form-group"><label htmlFor="detalhe-8">Data do Pagamento</label><input id="detalhe-8" type="date" value={f.data} onChange={(e) => set('data', e.target.value)} /></div>
+        <div className="form-group form-full"><label htmlFor="detalhe-9">Observações</label><textarea id="detalhe-9" value={f.obs} onChange={(e) => set('obs', e.target.value)} placeholder="Notas sobre este item..." /></div>
       </div>
     </Modal>
   );
@@ -55,6 +56,7 @@ function ItemModal({ obra, item, onClose }: { obra: Obra; item: Item | null; onC
 
 export default function Detalhe() {
   const { db, obraAtivaId, setObraAtiva, excluirItem, excluirCompra, toast } = useApp();
+  const { confirmar } = useDialogo();
   const [aba, setAba] = useState<Aba>('itens');
   const [f, setF] = useState({ cat: '', tipo: '', forn: '', ini: '', fim: '' });
   const [itemModal, setItemModal] = useState<{ item: Item | null } | null>(null);
@@ -106,12 +108,12 @@ export default function Detalhe() {
               <span className={'badge badge-' + (nv === 'ok' ? 'ok' : nv)}>{rotuloNivel[nv]}</span>
               <span className={'badge ' + badgeStatusObra(o.status)}>{o.status}</span>
             </div>
-            <div className="sub-line" style={{ marginTop: 6 }}>{o.codigo} · {o.local} · Resp.: {o.responsavel || '—'} · {fmtData(o.inicio)} → {fmtData(o.fim)}</div>
+            <div className="sub-line" style={{ marginTop: 6 }}>{o.codigo} · {o.local} · Resp.: {o.responsavel || '-'} · {fmtData(o.inicio)} → {fmtData(o.fim)}</div>
             {o.obs && <div className="sub-line" style={{ marginTop: 4, fontStyle: 'italic', color: 'var(--text3)' }}>{o.obs}</div>}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <select style={{ width: 'auto', minWidth: 190 }} value={o.id} onChange={(e) => { setObraAtiva(Number(e.target.value)); }}>
-              {db.obras.map((ob) => <option key={ob.id} value={ob.id}>{ob.codigo} — {ob.nome}</option>)}
+              {db.obras.map((ob) => <option key={ob.id} value={ob.id}>{ob.codigo} - {ob.nome}</option>)}
             </select>
             <button className="btn btn-primary" onClick={() => setItemModal({ item: null })}><Plus size={15} /> Item</button>
             <button className="btn btn-success" onClick={() => exportarExcelObra(db, o)}><FileSpreadsheet size={15} /> Excel</button>
@@ -134,7 +136,7 @@ export default function Detalhe() {
         <div className="metric">
           <div className="metric-head"><div className="metric-label">Comprometido</div><div className="metric-icon mi-blue"><ClipboardCheck size={17} /></div></div>
           <div className="metric-value sm" style={{ color: corPct(pComp) }}>{fmt(comp)}</div>
-          <div className="metric-sub">Pago (ou orçado) itens + compras</div>
+          <div className="metric-sub">Orçado dos itens + compras</div>
           <div style={{ fontSize: 12, fontWeight: 700, color: corPct(pComp), marginTop: 3 }}>{pComp}% do AC21</div>
           <div className="metric-bar" style={{ marginTop: 6 }}><div className="metric-bar-fill" style={{ width: Math.min(pComp, 100) + '%', background: corPct(pComp) }} /></div>
         </div>
@@ -181,14 +183,14 @@ export default function Detalhe() {
         <div className="card">
           <div className="card-title">Filtros</div>
           <div className="filter-bar">
-            <div className="form-group"><label>Categoria</label>
-              <select value={f.cat} onChange={(e) => set('cat', e.target.value)}><option value="">Todas</option>{CATS_ITEM.map((c) => <option key={c}>{c}</option>)}</select></div>
-            <div className="form-group"><label>Tipo</label>
-              <select value={f.tipo} onChange={(e) => set('tipo', e.target.value)}><option value="">Todos</option><option value="orcado">Orçado</option><option value="nao_orcado">Não Orçado</option></select></div>
-            <div className="form-group" style={{ flex: 1.4 }}><label>Fornecedor</label>
-              <div className="search"><Search size={14} /><input style={{ width: '100%' }} value={f.forn} onChange={(e) => set('forn', e.target.value)} placeholder="Buscar fornecedor..." /></div></div>
-            <div className="form-group"><label>Data início</label><input type="date" value={f.ini} onChange={(e) => set('ini', e.target.value)} /></div>
-            <div className="form-group"><label>Data fim</label><input type="date" value={f.fim} onChange={(e) => set('fim', e.target.value)} /></div>
+            <div className="form-group"><label htmlFor="detalhe-10">Categoria</label>
+              <select id="detalhe-10" value={f.cat} onChange={(e) => set('cat', e.target.value)}><option value="">Todas</option>{CATS_ITEM.map((c) => <option key={c}>{c}</option>)}</select></div>
+            <div className="form-group"><label htmlFor="detalhe-11">Tipo</label>
+              <select id="detalhe-11" value={f.tipo} onChange={(e) => set('tipo', e.target.value)}><option value="">Todos</option><option value="orcado">Orçado</option><option value="nao_orcado">Não Orçado</option></select></div>
+            <div className="form-group" style={{ flex: 1.4 }}><label htmlFor="filtro-forn">Fornecedor</label>
+              <div className="search"><Search size={14} /><input id="filtro-forn" style={{ width: '100%' }} value={f.forn} onChange={(e) => set('forn', e.target.value)} placeholder="Buscar fornecedor..." /></div></div>
+            <div className="form-group"><label htmlFor="detalhe-12">Data início</label><input id="detalhe-12" type="date" value={f.ini} onChange={(e) => set('ini', e.target.value)} /></div>
+            <div className="form-group"><label htmlFor="detalhe-13">Data fim</label><input id="detalhe-13" type="date" value={f.fim} onChange={(e) => set('fim', e.target.value)} /></div>
             <button className="btn btn-ghost" onClick={() => setF({ cat: '', tipo: '', forn: '', ini: '', fim: '' })}><X size={14} /> Limpar</button>
           </div>
           {itens.length !== o.itens.length && <div style={{ fontSize: 12, color: 'var(--amber)', marginTop: 10 }}>Exibindo {itens.length} de {o.itens.length} itens (filtrado)</div>}
@@ -212,13 +214,13 @@ export default function Detalhe() {
                       <td className="td-right">{fmt(it.orcado)}</td>
                       <td className="td-right" style={{ fontWeight: 600 }}>{fmt(it.pago)}</td>
                       <td className="td-right" style={{ color: diff < 0 ? 'var(--red)' : diff > 0 ? 'var(--green)' : 'var(--text3)' }}>
-                        {diff !== 0 ? (diff < 0 ? '−' + fmt(Math.abs(diff)) : '+' + fmt(diff)) : '—'}</td>
-                      <td style={{ fontSize: 12 }}>{it.forn || '—'}</td>
-                      <td style={{ fontSize: 12 }}>{it.nf || '—'}</td>
+                        {diff !== 0 ? (diff < 0 ? '−' + fmt(Math.abs(diff)) : '+' + fmt(diff)) : '-'}</td>
+                      <td style={{ fontSize: 12 }}>{it.forn || '-'}</td>
+                      <td style={{ fontSize: 12 }}>{it.nf || '-'}</td>
                       <td style={{ fontSize: 12 }}>{fmtData(it.data)}</td>
                       <td className="td-center"><div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                        <button className="btn btn-sm btn-icon" data-tip="Editar" onClick={() => setItemModal({ item: it })}><Pencil size={14} /></button>
-                        <button className="btn btn-sm btn-icon btn-danger" data-tip="Excluir" onClick={() => { if (confirm(`Remover o item "${it.desc}"?`)) { excluirItem(o.id, it.id); toast('Item removido.'); } }}><Trash2 size={14} /></button>
+                        <button className="btn btn-sm btn-icon" data-tip="Editar" aria-label="Editar" onClick={() => setItemModal({ item: it })}><Pencil size={14} /></button>
+                        <button className="btn btn-sm btn-icon btn-danger" data-tip="Excluir" aria-label="Excluir" onClick={async () => { if (await confirmar(`Remover o item "${it.desc}"?`, { confirmar: 'Remover', perigo: true })) { excluirItem(o.id, it.id); toast('Item removido.'); } }}><Trash2 size={14} /></button>
                       </div></td>
                     </tr>
                   );
@@ -294,7 +296,7 @@ export default function Detalhe() {
                     <td style={{ fontWeight: 500 }}>{c.desc}</td>
                     <td><span className="badge badge-gray">{c.cat}</span></td>
                     <td style={{ fontSize: 12 }}>{c.forn}</td>
-                    <td style={{ fontSize: 12 }}>{c.nf || '—'}</td>
+                    <td style={{ fontSize: 12 }}>{c.nf || '-'}</td>
                     <td style={{ fontSize: 12 }}>{fmtData(c.data)}</td>
                     <td className="td-right">{fmtNum(c.qtde)} {c.unid}</td>
                     <td className="td-right">{fmt(c.unit)}</td>
@@ -302,7 +304,7 @@ export default function Detalhe() {
                     <td><span className={'badge ' + badgeCompra(c.status)}>{c.status}</span></td>
                     <td><div style={{ display: 'flex', gap: 4 }}>
                       <button className="btn btn-sm btn-icon" onClick={() => setCompraModal({ c })}><Pencil size={14} /></button>
-                      <button className="btn btn-sm btn-icon btn-danger" onClick={() => { if (confirm(`Excluir a compra "${c.desc}"?`)) { excluirCompra(c.id); toast('Compra excluída.'); } }}><Trash2 size={14} /></button>
+                      <button className="btn btn-sm btn-icon btn-danger" onClick={async () => { if (await confirmar(`Excluir a compra "${c.desc}"?`, { confirmar: 'Excluir', perigo: true })) { excluirCompra(c.id); toast('Compra excluída.'); } }}><Trash2 size={14} /></button>
                     </div></td>
                   </tr>
                 ))}

@@ -388,6 +388,8 @@ export function realEm(n: number, serie: { n: number; p: number }[]): number | n
 }
 
 /* =========================== FORMATAÇÃO =========================== */
+/** "1 dia" / "3 dias" (aceita negativos: "-1 dia"). */
+export const diasTxt = (n: number) => `${n} ${Math.abs(n) === 1 ? "dia" : "dias"}`;
 export function fmtN(v: number | null | undefined, d = 0): string {
   return v == null || isNaN(v) ? '' : (+v).toFixed(d).replace('.', ',');
 }
@@ -526,7 +528,7 @@ export function importarTexto(S: Estado, cal: Cal, txt: string): number {
 export function exemplo(): Estado {
   const E = novoEstado();
   E.meta = {
-    nome: 'Galpão Industrial — Bloco B', contrato: 'CT-2026/041', empresa: 'Construtora Alfa Ltda.',
+    nome: 'Galpão Industrial - Bloco B', contrato: 'CT-2026/041', empresa: 'Construtora Alfa Ltda.',
     resp: 'João Encarregado', pmo: 'pmo@empresa.com.br',
     obs: 'Chuva forte na semana 2 atrasou a montagem dos pilares. Reforço de equipe a partir de segunda para recuperar o prazo.',
     inicio: n2iso(proxUtilRaw(hojeN() - 52)), statusDate: n2iso(hojeN()),

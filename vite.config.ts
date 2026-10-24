@@ -10,7 +10,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['apple-touch-icon.png', 'favicon-64.png', 'assets/obrix-logo.jpg', 'assets/login-bg.jpg'],
       manifest: {
-        name: 'Obrix — Gestão inteligente de obras',
+        name: 'Obrix - Gestão inteligente de obras',
         short_name: 'Obrix',
         description: 'Controle de verbas AC21 e cronograma de obra em um só sistema.',
         lang: 'pt-BR',
@@ -59,18 +59,4 @@ export default defineConfig({
       },
     },
   },
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/uploads': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        secure: false,
-      }
-    }
-  }
 });

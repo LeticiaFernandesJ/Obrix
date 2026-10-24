@@ -11,7 +11,7 @@ export function CompraModal({ compra, obraId, onClose }: Props) {
   const [f, setF] = useState({
     obraId: compra?.obraId ?? obraId ?? db.obras[0]?.id ?? 0,
     desc: compra?.desc ?? '', cat: compra?.cat ?? 'Insumos', forn: compra?.forn ?? '', cnpj: compra?.cnpj ?? '',
-    nf: compra?.nf ?? '', data: compra?.data ?? hojeISO(),
+    nf: compra?.nf ?? '', data: compra?.data ?? hojeISO(), venc: compra?.venc ?? '',
     qtde: compra?.qtde ? String(compra.qtde) : '', unid: compra?.unid ?? '',
     unit: compra?.unit ? String(compra.unit) : '', total: compra?.total ? String(compra.total) : '',
     status: (compra?.status ?? 'Pago') as StatusCompra, obs: compra?.obs ?? '',
@@ -37,7 +37,7 @@ export function CompraModal({ compra, obraId, onClose }: Props) {
     if (!f.obraId) { toast('Cadastre uma obra antes de registrar compras.'); return; }
     salvarCompra({
       obraId: Number(f.obraId), desc: f.desc.trim(), cat: f.cat, forn: f.forn.trim(), cnpj: f.cnpj.trim(), nf: f.nf.trim(),
-      data: f.data, qtde: parseFloat(f.qtde) || 0, unid: f.unid.trim(), unit: parseFloat(f.unit) || 0, total,
+      data: f.data, venc: f.venc, qtde: parseFloat(f.qtde) || 0, unid: f.unid.trim(), unit: parseFloat(f.unit) || 0, total,
       status: f.status, obs: f.obs.trim(),
     }, compra?.id ?? null);
     toast(compra ? 'Compra atualizada.' : 'Compra registrada.');
@@ -62,6 +62,7 @@ export function CompraModal({ compra, obraId, onClose }: Props) {
         <div className="form-group"><label htmlFor="compramodal-5">CNPJ / CPF</label><input id="compramodal-5" value={f.cnpj} onChange={(e) => set('cnpj', e.target.value)} placeholder="00.000.000/0000-00" /></div>
         <div className="form-group"><label htmlFor="compramodal-6">Nº NF</label><input id="compramodal-6" value={f.nf} onChange={(e) => set('nf', e.target.value)} placeholder="Ex: NF-0042" /></div>
         <div className="form-group"><label htmlFor="compramodal-7">Data da Compra *</label><input id="compramodal-7" type="date" value={f.data} onChange={(e) => set('data', e.target.value)} /></div>
+        <div className="form-group"><label htmlFor="compramodal-venc">Vencimento</label><input id="compramodal-venc" type="date" value={f.venc} onChange={(e) => set('venc', e.target.value)} /></div>
         <div className="form-group"><label htmlFor="compramodal-8">Qtde</label><input id="compramodal-8" type="number" min="0" step="0.01" value={f.qtde} onChange={(e) => onQtde(e.target.value)} placeholder="1" /></div>
         <div className="form-group"><label htmlFor="compramodal-9">Unidade</label><input id="compramodal-9" value={f.unid} onChange={(e) => set('unid', e.target.value)} placeholder="Ex: un, m², kg, L" /></div>
         <div className="form-group"><label htmlFor="compramodal-10">Valor Unitário (R$)</label><CampoDinheiro id="compramodal-10" value={f.unit} onChange={(v) => onUnit(v)} /></div>

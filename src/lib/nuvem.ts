@@ -41,7 +41,7 @@ export function paraLinhas(db: DB, cronos: Record<string, Estado>): Linhas {
   const ids = new Set(db.obras.map((o) => o.id));
   db.compras.filter((c) => ids.has(c.obraId)).forEach((c) => L.compras.push({
     id: c.id, obra_id: c.obraId, descricao: c.desc, categoria: c.cat, fornecedor: c.forn, cnpj: c.cnpj, nf: c.nf,
-    data: data(c.data), qtde: c.qtde, unidade: c.unid, unitario: c.unit, total: c.total, status: c.status, obs: c.obs,
+    data: data(c.data), vencimento: data(c.venc), qtde: c.qtde, unidade: c.unid, unitario: c.unit, total: c.total, status: c.status, obs: c.obs,
   }));
   db.historico.forEach((h) => L.historico.push({ id: h.id, ts: h.ts, tipo: h.tipo, icone: h.icone, texto: h.texto, usuario: h.user }));
 
@@ -85,7 +85,7 @@ export function deLinhas(L: Linhas): { db: DB; cronos: Record<string, Estado> } 
   }));
   const compras: Compra[] = L.compras.map((r) => ({
     id: num(r.id), obraId: num(r.obra_id), desc: str(r.descricao), cat: str(r.categoria), forn: str(r.fornecedor), cnpj: str(r.cnpj),
-    nf: str(r.nf), data: str(r.data), qtde: num(r.qtde), unid: str(r.unidade), unit: num(r.unitario), total: num(r.total),
+    nf: str(r.nf), data: str(r.data), qtde: num(r.qtde), unid: str(r.unidade), unit: num(r.unitario), total: num(r.total), venc: str(r.vencimento),
     status: r.status as Compra['status'], obs: str(r.obs),
   }));
   const historico: Historico[] = L.historico.map((r) => ({

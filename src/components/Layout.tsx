@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   BarChart3, Building2, ClipboardList, ShoppingBasket, Clock3, FileText, CalendarRange, LayoutDashboard, FolderKanban,
-  Menu, Download, Save, FileSpreadsheet, Users,
+  Menu, Download, Save, FileSpreadsheet, Users, Wallet,
 } from 'lucide-react';
 import { useApp } from '../store/AppStore';
 import { useDialogo } from './Dialogo';
 import { useInstalar } from '../lib/pwa';
+import { AlertasSino } from './AlertasSino';
 import { exportarExcel } from '../lib/ac21';
 import { CronoActions } from '../pages/crono/CronoActions';
 
@@ -20,6 +21,7 @@ const NAV = [
   ] },
   { sec: 'Controle', items: [
     { to: '/compras', label: 'Compras', icon: ShoppingBasket },
+    { to: '/financeiro', label: 'Financeiro', icon: Wallet },
     { to: '/historico', label: 'Histórico', icon: Clock3 },
     { to: '/relatorios', label: 'Relatórios', icon: FileText },
   ] },
@@ -38,6 +40,7 @@ const TITULOS: Record<string, [string, string]> = {
   '/obras': ['Obras', 'Gestão de Verbas por Obra'],
   '/detalhe': ['Detalhes da Obra', 'Gestão de Verbas por Obra'],
   '/compras': ['Compras', ''],
+  '/financeiro': ['Financeiro', 'Contas a pagar e fluxo de caixa'],
   '/historico': ['Histórico de Alterações', ''],
   '/relatorios': ['Relatórios', ''],
   '/cronograma': ['Cronograma de Obra', 'Controle de cronograma para obras'],
@@ -152,7 +155,7 @@ export default function Layout() {
               {sub && <div className="topbar-sub">{sub}</div>}
             </div>
           </div>
-          <div className="topbar-actions">{crono ? <CronoActions /> : <AC21Actions />}</div>
+          <div className="topbar-actions">{!readOnly && <AlertasSino />}{crono ? <CronoActions /> : <AC21Actions />}</div>
         </header>
         <Outlet />
       </div>

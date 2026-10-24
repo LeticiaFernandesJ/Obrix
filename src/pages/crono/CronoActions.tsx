@@ -7,6 +7,7 @@ import {
   baixar, curvaPrevista, desempacotar, empacotar, exemplo, exportarCSV, importarTexto, nomeArquivo,
   novaTarefa, novoEstado, pctPrevistoEm, pctRealAtual, type Estado,
 } from '../../lib/schedule';
+import { exportarMSProject, lerMSProject } from '../../lib/msproject';
 import { hojeN, n2br, parseData } from '../../lib/dates';
 
 type M = 'home' | 'import' | 'save' | 'open' | 'share' | 'help' | null;
@@ -19,7 +20,7 @@ export function CronoActions() {
   const [m, setM] = useState<M>(null);
   const fechar = () => setM(null);
   const filePick = useRef<HTMLInputElement>(null);
-  const modoArq = useRef<'json' | 'csv'>('json');
+  const modoArq = useRef<'json' | 'csv' | 'msp'>('json');
   const [impTxt, setImpTxt] = useState('');
   const [impLimpa, setImpLimpa] = useState(false);
   const [opLink, setOpLink] = useState('');
@@ -41,7 +42,12 @@ export function CronoActions() {
     const r = new FileReader();
     r.onload = () => {
       try {
-        if (/\.(csv|txt)$/i.test(f.name) || modoArq.current === 'csv') {
+        if (/\.xml$/i.test(f.name) || modoArq.current === 'msp') {
+          const p = lerMSProject(String(r.result)); const S = clone();
+          if (impLimpa) { S.tarefas = []; S.medicoes = []; if (p.cal) S.cal = p.cal; if (p.inicio) S.meta.inicio = p.inicio; if (p.nome && !S.meta.nome) S.meta.nome = p.nome; }
+          S.tarefas = S.tarefas.concat(p.tarefas); carregarCrono(S);
+          fechar(); toast(importadas(p.tarefas.length));
+        } else if (/\.(csv|txt)$/i.test(f.name) || modoArq.current === 'csv') {
           const S = clone(); const n = importarTexto(S, cal, String(r.result));
           if (n) carregarCrono(S);
           fechar(); toast(n ? importadas(n) : 'Nada reconhecido. Confira o arquivo.');
@@ -105,10 +111,12 @@ export function CronoActions() {
     import: (
       <Modal title="Importar cronograma" size="lg" onClose={fechar} footer={<>
         <button className="btn" onClick={fechar}>Cancelar</button>
+        <button className="btn" onClick={() => { modoArq.current = 'msp'; filePick.current?.click(); }}>Arquivo do MS Project (.xml)…</button>
         <button className="btn" onClick={() => { modoArq.current = 'csv'; filePick.current?.click(); }}>Escolher arquivo CSV…</button>
         <button className="btn btn-primary" onClick={importar}>Importar</button>
       </>}>
         <p>Copie as linhas do Excel (Ctrl+C) e cole abaixo, ou cole um texto separado por ponto e vírgula. A primeira linha pode ser o cabeçalho.</p>
+        <div className="note"><b>MS Project:</b> no Project, use Arquivo &gt; Salvar como &gt; XML e escolha o arquivo pelo botão abaixo. Vêm tarefas, níveis, durações, predecessoras, percentuais e responsáveis. Marque "substituir" para trazer também o calendário e a data de início. Arquivos .mpp e do Primavera não são lidos.</div>
         <div className="note"><b>Colunas reconhecidas:</b> EDT/Item · Tarefa · Duração · Início · Término · Predecessoras · % · Peso · Responsável.<br />
           O nível das fases vem do EDT (1, 1.1, 1.1.2) ou dos espaços no início do nome.</div>
         <div className="field"><label htmlFor="cronoactions-1">Cole aqui</label>
@@ -123,9 +131,10 @@ export function CronoActions() {
         <button className="btn" onClick={fechar}>Cancelar</button>
         <button className="btn" onClick={() => { fechar(); setTimeout(() => window.print(), 150); }}>Imprimir / PDF</button>
         <button className="btn" onClick={() => { exportarCSV(crono, calc); fechar(); }}>Baixar CSV (Excel)</button>
+        <button className="btn" onClick={() => { baixar(nomeArquivo(crono, 'xml'), exportarMSProject(crono, calc), 'application/xml;charset=utf-8'); fechar(); }}>Exportar para MS Project (.xml)</button>
         <button className="btn btn-primary" onClick={() => { baixar(nomeArquivo(crono, 'json'), JSON.stringify(crono, null, 1)); fechar(); }}>Baixar cronograma (.json)</button>
       </>}>
-        <p>O arquivo <b>.json</b> é o cronograma completo e pode ser reaberto e editado aqui. O <b>.csv</b> abre no Excel para conferência ou impressão.</p>
+        <p>O arquivo <b>.json</b> é o cronograma completo e pode ser reaberto e editado aqui. O <b>.csv</b> abre no Excel para conferência ou impressão e o <b>.xml</b> abre no Microsoft Project.</p>
       </Modal>
     ),
     open: (
@@ -183,7 +192,7 @@ export function CronoActions() {
       <button className="btn btn-primary" onClick={abrirShare}><Send size={15} /> {readOnly ? 'Copiar link' : 'Enviar ao PMO'}</button>
       <button className="btn btn-icon" title="Claro/escuro" aria-label="Claro/escuro" onClick={alternarTema}>{tema === 'dark' ? <Sun size={15} /> : <Moon size={15} />}</button>
       <button className="btn btn-icon" title="Ajuda" aria-label="Ajuda" onClick={() => setM('help')}><HelpCircle size={15} /></button>
-      <input ref={filePick} type="file" accept=".json,.cron,.csv,.txt" hidden onChange={onArquivo} />
+      <input ref={filePick} type="file" accept=".json,.cron,.csv,.txt,.xml" hidden onChange={onArquivo} />
       {m && modais[m]}
     </>
   );

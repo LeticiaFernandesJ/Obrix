@@ -9,8 +9,8 @@ const db: DB = {
       { id: 3, desc: 'i2', cat: 'x', tipo: 'nao_orcado', orcado: 0, pago: 50, forn: '', nf: '', data: '', obs: '' },
     ] }],
   compras: [
-    { id: 4, obraId: 1, desc: 'c1', cat: 'x', forn: '', cnpj: '', nf: '', data: '', qtde: 1, unid: '', unit: 200, total: 200, status: 'Pago', obs: '' },
-    { id: 5, obraId: 1, desc: 'c2', cat: 'x', forn: '', cnpj: '', nf: '', data: '', qtde: 1, unid: '', unit: 80, total: 80, status: 'Pendente', obs: '' },
+    { id: 4, obraId: 1, desc: 'c1', cat: 'x', forn: '', cnpj: '', nf: '', data: '', qtde: 1, unid: '', unit: 200, total: 200, status: 'Pago', obs: '', venc: '' },
+    { id: 5, obraId: 1, desc: 'c2', cat: 'x', forn: '', cnpj: '', nf: '', data: '', qtde: 1, unid: '', unit: 80, total: 80, status: 'Pendente', obs: '', venc: '' },
   ],
 };
 

@@ -9,7 +9,7 @@ const db = (): DB => ({
   nextId: 20, historico: [{ id: 15, ts: '2026-01-02T10:00:00.000Z', tipo: 'obra_criada', icone: 'x', texto: 'ok', user: 'Gerente' }],
   obras: [{ id: 2, nome: 'Obra A', codigo: 'A-1', local: 'POA', responsavel: 'Ana', inicio: '2026-01-10', fim: '', ac21: 500000, status: 'Em Andamento', obs: '',
     itens: [{ id: 3, desc: 'Alv', cat: 'Construtora', tipo: 'orcado', orcado: 1000.5, pago: 400, forn: 'F', nf: '', data: '', obs: '' }] }],
-  compras: [{ id: 7, obraId: 2, desc: 'Blocos', cat: 'Insumos', forn: 'C', cnpj: '', nf: '', data: '2026-05-02', qtde: 500, unid: 'un', unit: 3, total: 1500, status: 'Pago', obs: '' }],
+  compras: [{ id: 7, obraId: 2, desc: 'Blocos', cat: 'Insumos', forn: 'C', cnpj: '', nf: '', data: '2026-05-02', qtde: 500, unid: 'un', unit: 3, total: 1500, status: 'Pago', obs: '', venc: '' }],
 });
 
 /** Cliente Supabase falso que só registra as chamadas. */

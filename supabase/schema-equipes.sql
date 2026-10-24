@@ -189,6 +189,8 @@ create table if not exists public.compras (
   foreign key (org_id, obra_id) references public.obras (org_id, id) on delete cascade
 );
 create index if not exists compras_obra_idx on public.compras (org_id, obra_id);
+-- fase 2: vencimento do pagamento (instalações anteriores recebem a coluna ao rodar o script de novo)
+alter table public.compras add column if not exists vencimento date;
 
 create table if not exists public.historico (
   org_id  uuid   not null references public.organizacoes(id) on delete cascade,

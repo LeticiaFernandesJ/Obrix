@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { CheckCircle2, Clock, FileSpreadsheet, Pencil, Plus, ShoppingBasket, Trash2, X } from 'lucide-react';
+import { CheckCircle2, FileUp, Clock, FileSpreadsheet, Pencil, Plus, ShoppingBasket, Trash2, X } from 'lucide-react';
 import { useApp } from '../store/AppStore';
 import { CATS_COMPRA, exportarExcelCompras, fmt, fmtData, fmtNum, type Compra } from '../lib/ac21';
 import { useDialogo } from '../components/Dialogo';
 import { CompraModal } from '../components/CompraModal';
+import { ImportarNFeModal } from '../components/ImportarNFeModal';
 import { Empty } from '../components/ui';
 
 export const badgeCompra = (s: string) => (s === 'Pago' ? 'badge-ok' : s === 'Pendente' ? 'badge-warn' : 'badge-blue');
@@ -13,6 +14,7 @@ export default function Compras() {
   const { confirmar } = useDialogo();
   const [f, setF] = useState({ obra: '', cat: '', status: '', ini: '', fim: '' });
   const [modal, setModal] = useState<{ c: Compra | null } | null>(null);
+  const [nfe, setNfe] = useState(false);
   const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
 
   const compras = db.compras.filter((c) => {
@@ -30,6 +32,7 @@ export default function Compras() {
     <div className="content">
       <div className="action-row">
         {podeEditar && <button className="btn btn-primary" onClick={() => setModal({ c: null })}><Plus size={15} /> Registrar Compra</button>}
+        {podeEditar && <button className="btn" onClick={() => setNfe(true)}><FileUp size={15} /> Importar NF-e (XML)</button>}
         <div className="spacer" />
         <button className="btn btn-success" onClick={() => exportarExcelCompras(db)}><FileSpreadsheet size={15} /> Exportar Excel</button>
       </div>
@@ -74,10 +77,10 @@ export default function Compras() {
         <div className="card-title">Compras</div>
         <div className="table-wrap">
           <table>
-            <thead><tr><th>Descrição</th><th>Obra</th><th>Categoria</th><th>Fornecedor</th><th>NF</th><th>Data</th>
+            <thead><tr><th>Descrição</th><th>Obra</th><th>Categoria</th><th>Fornecedor</th><th>NF</th><th>Data</th><th>Venc.</th>
               <th className="td-right">Qtde</th><th className="td-right">Unit.</th><th className="td-right">Total</th><th>Status</th><th>Ações</th></tr></thead>
             <tbody>
-              {compras.length === 0 && <tr><td colSpan={11}><Empty icon={<ShoppingBasket size={28} />}>Nenhuma compra encontrada.</Empty></td></tr>}
+              {compras.length === 0 && <tr><td colSpan={12}><Empty icon={<ShoppingBasket size={28} />}>Nenhuma compra encontrada.</Empty></td></tr>}
               {compras.map((c) => {
                 const obra = db.obras.find((o) => o.id === c.obraId);
                 return (
@@ -88,6 +91,7 @@ export default function Compras() {
                     <td style={{ fontSize: 12 }}>{c.forn}</td>
                     <td style={{ fontSize: 12 }}>{c.nf || '-'}</td>
                     <td style={{ fontSize: 12 }}>{fmtData(c.data)}</td>
+                    <td style={{ fontSize: 12 }}>{fmtData(c.venc)}</td>
                     <td className="td-right">{fmtNum(c.qtde)} {c.unid}</td>
                     <td className="td-right">{fmt(c.unit)}</td>
                     <td className="td-right" style={{ fontWeight: 600 }}>{fmt(c.total)}</td>
@@ -103,11 +107,12 @@ export default function Compras() {
               })}
             </tbody>
             {compras.length > 0 && (
-              <tfoot><tr><td colSpan={8}>TOTAL</td><td className="td-right">{fmt(compras.reduce((s, c) => s + Number(c.total || 0), 0))}</td><td colSpan={2} /></tr></tfoot>
+              <tfoot><tr><td colSpan={9}>TOTAL</td><td className="td-right">{fmt(compras.reduce((s, c) => s + Number(c.total || 0), 0))}</td><td colSpan={2} /></tr></tfoot>
             )}
           </table>
         </div>
       </div>
+      {nfe && <ImportarNFeModal onClose={() => setNfe(false)} />}
       {modal && <CompraModal compra={modal.c} onClose={() => setModal(null)} />}
     </div>
   );

@@ -590,3 +590,22 @@ button:focus-visible, a:focus-visible, [role="tab"]:focus-visible { outline: 2px
 .legend-row > span { display: inline-flex; align-items: center; gap: 8px; }
 
 .obras-split.um { grid-template-columns: 1fr; }
+
+/* sino de alertas */
+.sino { position: relative; }
+.sino-btn { position: relative; }
+.sino-n { position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--amber); color: #fff; font-size: 10.5px; font-weight: 700; display: grid; place-items: center; line-height: 1; }
+.sino-n.crit { background: var(--red); }
+.sino-painel { position: absolute; right: 0; top: calc(100% + 8px); width: 380px; max-width: calc(100vw - 32px); max-height: min(70vh, 520px); overflow-y: auto; background: var(--surface); border: 1px solid var(--gray-border); border-radius: 14px; box-shadow: var(--shadow-md); z-index: 70; }
+.sino-topo { padding: 14px 16px; font-weight: 700; font-size: 14px; border-bottom: 1px solid var(--gray-border); position: sticky; top: 0; background: var(--surface); }
+.sino-topo span { color: var(--text3); font-weight: 500; }
+.sino-painel ul { list-style: none; }
+.sino-item { display: flex; gap: 12px; align-items: flex-start; width: 100%; text-align: left; padding: 12px 16px; background: none; border: 0; border-bottom: 1px solid var(--gray-border); cursor: pointer; }
+.sino-item:hover { background: var(--hover-row); }
+.sino-item b { display: block; font-size: 13px; }
+.sino-item small { display: block; font-size: 12px; color: var(--text2); margin-top: 2px; line-height: 1.4; }
+.sino-ponto { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex: 0 0 auto; }
+.sino-ponto.critico { background: var(--red); } .sino-ponto.atencao { background: var(--amber); }
+.sino-vazio { display: flex; align-items: center; gap: 10px; padding: 22px 16px; color: var(--text2); font-size: 13px; }
+.sino-vazio svg { color: var(--green); flex: 0 0 auto; }
+@media (max-width: 560px) { .sino-painel { position: fixed; left: 16px; right: 16px; top: 72px; width: auto; max-width: none; } }

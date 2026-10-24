@@ -18,6 +18,8 @@ export interface Obra {
 export interface Compra {
   id: number; obraId: number; desc: string; cat: string; forn: string; cnpj: string; nf: string;
   data: string; qtde: number; unid: string; unit: number; total: number; status: StatusCompra; obs: string;
+  /** vencimento do pagamento (AAAA-MM-DD); vazio se não houver */
+  venc: string;
 }
 export interface Historico { id: number; ts: string; tipo: string; icone: string; texto: string; user: string }
 export interface DB { obras: Obra[]; compras: Compra[]; historico: Historico[]; nextId: number }
@@ -98,10 +100,10 @@ export async function exportarExcel(db: DB) {
 }
 
 function sheetCompras(XLSX: XLSXLib, db: DB) {
-  const rows: unknown[][] = [['Descrição', 'Obra', 'Categoria', 'Fornecedor', 'CNPJ/CPF', 'NF', 'Data', 'Qtde', 'Unid', 'Unit. R$', 'Total R$', 'Status', 'Observações']];
+  const rows: unknown[][] = [['Descrição', 'Obra', 'Categoria', 'Fornecedor', 'CNPJ/CPF', 'NF', 'Data', 'Vencimento', 'Qtde', 'Unid', 'Unit. R$', 'Total R$', 'Status', 'Observações']];
   db.compras.forEach((c) => {
     const obra = db.obras.find((o) => o.id === c.obraId);
-    rows.push([c.desc, obra?.codigo || '', c.cat, c.forn, c.cnpj, c.nf, c.data, c.qtde, c.unid, c.unit, c.total, c.status, c.obs]);
+    rows.push([c.desc, obra?.codigo || '', c.cat, c.forn, c.cnpj, c.nf, c.data, c.venc, c.qtde, c.unid, c.unit, c.total, c.status, c.obs]);
   });
   const ws = XLSX.utils.aoa_to_sheet(rows);
   ws['!cols'] = [35, 16, 16, 22, 18, 14, 12, 8, 8, 14, 14, 12, 30].map((wch) => ({ wch }));
@@ -162,7 +164,7 @@ export function sanitizarDB(raw: unknown): DB | null {
   const compras: Compra[] = (Array.isArray(r.compras) ? r.compras : []).filter((c) => c && typeof c === 'object' && obraIds.has(num((c as Compra).obraId)))
     .map((c: Partial<Compra>) => ({
       id: uniq(c.id), obraId: num(c.obraId), desc: str(c.desc) || 'Compra', cat: str(c.cat) || 'Outros', forn: str(c.forn),
-      cnpj: str(c.cnpj), nf: str(c.nf), data: str(c.data), qtde: num(c.qtde), unid: str(c.unid), unit: num(c.unit), total: num(c.total),
+      cnpj: str(c.cnpj), nf: str(c.nf), data: str(c.data), qtde: num(c.qtde), unid: str(c.unid), unit: num(c.unit), total: num(c.total), venc: str(c.venc),
       status: (['Pago', 'Pendente', 'Parcial'].includes(str(c.status)) ? c.status : 'Pendente') as StatusCompra, obs: str(c.obs),
     }));
   const historico: Historico[] = (Array.isArray(r.historico) ? r.historico : []).filter((h) => h && typeof h === 'object')

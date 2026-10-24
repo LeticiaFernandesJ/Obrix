@@ -73,6 +73,11 @@ describe('migração dos dados antigos', () => {
     }
     expect((await q<{ p: string }>(`select predecessoras->0->>'id' p from public.tarefas where org_id = $1`, [orgA]))[0].p).toBe('t0');
   });
+  it('as compras têm a coluna de vencimento (data), vazia nos dados migrados', async () => {
+    expect((await q<{ v: string | null }>('select vencimento v from public.compras where org_id = $1', [orgA]))[0].v).toBeNull();
+    await db.exec(`update public.compras set vencimento = '2026-05-10' where org_id = '${orgA}'`);
+    expect((await q<{ v: string }>(`select to_char(vencimento, 'YYYY-MM-DD') v from public.compras where org_id = $1`, [orgA]))[0].v).toBe('2026-05-10');
+  });
   it('mantém as tabelas antigas só como backup, sem acesso para usuários', async () => {
     expect(Number((await q<{ n: string }>('select count(*) n from public.obras_v2'))[0].n)).toBe(2);
     expect((await q<{ p: boolean }>(`select has_table_privilege('authenticated','public.obras_v2','select') p`))[0].p).toBe(false);

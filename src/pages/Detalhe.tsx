@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  BarChart2, Check, CheckCircle2, ClipboardCheck, ClipboardList, CreditCard, FileSpreadsheet, Pencil, Plus,
+  Activity, BarChart2, Check, CheckCircle2, ClipboardCheck, ClipboardList, CreditCard, FileSpreadsheet, Pencil, Plus,
   Search, ShoppingBasket, Trash2, X, AlertTriangle,
 } from 'lucide-react';
 import { useApp } from '../store/AppStore';
@@ -12,9 +12,16 @@ import { ChartCanvas, Empty, Modal, Progress, brMoneyTick, type TT, CampoDinheir
 import { useDialogo } from '../components/Dialogo';
 import { CompraModal } from '../components/CompraModal';
 import { badgeCompra } from './Compras';
+import { Link } from 'react-router-dom';
+import { type Nivel, calcularEVM, curvaFinanceira } from '../lib/evm';
+import { fmtN } from '../lib/schedule';
+import { n2br } from '../lib/dates';
 import type { Compra } from '../lib/ac21';
 
-type Aba = 'itens' | 'graficos' | 'compras';
+const corEvm: Record<Nivel, string> = { bom: 'var(--green)', atencao: 'var(--amber)', critico: 'var(--red)', indef: 'var(--text3)' };
+const classeEvm: Record<Nivel, string> = { bom: 'badge-ok', atencao: 'badge-warn', critico: 'badge-danger', indef: 'badge-gray' };
+const rotuloEvm: Record<Nivel, string> = { bom: 'No ritmo', atencao: 'Atenção', critico: 'Crítico', indef: 'Sem dados' };
+type Aba = 'itens' | 'graficos' | 'desempenho' | 'compras';
 
 function ItemModal({ obra, item, onClose }: { obra: Obra; item: Item | null; onClose: () => void }) {
   const { salvarItem, toast } = useApp();
@@ -55,7 +62,7 @@ function ItemModal({ obra, item, onClose }: { obra: Obra; item: Item | null; onC
 }
 
 export default function Detalhe() {
-  const { db, obraAtivaId, setObraAtiva, excluirItem, excluirCompra, toast, podeEditar } = useApp();
+  const { db, cronos, obraAtivaId, setObraAtiva, excluirItem, excluirCompra, toast, podeEditar } = useApp();
   const { confirmar } = useDialogo();
   const [aba, setAba] = useState<Aba>('itens');
   const [f, setF] = useState({ cat: '', tipo: '', forn: '', ini: '', fim: '' });
@@ -96,6 +103,9 @@ export default function Detalhe() {
   catData.forEach((c) => { c.comp = c.pago; });
   if (totalComprasTodas(db, o) > 0) catData.push({ cat: 'Compras (Mat.)', orc: 0, pago: pgCompras, comp: totalComprasTodas(db, o) });
   const catColors = catData.map((_, i) => CORES[i % CORES.length]);
+  const crono = cronos[String(o.id)];
+  const evm = aba === 'desempenho' ? calcularEVM(o, db, crono) : null;
+  const curvaFin = aba === 'desempenho' && crono && evm ? curvaFinanceira(o, db, crono) : null;
 
   return (
     <div className="content">
@@ -176,6 +186,7 @@ export default function Detalhe() {
       <div className="tabs">
         <button className={'tab-btn' + (aba === 'itens' ? ' active' : '')} onClick={() => setAba('itens')}><ClipboardList size={15} /> Itens ({o.itens.length})</button>
         <button className={'tab-btn' + (aba === 'graficos' ? ' active' : '')} onClick={() => setAba('graficos')}><BarChart2 size={15} /> Gráficos</button>
+        <button className={'tab-btn' + (aba === 'desempenho' ? ' active' : '')} onClick={() => setAba('desempenho')}><Activity size={15} /> Desempenho</button>
         <button className={'tab-btn' + (aba === 'compras' ? ' active' : '')} onClick={() => setAba('compras')}><ShoppingBasket size={15} /> Compras ({comprasObra.length})</button>
       </div>
 
@@ -283,14 +294,77 @@ export default function Detalhe() {
         </div>
       </>)}
 
+
+      {aba === 'desempenho' && (evm ? (<>
+        <div className="metrics c4">
+          <div className="metric">
+            <div className="metric-head"><div className="metric-label">Prazo (IDP)</div><span className={'badge ' + classeEvm[evm.nivelPrazo]}>{rotuloEvm[evm.nivelPrazo]}</span></div>
+            <div className="metric-value" style={{ color: corEvm[evm.nivelPrazo] }}>{evm.idp == null ? '-' : fmtN(evm.idp, 2)}</div>
+            <div className="metric-sub">{evm.idp == null ? 'Ainda não havia nada planejado na data de status.' : `A obra fez ${fmtN(evm.idp * 100, 0)}% do que devia até agora.`}</div>
+          </div>
+          <div className="metric">
+            <div className="metric-head"><div className="metric-label">Custo (IDC)</div><span className={'badge ' + classeEvm[evm.nivelCusto]}>{rotuloEvm[evm.nivelCusto]}</span></div>
+            <div className="metric-value" style={{ color: corEvm[evm.nivelCusto] }}>{evm.idc == null ? '-' : fmtN(evm.idc, 2)}</div>
+            <div className="metric-sub">{evm.idc == null ? 'Ainda não há pagamentos para comparar.' : `Cada R$ 1,00 pago rendeu R$ ${fmtN(evm.idc, 2)} de obra feita.`}</div>
+          </div>
+          <div className="metric">
+            <div className="metric-head"><div className="metric-label">Custo previsto no término</div></div>
+            <div className="metric-value sm">{evm.eac == null ? '-' : fmt(evm.eac)}</div>
+            <div className={'metric-sub ' + (evm.vac != null && evm.vac < 0 ? 'danger' : 'ok')}>{evm.vac == null ? 'Gastou sem avançar: não dá para estimar.' : evm.vac >= 0 ? `Sobra de ${fmt(evm.vac)} sobre o AC21` : `Estoura o AC21 em ${fmt(-evm.vac)}`}</div>
+          </div>
+          <div className="metric">
+            <div className="metric-head"><div className="metric-label">Falta pagar para concluir</div></div>
+            <div className="metric-value sm">{evm.etc == null ? '-' : fmt(Math.max(0, evm.etc))}</div>
+            <div className="metric-sub">Estimativa para concluir ({fmtN(100 - evm.pctReal, 1)}% da obra)</div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-head"><div className="card-title">Planejado x agregado x custo real</div>
+            <div className="legend-row" style={{ margin: 0 }}>
+              <span><i style={{ background: '#2a78d6' }} />Planejado</span><span><i style={{ background: '#1D9E75' }} />Valor agregado</span><span><i style={{ background: '#e8761e' }} />Custo real</span>
+            </div></div>
+          {curvaFin && (
+            <ChartCanvas height={300} config={{
+              type: 'line',
+              data: { labels: curvaFin.rotulos, datasets: [
+                { label: 'Planejado', data: curvaFin.planejado, borderColor: '#2a78d6', backgroundColor: '#2a78d6', pointRadius: 0, tension: 0.25, borderWidth: 2 },
+                { label: 'Valor agregado', data: curvaFin.agregado, borderColor: '#1D9E75', backgroundColor: '#1D9E75', pointRadius: 3, tension: 0.2, borderWidth: 2 },
+                { label: 'Custo real', data: curvaFin.custo, borderColor: '#e8761e', backgroundColor: '#e8761e', pointRadius: 3, tension: 0.2, borderWidth: 2 },
+              ] },
+              options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c: TT) => ` ${c.dataset.label}: ${fmt(c.raw)}` } } },
+                scales: { y: { ticks: { callback: brMoneyTick } }, x: { ticks: { maxTicksLimit: 10 } } } },
+            }} />
+          )}
+          {curvaFin && curvaFin.semData > 0 && <div className="note" style={{ marginBottom: 0 }}>{fmt(curvaFin.semData)} em pagamentos sem data entram na data de status. Preencha a data dos itens e compras para o custo real aparecer no tempo certo.</div>}
+        </div>
+
+        <div className="card">
+          <div className="card-title">Como ler</div>
+          <div className="resumo-row"><span>Orçamento no término (AC21 aprovado)</span><b>{fmt(evm.bac)}</b></div>
+          <div className="resumo-row"><span>Valor planejado até a data de status ({fmtN(evm.pctPrevisto, 1)}% da obra)</span><b>{fmt(evm.vp)}</b></div>
+          <div className="resumo-row"><span>Valor agregado, o que foi realmente feito ({fmtN(evm.pctReal, 1)}% da obra)</span><b>{fmt(evm.va)}</b></div>
+          <div className="resumo-row"><span>Custo real, o que já foi pago</span><b>{fmt(evm.cr)}</b></div>
+          <div className="resumo-row"><span>Variação de prazo (agregado menos planejado)</span><b style={{ color: evm.vprazo < 0 ? 'var(--red)' : 'var(--green)' }}>{fmt(evm.vprazo)}</b></div>
+          <div className="resumo-row"><span>Variação de custo (agregado menos custo real)</span><b style={{ color: evm.vcusto < 0 ? 'var(--red)' : 'var(--green)' }}>{fmt(evm.vcusto)}</b></div>
+          <p style={{ color: 'var(--text3)', fontSize: 12.5, marginTop: 12 }}>
+            IDP e IDC acima de 1 significam adiantado e abaixo do custo; abaixo de 0,95 pede atenção e abaixo de 0,85 é crítico. O avanço vem do cronograma (data de status {n2br(evm.dataStatus)}) e o custo vem dos valores pagos nos itens e nas compras.
+          </p>
+        </div>
+      </>) : (
+        <div className="card"><Empty icon={<Activity size={30} />}>Para calcular o desempenho, a obra precisa de cronograma com tarefas e de AC21 aprovado.</Empty>
+          <div style={{ textAlign: 'center' }}><Link className="btn btn-primary" to="/cronograma" onClick={() => setObraAtiva(o.id)}>Abrir o cronograma</Link></div></div>
+      ))}
+
       {aba === 'compras' && (<>
         {podeEditar && <div className="action-row"><button className="btn btn-primary" onClick={() => setCompraModal({ c: null })}><Plus size={15} /> Registrar Compra</button></div>}
         <div className="card">
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Descrição</th><th>Categoria</th><th>Fornecedor</th><th>NF</th><th>Data</th><th className="td-right">Qtde</th><th className="td-right">Unit.</th><th className="td-right">Total</th><th>Status</th><th>Ações</th></tr></thead>
+              <thead><tr><th>Descrição</th><th>Categoria</th><th>Fornecedor</th><th>NF</th><th>Data</th><th>Venc.</th><th className="td-right">Qtde</th><th className="td-right">Unit.</th><th className="td-right">Total</th><th>Status</th><th>Ações</th></tr></thead>
               <tbody>
-                {comprasObra.length === 0 && <tr><td colSpan={10} className="td-empty">Nenhuma compra registrada para esta obra.</td></tr>}
+                {comprasObra.length === 0 && <tr><td colSpan={11} className="td-empty">Nenhuma compra registrada para esta obra.</td></tr>}
                 {comprasObra.map((c) => (
                   <tr key={c.id}>
                     <td style={{ fontWeight: 500 }}>{c.desc}</td>
@@ -298,6 +372,7 @@ export default function Detalhe() {
                     <td style={{ fontSize: 12 }}>{c.forn}</td>
                     <td style={{ fontSize: 12 }}>{c.nf || '-'}</td>
                     <td style={{ fontSize: 12 }}>{fmtData(c.data)}</td>
+                    <td style={{ fontSize: 12 }}>{fmtData(c.venc)}</td>
                     <td className="td-right">{fmtNum(c.qtde)} {c.unid}</td>
                     <td className="td-right">{fmt(c.unit)}</td>
                     <td className="td-right" style={{ fontWeight: 600 }}>{fmt(c.total)}</td>
@@ -311,8 +386,8 @@ export default function Detalhe() {
               </tbody>
               {comprasObra.length > 0 && (
                 <tfoot>
-                  <tr><td colSpan={7}>TOTAL COMPRAS</td><td className="td-right">{fmt(totalComprasTodas(db, o))}</td><td colSpan={2} /></tr>
-                  <tr style={{ color: 'var(--badge-ok-fg)' }}><td colSpan={7}>TOTAL PAGO EM COMPRAS (status Pago)</td><td className="td-right">{fmt(pgCompras)}</td><td colSpan={2} /></tr>
+                  <tr><td colSpan={8}>TOTAL COMPRAS</td><td className="td-right">{fmt(totalComprasTodas(db, o))}</td><td colSpan={2} /></tr>
+                  <tr style={{ color: 'var(--badge-ok-fg)' }}><td colSpan={8}>TOTAL PAGO EM COMPRAS (status Pago)</td><td className="td-right">{fmt(pgCompras)}</td><td colSpan={2} /></tr>
                 </tfoot>
               )}
             </table>

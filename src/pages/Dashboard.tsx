@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CreditCard, TrendingUp, Gauge, AlertTriangle } from 'lucide-react';
+import { CreditCard, TrendingUp, Gauge, AlertTriangle, Building2 } from 'lucide-react';
 import { useApp } from '../store/AppStore';
 import {
   CORES, badgeStatusObra, corPct, fmt, nivelPct, pct, pctInt, rotuloNivel, totalComprometido, totalPago,
@@ -7,18 +8,39 @@ import {
 import { resumoCrono } from '../lib/schedule';
 import { ChartCanvas, brMoneyTick, type TT } from '../components/ui';
 
+const K_FILTRO = 'obrix-dash-obra';
+const lerFiltro = () => { try { return sessionStorage.getItem(K_FILTRO) || 'todas'; } catch { return 'todas'; } };
+
 export default function Dashboard() {
   const { db, cronos, setObraAtiva } = useApp();
-  const { obras } = db;
+  const [filtro, setFiltro] = useState(lerFiltro);
+  // obra apagada ou inexistente: volta para "todas"
+  const selecionada = filtro === 'todas' ? null : db.obras.find((o) => String(o.id) === filtro) ?? null;
+  const obras = selecionada ? [selecionada] : db.obras;
+  const escolher = (v: string) => { setFiltro(v); try { sessionStorage.setItem(K_FILTRO, v); } catch { /* ok */ } };
   const totalAC21 = obras.reduce((s, o) => s + Number(o.ac21), 0);
   const totPg = obras.reduce((s, o) => s + totalPago(db, o), 0);
   const totComp = obras.reduce((s, o) => s + totalComprometido(db, o), 0);
   const saldo = totalAC21 - totPg;
   const pg = pct(totPg, totalAC21), pgComp = pct(totComp, totalAC21);
   const nomes = obras.map((o) => (o.nome.length > 28 ? o.nome.substring(0, 26) + '…' : o.nome));
+  const aPagar = Math.max(0, totComp - totPg), livre = Math.max(0, totalAC21 - totComp);
+  const cor = (o: (typeof db.obras)[number]) => CORES[db.obras.indexOf(o) % CORES.length];
 
   return (
     <div className="content">
+      {db.obras.length > 1 && (
+        <div className="filtro-obra">
+          <span className="obra-pick">
+            <Building2 size={16} />
+            <select aria-label="Filtrar por obra" value={selecionada ? filtro : 'todas'} onChange={(e) => escolher(e.target.value)}>
+              <option value="todas">Todas as obras ({db.obras.length})</option>
+              {db.obras.map((o) => <option key={o.id} value={String(o.id)}>{o.codigo ? o.codigo + ' - ' : ''}{o.nome}</option>)}
+            </select>
+          </span>
+          {selecionada && <button className="link-btn" onClick={() => escolher('todas')}>Ver todas as obras</button>}
+        </div>
+      )}
       {obras.map((o) => {
         const comp = pctInt(totalComprometido(db, o), o.ac21);
         if (comp >= 100) return <div key={o.id} className="alert alert-danger"><AlertTriangle size={17} /><span>AC21 <b>{o.codigo}</b> - {o.nome}: custo comprometido <b>ESTOURADO</b> ({comp}% do AC21)</span></div>;
@@ -30,7 +52,7 @@ export default function Dashboard() {
         <div className="metric">
           <div className="metric-head"><div className="metric-label">Total AC21 Aprovado</div><div className="metric-icon mi-blue"><CreditCard size={18} /></div></div>
           <div className="metric-value">{fmt(totalAC21)}</div>
-          <div className="metric-sub">{obras.length === 1 ? '1 obra ativa' : `${obras.length} obras ativas`}</div>
+          <div className="metric-sub">{selecionada ? selecionada.status : obras.length === 1 ? '1 obra ativa' : `${obras.length} obras ativas`}</div>
         </div>
         <div className="metric">
           <div className="metric-head">
@@ -60,7 +82,7 @@ export default function Dashboard() {
       <div className="grid2 wide">
         <div className="card">
           <div className="card-head">
-            <div className="card-title">Utilização do AC21 por Obra</div>
+            <div className="card-title">{selecionada ? 'Utilização do AC21' : 'Utilização do AC21 por Obra'}</div>
             <div className="legend-row" style={{ margin: 0 }}>
               <span><i style={{ background: 'rgba(100,120,160,.28)' }} />AC21</span>
               <span><i style={{ background: '#7aa9de' }} />Comprometido</span>
@@ -78,8 +100,8 @@ export default function Dashboard() {
                 labels: nomes,
                 datasets: [
                   { label: 'AC21', data: obras.map((o) => o.ac21), backgroundColor: 'rgba(100,120,160,0.22)', borderRadius: 4 },
-                  { label: 'Comprometido', data: obras.map((o) => totalComprometido(db, o)), backgroundColor: obras.map((_, i) => CORES[i % CORES.length] + '99'), borderRadius: 4 },
-                  { label: 'Pago', data: obras.map((o) => totalPago(db, o)), backgroundColor: obras.map((_, i) => CORES[i % CORES.length]), borderRadius: 4 },
+                  { label: 'Comprometido', data: obras.map((o) => totalComprometido(db, o)), backgroundColor: obras.map((o) => cor(o) + '99'), borderRadius: 4 },
+                  { label: 'Pago', data: obras.map((o) => totalPago(db, o)), backgroundColor: obras.map((o) => cor(o)), borderRadius: 4 },
                 ],
               },
               options: {
@@ -91,10 +113,25 @@ export default function Dashboard() {
           )}
         </div>
         <div className="card">
-          <div className="card-title">Distribuição do AC21 entre Obras</div>
+          <div className="card-title">{selecionada ? 'Como o AC21 está sendo usado' : 'Distribuição do AC21 entre Obras'}</div>
+          {selecionada ? (
+            <>
+              <div className="legend-row">
+                <span><i style={{ background: '#1565C0' }} />Pago - {fmt(totPg)}</span>
+                <span><i style={{ background: '#e8761e' }} />A pagar - {fmt(aPagar)}</span>
+                <span><i style={{ background: '#1D9E75' }} />Livre - {fmt(livre)}</span>
+              </div>
+              <ChartCanvas height={240} config={{
+                type: 'doughnut',
+                data: { labels: ['Pago', 'A pagar (comprometido)', 'Livre'], datasets: [{ data: [totPg, aPagar, livre], backgroundColor: ['#1565C0', '#e8761e', '#1D9E75'], borderWidth: 2, borderColor: 'transparent' }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '64%',
+                  plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c: TT) => ` ${['Pago', 'A pagar (comprometido)', 'Livre'][c.dataIndex]}: ${fmt(c.raw)}` } } } },
+              }} />
+            </>
+          ) : (<>
           {obras.length > 0 && (
             <div className="legend-row">
-              {obras.map((o, i) => <span key={o.id}><i style={{ background: CORES[i % CORES.length] }} />{o.codigo || o.nome} - {fmt(o.ac21)}</span>)}
+              {obras.map((o) => <span key={o.id}><i style={{ background: cor(o) }} />{o.codigo || o.nome} - {fmt(o.ac21)}</span>)}
             </div>
           )}
           {obras.length === 0 ? (
@@ -106,16 +143,17 @@ export default function Dashboard() {
           ) : (
             <ChartCanvas height={240} config={{
               type: 'doughnut',
-              data: { labels: nomes, datasets: [{ data: obras.map((o) => o.ac21), backgroundColor: obras.map((_, i) => CORES[i % CORES.length]), borderWidth: 2, borderColor: 'transparent' }] },
+              data: { labels: nomes, datasets: [{ data: obras.map((o) => o.ac21), backgroundColor: obras.map((o) => cor(o)), borderWidth: 2, borderColor: 'transparent' }] },
               options: { responsive: true, maintainAspectRatio: false, cutout: '64%',
                 plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } }, tooltip: { callbacks: { label: (c: TT) => ` ${nomes[c.dataIndex]}: ${fmt(c.raw)}` } } } },
             }} />
           )}
+          </>)}
         </div>
       </div>
 
       <div className="card">
-        <div className="card-title">Resumo Consolidado por Obra</div>
+        <div className="card-title">{selecionada ? 'Resumo da obra' : 'Resumo Consolidado por Obra'}</div>
         <div className="table-wrap">
           <table>
             <thead><tr>
@@ -124,14 +162,14 @@ export default function Dashboard() {
             </tr></thead>
             <tbody>
               {obras.length === 0 && <tr><td colSpan={12} className="td-empty">Nenhuma obra cadastrada.</td></tr>}
-              {obras.map((o, i) => {
+              {obras.map((o) => {
                 const pgo = totalPago(db, o), comp = totalComprometido(db, o), sl = o.ac21 - pgo, pComp = pctInt(comp, o.ac21);
                 const nv = nivelPct(pComp);
                 const fis = resumoCrono(cronos[String(o.id)]);
                 return (
                   <tr key={o.id}>
                     <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                      <span className="dot" style={{ background: CORES[i % CORES.length] }} />
+                      <span className="dot" style={{ background: cor(o) }} />
                       <Link to="/detalhe" onClick={() => setObraAtiva(o.id)}>{o.nome}</Link></span></td>
                     <td><code>{o.codigo}</code></td>
                     <td>{o.responsavel || '-'}</td>

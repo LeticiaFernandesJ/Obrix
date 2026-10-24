@@ -459,44 +459,45 @@ table.list { width: 100%; border-collapse: collapse; font-size: 12px; }
 .fisico .progress { flex: 1; }
 
 /* login */
-.lg-page { position: relative; min-height: 100vh; background-color: #0b1e3b; background-size: cover; background-position: center; display: flex; flex-direction: column; color: #fff; overflow: hidden; }
-.lg-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8,20,40,.15), rgba(8,20,40,.35)); pointer-events: none; }
-.lg-inner { position: relative; flex: 1; width: 100%; max-width: 1240px; margin: 0 auto; padding: 48px clamp(20px, 5vw, 64px); display: flex; align-items: center; justify-content: space-between; gap: 48px; }
-.lg-hero { max-width: 460px; }
-.lg-eyebrow { display: block; font-size: 13px; font-weight: 600; letter-spacing: .42em; color: var(--orange); margin-bottom: 18px; }
-.lg-hero h2 { font-size: clamp(34px, 4.4vw, 52px); font-weight: 400; line-height: 1.12; letter-spacing: -.01em; }
-.lg-hero h2 em { font-style: normal; font-weight: 500; color: var(--orange); }
-.lg-hero p { margin-top: 18px; font-size: 18px; line-height: 1.45; color: rgba(255,255,255,.72); }
+.lg-page { position: relative; height: 100vh; height: 100dvh; overflow-y: auto; background-color: #0b1e3b; background-size: cover; background-position: center; display: flex; flex-direction: column; color: #fff; overflow: hidden; }
+.lg-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(5,14,30,.92) 0%, rgba(5,14,30,.78) 30%, rgba(5,14,30,.35) 55%, rgba(5,14,30,.25) 100%); pointer-events: none; }
+.lg-inner { position: relative; flex: 1; width: 100%; max-width: 1240px; margin: 0 auto; padding: clamp(12px, 3vh, 40px) clamp(20px, 5vw, 64px); display: flex; align-items: center; justify-content: space-between; gap: 48px; }
+.lg-hero { max-width: 480px; text-shadow: 0 2px 14px rgba(0,0,0,.65), 0 1px 2px rgba(0,0,0,.6); }
+.lg-eyebrow { display: block; font-size: 13px; font-weight: 600; letter-spacing: .42em; color: #ff9a3c; margin-bottom: 18px; }
+.lg-hero h2 { font-size: clamp(34px, 4.4vw, 52px); font-weight: 600; color: #fff; line-height: 1.12; letter-spacing: -.01em; }
+.lg-hero h2 em { font-style: normal; font-weight: 700; color: #ff9a3c; }
+.lg-hero p { margin-top: 18px; font-size: 18px; line-height: 1.5; font-weight: 500; color: #fff; }
 .lg-feats { list-style: none; margin-top: 34px; display: flex; flex-direction: column; gap: 16px; }
-.lg-feats li { display: flex; align-items: center; gap: 16px; font-size: 15px; line-height: 1.3; color: rgba(255,255,255,.9); }
-.lg-feats li span { width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; color: var(--orange); background: rgba(80,40,20,.55); border: 1px solid rgba(232,118,30,.45); flex: 0 0 auto; }
-.lg-card { width: 460px; max-width: 100%; flex: 0 0 auto; background: #fdfdfc; color: #14213a; border-radius: 22px; padding: 38px 40px 30px; box-shadow: 0 30px 80px rgba(0,0,0,.45); display: flex; flex-direction: column; }
-.lg-logo { margin: 0 auto 26px; max-width: 360px; background: transparent; }
-.lg-card h1 { font-size: 26px; font-weight: 750; letter-spacing: -.01em; }
-.lg-sub { margin: 8px 0 22px; color: #6a7587; font-size: 15px; line-height: 1.45; }
-.lg-field { margin-bottom: 16px; }
-.lg-field label { display: block; font-weight: 650; font-size: 14px; margin-bottom: 8px; }
-.lg-input { display: flex; align-items: center; gap: 10px; padding: 0 14px; height: 52px; border: 1px solid #dfe3ea; border-radius: 12px; background: #fff; color: #6a7587; transition: border-color .15s, box-shadow .15s; }
+.lg-feats li { display: flex; align-items: center; gap: 16px; font-size: 16px; line-height: 1.3; font-weight: 600; color: #fff; }
+.lg-feats li span { width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; color: #ffab57; background: rgba(10,22,44,.85); border: 1px solid rgba(255,154,60,.7); text-shadow: none; box-shadow: 0 4px 14px rgba(0,0,0,.4); flex: 0 0 auto; }
+.lg-card { width: 460px; max-width: 100%; flex: 0 0 auto; background: #fdfdfc; color: #14213a; border-radius: 22px; padding: clamp(18px, 3.6vh, 34px) clamp(24px, 3vw, 40px) clamp(16px, 2.8vh, 26px); box-shadow: 0 30px 80px rgba(0,0,0,.45); display: flex; flex-direction: column; }
+.lg-logo { margin: 0 auto clamp(12px, 2.6vh, 24px); max-width: min(340px, 36vh); background: transparent; }
+.lg-card h1 { font-size: clamp(21px, 3.2vh, 26px); font-weight: 750; letter-spacing: -.01em; }
+.lg-sub { margin: 6px 0 clamp(12px, 2.4vh, 20px); color: #6a7587; font-size: clamp(13px, 1.8vh, 15px); line-height: 1.45; }
+.lg-field { margin-bottom: clamp(10px, 1.8vh, 16px); }
+.lg-field label { display: block; font-weight: 650; font-size: 14px; margin-bottom: 6px; }
+.lg-input { display: flex; align-items: center; gap: 10px; padding: 0 14px; height: clamp(42px, 6vh, 52px); border: 1px solid #dfe3ea; border-radius: 12px; background: #fff; color: #6a7587; transition: border-color .15s, box-shadow .15s; }
 .lg-input:focus-within { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(232,118,30,.18); }
 .lg-input input { flex: 1; border: 0; outline: 0; box-shadow: none; background: transparent; padding: 0; font-size: 15px; color: #14213a; min-width: 0; }
 .lg-input input:focus { box-shadow: none; }
 .lg-eye { background: none; border: 0; color: #6a7587; cursor: pointer; display: grid; place-items: center; padding: 4px; }
-.lg-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 2px 0 20px; font-size: 14px; }
+.lg-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 clamp(12px, 2.2vh, 20px); font-size: 14px; }
 .lg-check { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; }
 .lg-check input { width: 18px; height: 18px; accent-color: var(--orange); }
 .lg-link { background: none; border: 0; padding: 0; color: var(--orange-dark); font-weight: 650; cursor: pointer; font-size: inherit; }
 .lg-link:hover { text-decoration: underline; }
-.lg-btn { height: 56px; border: 0; border-radius: 12px; background: linear-gradient(180deg, #f0832a, #d96a14); color: #fff; font-size: 18px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; box-shadow: 0 10px 24px rgba(217,106,20,.35); transition: filter .15s, transform .05s; margin-top: 4px; }
+.lg-btn { height: clamp(46px, 6.4vh, 56px); border: 0; border-radius: 12px; background: linear-gradient(180deg, #f0832a, #d96a14); color: #fff; font-size: 18px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; box-shadow: 0 10px 24px rgba(217,106,20,.35); transition: filter .15s, transform .05s; margin-top: 4px; }
 .lg-btn:hover { filter: brightness(1.06); } .lg-btn:active { transform: translateY(1px); } .lg-btn:disabled { opacity: .7; cursor: wait; }
-.lg-foot { margin-top: 26px; padding-top: 22px; border-top: 1px solid #eceff3; text-align: center; font-size: 15px; color: #3b4658; }
-.lg-copy { position: relative; padding: 18px clamp(20px, 5vw, 64px); font-size: 11px; letter-spacing: .24em; color: rgba(255,255,255,.55); }
+.lg-foot { margin-top: clamp(14px, 2.6vh, 24px); padding-top: clamp(12px, 2.2vh, 20px); border-top: 1px solid #eceff3; text-align: center; font-size: 15px; color: #3b4658; }
+.lg-copy { position: relative; padding: 0 clamp(20px, 5vw, 64px) 14px; margin: 0;} .lg-copy-x { padding: 18px clamp(20px, 5vw, 64px); font-size: 11px; letter-spacing: .24em; color: rgba(255,255,255,.8); text-shadow: 0 1px 6px rgba(0,0,0,.7); }
 .lg-loading { position: relative; margin: auto; font-size: 15px; color: rgba(255,255,255,.8); }
 .lg-card .alert { margin-bottom: 14px; }
 @media (max-width: 960px) {
   .lg-inner { flex-direction: column; justify-content: center; gap: 28px; padding-top: 28px; }
   .lg-hero { max-width: 560px; text-align: center; }
   .lg-feats { display: none; }
-  .lg-hero p br { display: none; }
+  .lg-hero p, .lg-eyebrow { display: none; }
+  .lg-hero h2 { font-size: 28px; }
   .lg-card { padding: 30px 24px 24px; }
 }
 @media (max-width: 520px) { .lg-hero h2 { font-size: 30px; } .lg-hero p { font-size: 15px; } }
@@ -506,3 +507,5 @@ table.list { width: 100%; border-collapse: collapse; font-size: 12px; }
 .sync-dot.busy { background: #f0bb64; } .sync-dot.err { background: #ef6b6b; }
 .user-box { padding: 12px 18px; border-top: 1px solid rgba(255,255,255,.1); display: flex; flex-direction: column; gap: 6px; font-size: 11.5px; color: rgba(255,255,255,.7); }
 .user-box .email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-height: 760px) { .lg-sub { display: none; } .lg-copy { display: none; } .lg-eyebrow { margin-bottom: 10px; } .lg-feats { margin-top: 20px; gap: 10px; } .lg-feats li span { width: 46px; height: 46px; } }

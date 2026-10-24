@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import { useNavigate } from 'react-router-dom';
 import { ArrowRight, BarChart3, Eye, EyeOff, FileText, Lock, Mail, Users } from 'lucide-react';
 import { supabase, supabaseAtivo } from '../lib/supabase';
 import { AppProvider } from '../store/AppStore';
@@ -128,6 +129,16 @@ function Login() {
   );
 }
 
+/** Ao abrir o sistema (ou entrar), sempre começa na Visão Geral — exceto em links compartilhados (#v / #p). */
+function IrParaInicio() {
+  const nav = useNavigate();
+  useEffect(() => {
+    if (!/^#[vp]=/.test(window.location.hash)) nav('/', { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+}
+
 /** Exige login quando o Supabase está configurado. Link de PMO (#v=…) abre sem login. */
 export default function AuthGate({ children }: { children: ReactNode }) {
   const [publico] = useState(() => /^#v=/.test(window.location.hash));
@@ -145,7 +156,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  if (!supabaseAtivo || publico) return <AppProvider userId={null} email={null} onSignOut={null}>{children}</AppProvider>;
+  if (!supabaseAtivo || publico) return <AppProvider userId={null} email={null} onSignOut={null}><IrParaInicio />{children}</AppProvider>;
   if (sessao === undefined) return <div className="lg-page"><div className="lg-shade" /><div className="lg-loading">Carregando…</div></div>;
   if (!sessao) return <Login />;
   return (
@@ -154,6 +165,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         ['obrix-ac21-v1', 'obrix-cronos-v1', 'obrix-owner', 'cronograma-obra-v2'].forEach((k) => localStorage.removeItem(k));
         await supabase!.auth.signOut();
       }}>
+      <IrParaInicio />
       {children}
     </AppProvider>
   );

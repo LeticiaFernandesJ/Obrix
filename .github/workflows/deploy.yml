@@ -45,6 +45,9 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      - name: Tests
+        run: npm test
+
       - name: Build
         env:
           # o Pages publica em https://<usuario>.github.io/<nome-do-repositorio>/

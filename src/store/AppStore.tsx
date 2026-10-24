@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  type Compra, type DB, type Historico, type Item, type Obra, dbVazio, fmt, sanitizarDB,
+  type Compra, type DB, type Historico, type Item, type Obra, dbVazio, fmt, novoId, sanitizarDB,
 } from '../lib/ac21';
 import {
   type Calc, type Cal, type Estado, calcular, desempacotar, makeCal, normalizarEstado, novoEstado,
@@ -136,6 +136,8 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
   const sujoRef = useRef(false);
   const payload = useMemo(() => JSON.stringify({ db, cronos }), [db, cronos]);
   const estadoRef = useRef({ db, cronos, payload }); estadoRef.current = { db, cronos, payload };
+  const baseRef = useRef(payload);          // estado com o qual a sincronização começou
+  const editouSemNuvemRef = useRef(false);  // houve edição enquanto a nuvem não estava disponível (ex.: sem internet)
 
   const salvarAgora = useCallback(async () => {
     if (!supabase || !userId || !prontoRef.current) return;
@@ -162,8 +164,17 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
       if (L.obras.length) {
         const r = deLinhas(L);
         snapRef.current = snapDe(paraLinhas(r.db, r.cronos));
-        ultimoRef.current = JSON.stringify({ db: r.db, cronos: r.cronos });
-        setDb(r.db); setCronos(r.cronos);
+        const local = estadoRef.current;
+        const manterLocal = editouSemNuvemRef.current &&
+          confirm('Você fez alterações neste aparelho enquanto estava sem conexão.\n\nOK = enviar essas alterações para a nuvem (substitui o que está lá).\nCancelar = descartar e usar os dados da nuvem.');
+        if (manterLocal) {
+          await enviarMudancas(supabase, userId, paraLinhas(local.db, local.cronos), snapRef.current);
+          ultimoRef.current = local.payload;
+        } else {
+          ultimoRef.current = JSON.stringify({ db: r.db, cronos: r.cronos });
+          setDb(r.db); setCronos(r.cronos);
+        }
+        editouSemNuvemRef.current = false;
       } else {
         // nuvem vazia: aproveita a tabela única antiga (se existir) ou os dados deste navegador
         let origem: { db: DB; cronos: Record<string, Estado> } | null = null;
@@ -199,7 +210,8 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
   }, [userId]);
 
   useEffect(() => {
-    if (!userId || !supabase || !prontoRef.current) return;
+    if (!userId || !supabase) return;
+    if (!prontoRef.current) { if (payload !== baseRef.current) editouSemNuvemRef.current = true; return; }
     if (payload === ultimoRef.current) return;
     setNuvem('salvando');
     const t = window.setTimeout(() => void salvarAgora(), 800);
@@ -212,6 +224,28 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
     document.addEventListener('visibilitychange', h);
     return () => document.removeEventListener('visibilitychange', h);
   }, [userId, salvarAgora]);
+
+  /* Sair sem perder alterações: tenta enviar o que está pendente; se não der, pede confirmação. */
+  const sairSeguro = useCallback(async () => {
+    if (!onSignOut) return;
+    if (supabase && userId) {
+      for (let i = 0; i < 4 && prontoRef.current && estadoRef.current.payload !== ultimoRef.current; i++) {
+        if (salvandoRef.current) await new Promise((r) => setTimeout(r, 500)); else await salvarAgora();
+      }
+      const pendente = prontoRef.current ? estadoRef.current.payload !== ultimoRef.current : editouSemNuvemRef.current;
+      if (pendente && !confirm('Algumas alterações ainda não foram enviadas para a nuvem (sem conexão ou erro).\nSe sair agora, elas serão perdidas.\n\nSair mesmo assim?')) return;
+    }
+    await onSignOut();
+  }, [onSignOut, userId, salvarAgora]);
+
+  useEffect(() => {
+    if (!userId || !supabase) return;
+    const h = (e: BeforeUnloadEvent) => {
+      if (prontoRef.current && estadoRef.current.payload !== ultimoRef.current) { e.preventDefault(); e.returnValue = ''; }
+    };
+    window.addEventListener('beforeunload', h);
+    return () => window.removeEventListener('beforeunload', h);
+  }, [userId]);
 
   const toast = useCallback((msg: string) => {
     setToastMsg(msg);
@@ -248,7 +282,7 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
     });
   }, []);
   const hist = (d: DB, tipo: string, icone: string, texto: string) => {
-    d.historico.unshift({ id: ++d.nextId, ts: new Date().toISOString(), tipo, icone, texto, user: 'Gerente' } as Historico);
+    d.historico.unshift({ id: novoId(), ts: new Date().toISOString(), tipo, icone, texto, user: 'Gerente' } as Historico);
     if (d.historico.length > 500) d.historico.pop();
   };
 
@@ -256,7 +290,7 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
 
   const salvarObra: Ctx['salvarObra'] = useCallback((dados, id) => mutarDb((d) => {
     if (id == null) {
-      d.obras.push({ id: ++d.nextId, itens: [], ...dados });
+      d.obras.push({ id: novoId(), itens: [], ...dados });
       hist(d, 'obra_criada', '🏗️', `Obra "${dados.nome}" cadastrada · AC21: ${fmt(dados.ac21)}`);
     } else {
       const o = d.obras.find((x) => x.id === id); if (!o) return;
@@ -280,7 +314,7 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
   const salvarItem: Ctx['salvarItem'] = useCallback((obraId, item, id) => mutarDb((d) => {
     const o = d.obras.find((x) => x.id === obraId); if (!o) return;
     if (id == null) {
-      o.itens.push({ id: ++d.nextId, ...item });
+      o.itens.push({ id: novoId(), ...item });
       hist(d, 'item_adicionado', '➕', `Item "${item.desc}" adicionado à obra ${o.codigo} · Pago: ${fmt(item.pago)}`);
     } else {
       const idx = o.itens.findIndex((i) => i.id === id); if (idx < 0) return;
@@ -302,7 +336,7 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
   const salvarCompra: Ctx['salvarCompra'] = useCallback((c, id) => mutarDb((d) => {
     const obra = d.obras.find((o) => o.id === c.obraId);
     if (id == null) {
-      d.compras.push({ id: ++d.nextId, ...c });
+      d.compras.push({ id: novoId(), ...c });
       hist(d, 'compra', '🛒', `Compra "${c.desc}" registrada — ${c.forn} · ${fmt(c.total)} · ${obra?.codigo || ''}`);
     } else {
       const idx = d.compras.findIndex((x) => x.id === id); if (idx < 0) return;
@@ -320,7 +354,7 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
   const importarDB = useCallback((dados: unknown) => {
     const limpo = sanitizarDB(dados);
     if (!limpo) return false;
-    limpo.historico.unshift({ id: ++limpo.nextId, ts: new Date().toISOString(), tipo: 'restore', icone: '📂', texto: 'Backup carregado com sucesso', user: 'Gerente' });
+    limpo.historico.unshift({ id: novoId(), ts: new Date().toISOString(), tipo: 'restore', icone: '📂', texto: 'Backup carregado com sucesso', user: 'Gerente' });
     setDb(limpo);
     const cr = (dados as { cronogramas?: Record<string, Partial<Estado>> }).cronogramas;
     if (cr && typeof cr === 'object') {
@@ -352,7 +386,7 @@ export function AppProvider({ children, userId, email, onSignOut }: ProviderProp
     db, obraAtivaId, obraAtual, cronos, exportarTudo, setObraAtiva, salvarObra, excluirObra, salvarItem, excluirItem, salvarCompra, excluirCompra,
     registrarHistorico, importarDB,
     crono, cal, calc, updateCrono, carregarCrono, readOnly,
-    usuario: email, sair: onSignOut, nuvem, recarregarNuvem: () => { void carregarNuvem(); }, tentarSincronizar: () => { void salvarAgora(); },
+    usuario: email, sair: onSignOut ? sairSeguro : null, nuvem, recarregarNuvem: () => { void carregarNuvem(); }, tentarSincronizar: () => { void salvarAgora(); },
     tema, alternarTema: () => setTema((t) => (t === 'dark' ? 'light' : 'dark')),
     toast, toastMsg,
   };

@@ -150,6 +150,7 @@ export function CronoActions() {
           <div className="field"><label>Link editável (para quem vai atualizar o cronograma)</label>
             <div className="linkbox"><input readOnly value={links.ed} onFocus={(e) => e.target.select()} /><button className="btn" onClick={() => copiar(links.ed)}>Copiar</button></div></div>
           <div className="note">Toda semana: atualize os <b>%</b>, clique em <b>Registrar medição</b> e gere um link novo. O link antigo continua mostrando a foto daquela semana.</div>
+          <div className="note warn"><b>Privacidade:</b> o link carrega os dados do cronograma dentro dele. Qualquer pessoa que o receba (ou o encaminhe) vê o cronograma, e ele <b>não pode ser cancelado</b> depois de enviado. Envie só a quem deve ver; para restringir o acesso, mande o arquivo .json em anexo.</div>
           <div className="note"><b>O link abre direto?</b> Só se o Obrix estiver publicado num endereço da internet ou da rede da empresa. Caso contrário, envie o <b>arquivo .json</b> em anexo e o PMO usa <b>Abrir</b>.</div>
         </>)}
       </Modal>

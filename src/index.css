@@ -462,7 +462,7 @@ table.list { width: 100%; border-collapse: collapse; font-size: 12px; }
 .lg-page { position: relative; height: 100vh; height: 100dvh; overflow-y: auto; background-color: #0b1e3b; background-size: cover; background-position: center; display: flex; flex-direction: column; color: #fff; overflow: hidden; }
 .lg-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(5,14,30,.92) 0%, rgba(5,14,30,.78) 30%, rgba(5,14,30,.35) 55%, rgba(5,14,30,.25) 100%); pointer-events: none; }
 .lg-inner { position: relative; flex: 1; width: 100%; max-width: 1240px; margin: 0 auto; padding: clamp(12px, 3vh, 40px) clamp(20px, 5vw, 64px); display: flex; align-items: center; justify-content: space-between; gap: 48px; }
-.lg-hero { max-width: 480px; text-shadow: 0 2px 14px rgba(0,0,0,.65), 0 1px 2px rgba(0,0,0,.6); }
+.lg-hero { max-width: 480px; transform: translateY(-7vh); text-shadow: 0 2px 14px rgba(0,0,0,.65), 0 1px 2px rgba(0,0,0,.6); }
 .lg-eyebrow { display: block; font-size: 13px; font-weight: 600; letter-spacing: .42em; color: #ff9a3c; margin-bottom: 18px; }
 .lg-hero h2 { font-size: clamp(34px, 4.4vw, 52px); font-weight: 600; color: #fff; line-height: 1.12; letter-spacing: -.01em; }
 .lg-hero h2 em { font-style: normal; font-weight: 700; color: #ff9a3c; }
@@ -494,8 +494,9 @@ table.list { width: 100%; border-collapse: collapse; font-size: 12px; }
 .lg-card .alert { margin-bottom: 14px; }
 @media (max-width: 960px) {
   .lg-inner { flex-direction: column; justify-content: center; gap: 28px; padding-top: 28px; }
-  .lg-hero { max-width: 560px; text-align: center; }
+  .lg-hero { max-width: 560px; text-align: center; transform: none; }
   .lg-feats { display: none; }
+  .lg-app { margin-top: 16px; }
   .lg-hero p, .lg-eyebrow { display: none; }
   .lg-hero h2 { font-size: 28px; }
   .lg-card { padding: 30px 24px 24px; }
@@ -509,3 +510,13 @@ table.list { width: 100%; border-collapse: collapse; font-size: 12px; }
 .user-box .email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-height: 760px) { .lg-sub { display: none; } .lg-copy { display: none; } .lg-eyebrow { margin-bottom: 10px; } .lg-feats { margin-top: 20px; gap: 10px; } .lg-feats li span { width: 46px; height: 46px; } }
+
+.install-box { padding: 10px 18px; border-top: 1px solid rgba(255,255,255,.1); font-size: 11.5px; color: rgba(255,255,255,.7); }
+.install-box .btn { width: 100%; background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.25); }
+.install-box .btn:hover { background: rgba(255,255,255,.18); }
+@supports (padding: max(0px)) { .topbar { padding-top: max(14px, env(safe-area-inset-top)); } }
+
+.lg-app { margin-top: clamp(16px, 3.2vh, 30px); text-shadow: none; display: inline-flex; align-items: center; justify-content: center; gap: 12px; height: clamp(48px, 7vh, 60px); min-width: 250px; padding: 0 30px; border-radius: 14px; border: 0; background: linear-gradient(180deg, #ffa24a, #e8761e); color: #fff; font-weight: 750; font-size: clamp(16px, 2.2vh, 19px); letter-spacing: .01em; cursor: pointer; box-shadow: 0 10px 28px rgba(232,118,30,.5), 0 0 0 4px rgba(255,154,60,.18); transition: filter .15s, transform .05s, box-shadow .15s; animation: lg-pulso 2.6s ease-in-out infinite; }
+.lg-app:hover { filter: brightness(1.08); box-shadow: 0 12px 32px rgba(232,118,30,.65), 0 0 0 5px rgba(255,154,60,.28); } .lg-app:active { transform: translateY(1px); }
+@keyframes lg-pulso { 0%, 100% { box-shadow: 0 10px 28px rgba(232,118,30,.5), 0 0 0 4px rgba(255,154,60,.18); } 50% { box-shadow: 0 10px 28px rgba(232,118,30,.6), 0 0 0 9px rgba(255,154,60,.06); } }
+@media (prefers-reduced-motion: reduce) { .lg-app { animation: none; } }

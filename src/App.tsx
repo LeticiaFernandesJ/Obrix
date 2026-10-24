@@ -1,18 +1,20 @@
+import { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
-import Dashboard from './pages/Dashboard';
-import Obras from './pages/Obras';
-import Detalhe from './pages/Detalhe';
-import Compras from './pages/Compras';
-import Historico from './pages/Historico';
-import Relatorios from './pages/Relatorios';
-import Cronograma from './pages/crono/Cronograma';
-import Painel from './pages/crono/Painel';
-import Projeto from './pages/crono/Projeto';
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Obras = lazy(() => import('./pages/Obras'));
+const Detalhe = lazy(() => import('./pages/Detalhe'));
+const Compras = lazy(() => import('./pages/Compras'));
+const Historico = lazy(() => import('./pages/Historico'));
+const Relatorios = lazy(() => import('./pages/Relatorios'));
+const Cronograma = lazy(() => import('./pages/crono/Cronograma'));
+const Painel = lazy(() => import('./pages/crono/Painel'));
+const Projeto = lazy(() => import('./pages/crono/Projeto'));
 import { ComObra } from './pages/crono/CronoHeader';
 
 export default function App() {
   return (
+    <Suspense fallback={<div className="empty" style={{ padding: 60 }}>Carregando…</div>}>
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<Dashboard />} />
@@ -27,5 +29,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
+    </Suspense>
   );
 }

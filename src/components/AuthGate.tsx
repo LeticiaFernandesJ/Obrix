@@ -1,9 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, BarChart3, Eye, EyeOff, FileText, Lock, Mail, Users } from 'lucide-react';
+import { ArrowRight, BarChart3, Download, Eye, EyeOff, FileText, Lock, Mail, Users } from 'lucide-react';
 import { supabase, supabaseAtivo } from '../lib/supabase';
 import { AppProvider } from '../store/AppStore';
+import { useInstalar } from '../lib/pwa';
+import { Modal } from './ui';
 
 const BASE = import.meta.env.BASE_URL;
 const K_LEMBRAR = 'obrix-lembrar';
@@ -26,6 +28,31 @@ const TEXTOS: Record<Modo, { titulo: string; sub: string; botao: string }> = {
   criar: { titulo: 'Criar sua conta', sub: 'Cadastre-se para guardar suas obras e cronogramas com segurança.', botao: 'Criar conta' },
   recuperar: { titulo: 'Recuperar senha', sub: 'Informe seu e-mail e enviaremos um link para redefinir a senha.', botao: 'Enviar link' },
 };
+
+function BotaoBaixarApp() {
+  const { podeInstalar, instalado, instalarNoIos, instalar } = useInstalar();
+  const [ajuda, setAjuda] = useState(false);
+  if (instalado) return null;
+  return (
+    <>
+      <button type="button" className="lg-app" onClick={() => (podeInstalar ? void instalar() : setAjuda(true))}>
+        <Download size={22} /> Baixar app
+      </button>
+      {ajuda && (
+        <Modal title="Instalar o Obrix" onClose={() => setAjuda(false)} footer={<button className="btn btn-primary" onClick={() => setAjuda(false)}>Entendi</button>}>
+          {instalarNoIos ? (
+            <p>No iPhone/iPad: toque em <b>Compartilhar</b> (o quadrado com a seta) e depois em <b>Adicionar à Tela de Início</b>.</p>
+          ) : (
+            <>
+              <p>No <b>Chrome ou Edge</b>: clique no ícone de instalar na barra de endereço, ou abra o menu <b>⋮</b> e escolha <b>Instalar Obrix</b> (no celular: <b>Adicionar à tela inicial</b>).</p>
+              <p style={{ fontSize: 12.5 }}>Se a opção não aparecer, abra o endereço do sistema em https e atualize a página.</p>
+            </>
+          )}
+        </Modal>
+      )}
+    </>
+  );
+}
 
 function Login() {
   const [modo, setModo] = useState<Modo>('entrar');
@@ -73,6 +100,7 @@ function Login() {
             <li><span><Users size={22} /></span>Organize<br />a equipe</li>
             <li><span><FileText size={22} /></span>Tenha o controle<br />em tempo real</li>
           </ul>
+          <BotaoBaixarApp />
         </section>
 
         <form className="lg-card" onSubmit={enviar}>
@@ -129,6 +157,47 @@ function Login() {
   );
 }
 
+/** Tela exibida quando a pessoa chega pelo link de "Esqueci a senha". */
+function NovaSenha({ onFim }: { onFim: () => void }) {
+  const [senha, setSenha] = useState('');
+  const [conf, setConf] = useState('');
+  const [ver, setVer] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const salvar = async (e: React.FormEvent) => {
+    e.preventDefault(); if (!supabase) return;
+    if (senha.length < 6) { setMsg('A senha precisa ter pelo menos 6 caracteres.'); return; }
+    if (senha !== conf) { setMsg('As senhas não conferem.'); return; }
+    setBusy(true); setMsg(null);
+    const { error } = await supabase.auth.updateUser({ password: senha });
+    setBusy(false);
+    if (error) setMsg(traduzir(error.message)); else onFim();
+  };
+  return (
+    <div className="lg-page" style={{ backgroundImage: `url(${BASE}assets/login-bg.jpg)` }}>
+      <div className="lg-shade" />
+      <div className="lg-inner" style={{ justifyContent: 'center' }}>
+        <form className="lg-card" onSubmit={salvar}>
+          <span className="logo-crop lg-logo"><img src={BASE + 'assets/obrix-logo.jpg'} alt="Obrix" /></span>
+          <h1>Criar nova senha</h1>
+          <p className="lg-sub">Escolha uma nova senha para acessar sua conta.</p>
+          <div className="lg-field"><label htmlFor="ns-1">Nova senha</label>
+            <div className="lg-input"><Lock size={18} />
+              <input id="ns-1" type={ver ? 'text' : 'password'} required minLength={6} autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
+              <button type="button" className="lg-eye" onClick={() => setVer((v) => !v)} aria-label={ver ? 'Ocultar senha' : 'Mostrar senha'}>{ver ? <Eye size={18} /> : <EyeOff size={18} />}</button>
+            </div></div>
+          <div className="lg-field"><label htmlFor="ns-2">Repita a senha</label>
+            <div className="lg-input"><Lock size={18} />
+              <input id="ns-2" type={ver ? 'text' : 'password'} required minLength={6} autoComplete="new-password" value={conf} onChange={(e) => setConf(e.target.value)} placeholder="Repita a nova senha" />
+            </div></div>
+          {msg && <div className="alert alert-danger" role="alert">{msg}</div>}
+          <button className="lg-btn" disabled={busy}>{busy ? 'Aguarde…' : <>Salvar nova senha <ArrowRight size={20} /></>}</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 /** Ao abrir o sistema (ou entrar), sempre começa na Visão Geral — exceto em links compartilhados (#v / #p). */
 function IrParaInicio() {
   const nav = useNavigate();
@@ -139,10 +208,24 @@ function IrParaInicio() {
   return null;
 }
 
+/**
+ * Sem internet e com o token vencido, o Supabase não consegue renovar a sessão. Se este aparelho já
+ * tinha entrado antes, deixamos abrir com os dados guardados (as alterações sobem quando a rede voltar).
+ */
+function sessaoOffline(): Session | null {
+  if (typeof navigator !== 'undefined' && navigator.onLine) return null;
+  try {
+    const k = Object.keys(localStorage).find((x) => /^sb-.+-auth-token$/.test(x));
+    const u = k ? (JSON.parse(localStorage.getItem(k) || 'null') as { user?: Session['user'] } | null)?.user : null;
+    return u?.id ? ({ user: u, access_token: '', refresh_token: '', expires_in: 0, token_type: 'bearer' } as Session) : null;
+  } catch { return null; }
+}
+
 /** Exige login quando o Supabase está configurado. Link de PMO (#v=…) abre sem login. */
 export default function AuthGate({ children }: { children: ReactNode }) {
   const [publico] = useState(() => /^#v=/.test(window.location.hash));
   const [sessao, setSessao] = useState<Session | null | undefined>(supabaseAtivo ? undefined : null);
+  const [recuperando, setRecuperando] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -150,15 +233,20 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       // "Lembrar de mim" desmarcado: a sessão vale só enquanto o navegador ficar aberto
       let esquecer = false;
       try { esquecer = !!data.session && localStorage.getItem(K_LEMBRAR) === '0' && !sessionStorage.getItem(K_SESSAO); } catch { /* ok */ }
-      if (esquecer) { await supabase!.auth.signOut(); setSessao(null); } else setSessao(data.session);
+      if (esquecer) { await supabase!.auth.signOut(); setSessao(null); }
+      else setSessao(data.session ?? sessaoOffline());
     });
-    const { data } = supabase.auth.onAuthStateChange((_ev, s) => setSessao(s));
+    const { data } = supabase.auth.onAuthStateChange((ev, s) => {
+      if (ev === 'PASSWORD_RECOVERY') setRecuperando(true);
+      setSessao(s ?? (ev === 'TOKEN_REFRESHED' || ev === 'INITIAL_SESSION' ? sessaoOffline() : null));
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 
   if (!supabaseAtivo || publico) return <AppProvider userId={null} email={null} onSignOut={null}><IrParaInicio />{children}</AppProvider>;
   if (sessao === undefined) return <div className="lg-page"><div className="lg-shade" /><div className="lg-loading">Carregando…</div></div>;
   if (!sessao) return <Login />;
+  if (recuperando) return <NovaSenha onFim={() => setRecuperando(false)} />;
   return (
     <AppProvider key={sessao.user.id} userId={sessao.user.id} email={sessao.user.email ?? ''}
       onSignOut={async () => {

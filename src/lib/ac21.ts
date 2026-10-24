@@ -1,4 +1,6 @@
-import * as XLSX from 'xlsx';
+type XLSXLib = typeof import('xlsx');
+/** A biblioteca de planilhas é pesada: só é carregada quando alguém exporta. */
+const carregarXLSX = () => import('xlsx');
 
 /* =========================== TIPOS =========================== */
 export type StatusObra = 'Em Andamento' | 'Planejamento' | 'Concluída' | 'Suspensa';
@@ -67,7 +69,8 @@ export const badgeStatusObra = (s: StatusObra) => (s === 'Concluída' ? 'badge-o
 /* =========================== EXCEL =========================== */
 const hoje = () => new Date().toISOString().split('T')[0];
 
-export function exportarExcel(db: DB) {
+export async function exportarExcel(db: DB) {
+  const XLSX = await carregarXLSX();
   const wb = XLSX.utils.book_new();
   const resumo: unknown[][] = [['Obra', 'Código', 'Local', 'Responsável', 'AC21', 'Comprometido', '% Comprometido', 'Pago', 'Saldo (AC21-Comp.)', 'Status']];
   db.obras.forEach((o) => {
@@ -90,11 +93,11 @@ export function exportarExcel(db: DB) {
     usados.add(nome);
     XLSX.utils.book_append_sheet(wb, ws, nome);
   });
-  XLSX.utils.book_append_sheet(wb, sheetCompras(db), 'Compras');
+  XLSX.utils.book_append_sheet(wb, sheetCompras(XLSX, db), 'Compras');
   XLSX.writeFile(wb, `Controle_AC21_${hoje()}.xlsx`);
 }
 
-function sheetCompras(db: DB) {
+function sheetCompras(XLSX: XLSXLib, db: DB) {
   const rows: unknown[][] = [['Descrição', 'Obra', 'Categoria', 'Fornecedor', 'CNPJ/CPF', 'NF', 'Data', 'Qtde', 'Unid', 'Unit. R$', 'Total R$', 'Status', 'Observações']];
   db.compras.forEach((c) => {
     const obra = db.obras.find((o) => o.id === c.obraId);
@@ -105,7 +108,8 @@ function sheetCompras(db: DB) {
   return ws;
 }
 
-export function exportarExcelObra(db: DB, o: Obra) {
+export async function exportarExcelObra(db: DB, o: Obra) {
+  const XLSX = await carregarXLSX();
   const wb = XLSX.utils.book_new();
   const rows: unknown[][] = [
     [`CONTROLE AC21 — ${o.nome}`],
@@ -124,9 +128,10 @@ export function exportarExcelObra(db: DB, o: Obra) {
   XLSX.writeFile(wb, `AC21_${o.codigo || o.id}_${hoje()}.xlsx`);
 }
 
-export function exportarExcelCompras(db: DB) {
+export async function exportarExcelCompras(db: DB) {
+  const XLSX = await carregarXLSX();
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, sheetCompras(db), 'Compras');
+  XLSX.utils.book_append_sheet(wb, sheetCompras(XLSX, db), 'Compras');
   XLSX.writeFile(wb, `Compras_AC21_${hoje()}.xlsx`);
 }
 
@@ -163,4 +168,18 @@ export function sanitizarDB(raw: unknown): DB | null {
   const historico: Historico[] = (Array.isArray(r.historico) ? r.historico : []).filter((h) => h && typeof h === 'object')
     .map((h: Partial<Historico>) => ({ id: uniq(h.id), ts: str(h.ts) || new Date().toISOString(), tipo: str(h.tipo) || 'info', icone: str(h.icone), texto: str(h.texto), user: str(h.user) || 'Gerente' }));
   return { obras, compras, historico, nextId: nextId + 1 };
+}
+
+/* =========================== IDS =========================== */
+let ultimoId = 0;
+/**
+ * Id único e crescente (milissegundos × 1000 + sufixo aleatório). Evita que dois aparelhos da mesma
+ * conta gerem o mesmo número ao criar registros ao mesmo tempo. Cabe com folga em um bigint do Postgres
+ * e em um número seguro do JavaScript (< 2^53) até o ano 2200.
+ */
+export function novoId(): number {
+  let id = Date.now() * 1000 + Math.floor(Math.random() * 1000);
+  if (id <= ultimoId) id = ultimoId + 1;
+  ultimoId = id;
+  return id;
 }

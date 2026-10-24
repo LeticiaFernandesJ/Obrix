@@ -5,6 +5,7 @@ import {
   Menu, Download, Save, FileSpreadsheet,
 } from 'lucide-react';
 import { useApp } from '../store/AppStore';
+import { useInstalar } from '../lib/pwa';
 import { exportarExcel } from '../lib/ac21';
 import { CronoActions } from '../pages/crono/CronoActions';
 
@@ -85,6 +86,7 @@ export default function Layout() {
   const { pathname } = useLocation();
   const { toastMsg, readOnly, usuario, sair, nuvem, recarregarNuvem, tentarSincronizar } = useApp();
   const [aberto, setAberto] = useState(false);
+  const { podeInstalar, instalarNoIos, instalar } = useInstalar();
   useEffect(() => setAberto(false), [pathname]);
   const path = pathname.replace(/\/+$/, '') || '/';
   const [titulo, sub] = TITULOS[path] || ['Obrix', ''];
@@ -110,6 +112,13 @@ export default function Layout() {
             </div>
           ))}
         </nav>
+        {(podeInstalar || instalarNoIos) && !readOnly && (
+          <div className="install-box">
+            {podeInstalar
+              ? <button className="btn btn-sm" onClick={() => void instalar()}><Download size={14} /> Instalar aplicativo</button>
+              : <span>Para instalar: toque em Compartilhar e em <b>Adicionar à Tela de Início</b>.</span>}
+          </div>
+        )}
         {usuario ? (
           <div className="user-box">
             <span className="email" title={usuario}>{usuario}</span>

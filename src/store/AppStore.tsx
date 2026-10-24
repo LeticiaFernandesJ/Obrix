@@ -350,7 +350,7 @@ export function AppProvider({ children, email, nome = '', onSignOut, orgId = nul
   }, [toast]);
   const hist = (d: DB, tipo: string, icone: string, texto: string) => {
     d.historico.unshift({ id: novoId(), ts: new Date().toISOString(), tipo, icone, texto, user: autorRef.current } as Historico);
-    if (d.historico.length > 500) d.historico.pop();
+    if (d.historico.length > 3000) d.historico.pop();
   };
 
   const registrarHistorico = useCallback((tipo: string, icone: string, texto: string) => mutarDb((d) => hist(d, tipo, icone, texto)), [mutarDb]);

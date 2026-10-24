@@ -248,6 +248,57 @@ describe('acesso personalizado por área', () => {
   });
 });
 
+describe('histórico como registro de auditoria', () => {
+  let org = '';
+  beforeAll(async () => {
+    org = (await linhas<{ org: string }>(D, `select public.criar_organizacao('Org Auditoria') as org`))[0].org;
+    await como(D, () => db.exec(`select public.definir_meu_nome('Diana Reis')`));
+    await como(D, () => db.exec(`insert into public.convites (org_id, papel) values ('${org}', 'editor')`));
+    const t = (await linhas<{ token: string }>(D, `select token from public.convites where org_id = '${org}'`))[0].token;
+    await linhas(B, `select public.aceitar_convite('${t}')`);
+  });
+  it('o autor e a data vêm do banco, mesmo que o app mande outra coisa', async () => {
+    expect(await tenta(B, `insert into public.historico (org_id, id, tipo, texto, usuario, ts) values ('${org}', 1, 'compra', 'feito', 'Diana Reis', '2020-01-01')`)).toBeNull();
+    const r = await q<{ usuario: string; ts: Date }>(`select usuario, ts from public.historico where org_id = '${org}' and id = 1`);
+    expect(r[0].usuario).toBe('b@x.com'); // B não tem nome cadastrado: aparece o e-mail
+    const futuro = await tenta(B, `insert into public.historico (org_id, id, tipo, texto, ts) values ('${org}', 2, 'compra', 'x', now() + interval '10 days')`);
+    expect(futuro).toBeNull();
+    expect((await q<{ ok: boolean }>(`select ts <= now() as ok from public.historico where org_id = '${org}' and id = 2`))[0].ok).toBe(true);
+  });
+  it('o nome cadastrado aparece no lugar do e-mail', async () => {
+    expect(await tenta(D, `insert into public.historico (org_id, id, tipo, texto) values ('${org}', 3, 'obra', 'criou')`)).toBeNull();
+    expect((await q<{ usuario: string }>(`select usuario from public.historico where org_id = '${org}' and id = 3`))[0].usuario).toBe('Diana Reis');
+  });
+  it('ninguém edita; editor não apaga; administrador apaga', async () => {
+    await tenta(B, `update public.historico set texto = 'adulterado' where org_id = '${org}' and id = 1`);
+    await tenta(D, `update public.historico set texto = 'adulterado' where org_id = '${org}' and id = 3`);
+    expect(Number((await q<{ n: string }>(`select count(*) n from public.historico where org_id = '${org}' and texto = 'adulterado'`))[0].n)).toBe(0);
+    await tenta(B, `delete from public.historico where org_id = '${org}' and id = 1`);
+    expect(await contar('historico', org)).toBe(3);
+    await tenta(D, `delete from public.historico where org_id = '${org}' and id = 2`);
+    expect(await contar('historico', org)).toBe(2);
+  });
+  it('guarda só os 3000 registros mais recentes de cada organização', async () => {
+    await db.exec(`insert into public.historico (org_id, id, ts, tipo, texto) select '${org}', 1000 + g, now() - interval '1 day' + g * interval '1 second', 'x', 'lote' from generate_series(1, 3100) g`);
+    expect(await contar('historico', org)).toBeLessThanOrEqual(3001);
+    expect(await contar('historico', org)).toBeGreaterThan(2990);
+  }, 60000);
+});
+
+describe('limite de organizações por conta', () => {
+  it('cada conta cria no máximo 5 organizações (a migrada também conta)', async () => {
+    let criadas = 0, erroFinal: string | null = null;
+    for (let i = 0; i < 8 && !erroFinal; i++) {
+      erroFinal = await tenta(A, `select public.criar_organizacao('Extra ${i}')`);
+      if (!erroFinal) criadas++;
+    }
+    expect(erroFinal).toMatch(/Limite de organizações/);
+    const total = Number((await q<{ n: string }>(`select count(*) n from public.organizacoes where criado_por = '${A}'`))[0].n);
+    expect(total).toBe(5);
+    expect(criadas).toBe(4);
+  });
+});
+
 describe('instalação limpa', () => {
   it('funciona num banco vazio, mesmo rodando duas vezes', async () => {
     const novo = new PGlite();

@@ -69,7 +69,19 @@ describe('envio incremental', () => {
     // o que não foi permitido continua pendente: com permissão total, vai agora
     log.length = 0;
     await enviarMudancas(cliente, 'u', paraLinhas(d, { '2': E }), snap);
-    expect(log.sort()).toEqual(['delete historico id=15', 'upsert obras 1']);
+    expect(log).toEqual(['upsert obras 1']); // apagar histórico nunca é enviado
+  });
+  it('histórico só acrescenta: linhas novas vão, alterar ou apagar não', async () => {
+    const { cliente, log } = falso(); const snap = snapVazio(); const d = db();
+    await enviarMudancas(cliente, 'u', paraLinhas(d, { '2': E }), snap);
+    log.length = 0;
+    d.historico[0].texto = 'adulterado';
+    await enviarMudancas(cliente, 'u', paraLinhas(d, { '2': E }), snap);
+    expect(log).toEqual([]);
+    d.historico.unshift({ id: 16, ts: '2026-01-03T10:00:00.000Z', tipo: 'compra', icone: 'x', texto: 'nova', user: 'Gerente' });
+    d.historico = d.historico.slice(0, 1);
+    await enviarMudancas(cliente, 'u', paraLinhas(d, { '2': E }), snap);
+    expect(log).toEqual(['upsert historico 1']);
   });
   it('apaga filhos antes do pai', async () => {
     const { cliente, log } = falso(); const snap = snapVazio(); const d = db();

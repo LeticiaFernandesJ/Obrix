@@ -161,6 +161,10 @@ export async function enviarMudancas(sb: SupabaseClient, orgId: string, L: Linha
   const removidas: Record<Tabela, Row[]> = {} as Record<Tabela, Row[]>;
   TABELAS.forEach((t) => {
     if (permitidas && !permitidas.has(t)) { novas[t] = []; removidas[t] = []; return; }
+    if (t === 'historico') {
+      // registro de auditoria: o app só acrescenta; editar e apagar não são enviados (o banco também recusa)
+      novas[t] = L[t].filter((r) => !snap[t].has(chave(t, r))); removidas[t] = []; return;
+    }
     const atual = new Map(L[t].map((r) => [chave(t, r), r] as const));
     novas[t] = L[t].filter((r) => snap[t].get(chave(t, r)) !== JSON.stringify(r));
     removidas[t] = [...snap[t].keys()].filter((k) => !atual.has(k)).map((k) => {
@@ -191,7 +195,7 @@ export async function enviarMudancas(sb: SupabaseClient, orgId: string, L: Linha
     const rows = novas[t];
     for (let i = 0; i < rows.length; i += 500) {
       const parte = rows.slice(i, i + 500);
-      const { error } = await sb.from(t).upsert(parte.map((r) => ({ ...r, org_id: orgId })), { onConflict: ['org_id', ...CHAVES[t]].join(',') });
+      const { error } = await sb.from(t).upsert(parte.map((r) => ({ ...r, org_id: orgId })), { onConflict: ['org_id', ...CHAVES[t]].join(','), ...(t === 'historico' ? { ignoreDuplicates: true } : {}) });
       if (error) throw error;
       parte.forEach((r) => snap[t].set(chave(t, r), JSON.stringify(r)));
     }

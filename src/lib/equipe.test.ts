@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   LISTA_PAPEIS, PAPEIS, capturarConvite, conviteGuardado, limparConvite, nivelDaArea, normalizarPermissoes, permissoesDoPapel, podeAlterar,
-  podeEditarArea, podeVerArea, resumoPermissoes, traduzirErro,
+  erroDeSenha, podeEditarArea, podeVerArea, resumoPermissoes, traduzirErro,
 } from './equipe';
 
 describe('papéis', () => {
@@ -99,5 +99,18 @@ describe('acesso por área (papel Personalizado)', () => {
     expect(resumoPermissoes('personalizado', { compras: 'editar', cronograma: 'nenhum' })).toBe('Altera: compras e financeiro. Sem acesso: cronograma');
     expect(resumoPermissoes('personalizado', {})).toBe('Não altera nada');
     expect(resumoPermissoes('editor')).toBe('');
+  });
+});
+
+describe('regra de senha', () => {
+  it('exige 8 caracteres, com letra e número', () => {
+    expect(erroDeSenha('abc12')).toMatch(/8 caracteres/);
+    expect(erroDeSenha('12345678')).toMatch(/letras e números/);
+    expect(erroDeSenha('abcdefgh')).toMatch(/letras e números/);
+    expect(erroDeSenha('obra2026')).toBeNull();
+    expect(erroDeSenha('Pão de açúcar 7')).toBeNull();
+  });
+  it('avisa o limite de organizações', () => {
+    expect(traduzirErro('Limite de organizações atingido')).toMatch(/limite de organizações/);
   });
 });

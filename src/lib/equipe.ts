@@ -16,6 +16,13 @@ export type Area = 'obras' | 'compras' | 'cronograma' | 'historico';
 export type Nivel = 'nenhum' | 'ver' | 'editar';
 export type Permissoes = Partial<Record<Area, Nivel>>;
 
+/** Regra de senha para contas novas e redefinição: 8 caracteres ou mais, com letra e número. Devolve a mensagem de erro, ou null se estiver boa. */
+export function erroDeSenha(senha: string): string | null {
+  if (senha.length < 8) return 'A senha precisa ter pelo menos 8 caracteres.';
+  if (!/[A-Za-zÀ-ÿ]/.test(senha) || !/\d/.test(senha)) return 'Use letras e números na senha.';
+  return null;
+}
+
 export const NIVEIS: Record<Nivel, string> = { nenhum: 'Sem acesso', ver: 'Só ver', editar: 'Ver e alterar' };
 export const AREAS: { id: Area; rotulo: string; descricao: string; niveis: Nivel[] }[] = [
   { id: 'obras', rotulo: 'Obras e itens', descricao: 'Cadastro das obras, AC21 e itens orçados', niveis: ['ver', 'editar'] },
@@ -88,6 +95,7 @@ function lancar(error: { message: string } | null) { if (error) throw new Error(
 export function traduzirErro(msg: string): string {
   const m = msg.toLowerCase();
   if (m.includes('convite inválido') || m.includes('convite invalido')) return 'Convite inválido ou expirado. Peça um novo link a um administrador.';
+  if (m.includes('limite de organizações')) return 'Você atingiu o limite de organizações criadas por conta. Peça um convite para entrar em uma existente.';
   if (m.includes('pelo menos um administrador')) return 'A organização precisa ter pelo menos um administrador.';
   if (m.includes('row-level security') || m.includes('permission denied')) return 'Você não tem permissão para fazer isso.';
   if (m.includes('failed to fetch') || m.includes('network')) return 'Sem conexão com o servidor.';

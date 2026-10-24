@@ -65,8 +65,14 @@ Os dados pertencem a uma **organização** (sua empresa ou equipe), não a uma p
 - **Acesso personalizado:** em **Equipe**, escolha o papel Personalizado ao convidar ou em "Editar acesso" de um membro. As obras e itens sempre podem ser vistos por quem é da equipe, e o histórico nunca é editável. Quem altera só uma área não consegue gravar nas outras, mesmo fora do app.
 - **Segurança:** as regras ficam no banco (RLS), então valem mesmo fora do app. A organização nunca fica sem administrador.
 - **Vários usuários ao mesmo tempo:** cada alteração grava só as linhas que mudaram, e o app recebe avisos em tempo real quando outra pessoa altera algo. Se duas pessoas mudarem a mesma linha ao mesmo tempo, vale a última gravação.
-- **Histórico:** cada registro mostra o e-mail de quem fez a alteração.
+- **Histórico (auditoria):** o autor e a data são gravados pelo próprio banco, ninguém edita os registros, só o administrador apaga, e cada organização guarda os 3000 mais recentes.
 - **Participar de mais de uma organização:** o app mostra o seletor na tela Equipe.
+
+## Segurança
+
+- **Cabeçalhos:** o `vercel.json` define CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy e Permissions-Policy. Se um dia o app precisar carregar algo de outro domínio (outra fonte, outra API), inclua o domínio na `Content-Security-Policy`.
+- **Senhas:** contas novas exigem 8 caracteres com letras e números. No Supabase, em **Authentication > Providers > Email**, deixe o mínimo de senha em 8 ou mais e ative a proteção contra senhas vazadas. A confirmação de e-mail está desligada por escolha do projeto; para ligá-la, use a mesma tela.
+- **Organizações:** cada conta cria no máximo 5.
 
 ## Scripts
 

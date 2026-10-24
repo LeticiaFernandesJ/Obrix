@@ -94,6 +94,9 @@ language plpgsql security definer set search_path = '' as $$
 declare v_org uuid; v_email text; v_nome text;
 begin
   if (select auth.uid()) is null then raise exception 'É preciso estar logado'; end if;
+  if (select count(*) from public.organizacoes where criado_por = (select auth.uid())) >= 5 then
+    raise exception 'Limite de organizações atingido';
+  end if;
   select email, coalesce(raw_user_meta_data->>'nome', '') into v_email, v_nome from auth.users where id = (select auth.uid());
   insert into public.organizacoes (nome, criado_por) values (trim(p_nome), (select auth.uid())) returning id into v_org;
   insert into public.membros (org_id, user_id, email, nome, papel) values (v_org, (select auth.uid()), coalesce(v_email, ''), coalesce(v_nome, ''), 'admin');
@@ -244,6 +247,34 @@ create table if not exists public.historico (
 );
 create index if not exists historico_ts_idx on public.historico (org_id, ts desc);
 
+-- O histórico é um registro de auditoria: quem grava não escolhe o autor nem a data, ninguém edita e só o administrador apaga.
+create or replace function public.historico_carimbar() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare v_quem text;
+begin
+  select coalesce(nullif(trim(nome), ''), email, '') into v_quem
+    from public.membros where org_id = new.org_id and user_id = (select auth.uid());
+  new.usuario := coalesce(v_quem, '');
+  new.ts := least(coalesce(new.ts, now()), now());
+  return new;
+end $$;
+drop trigger if exists trg_historico_carimbar on public.historico;
+create trigger trg_historico_carimbar before insert on public.historico
+  for each row execute function public.historico_carimbar();
+
+-- Guarda só os 3000 registros mais recentes de cada organização.
+create or replace function public.historico_limitar() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare v_corte timestamptz;
+begin
+  select ts into v_corte from public.historico where org_id = new.org_id order by ts desc offset 3000 limit 1;
+  if v_corte is not null then delete from public.historico where org_id = new.org_id and ts <= v_corte; end if;
+  return null;
+end $$;
+drop trigger if exists trg_historico_limitar on public.historico;
+create trigger trg_historico_limitar after insert on public.historico
+  for each row execute function public.historico_limitar();
+
 create table if not exists public.cronogramas (
   org_id      uuid   not null references public.organizacoes(id) on delete cascade,
   obra_id     bigint not null,
@@ -390,8 +421,10 @@ begin
     end loop;
     execute format('create policy %I on public.%I for select to authenticated using (%s)', t || '_ver', t, ver);
     execute format('create policy %I on public.%I for insert to authenticated with check (%s)', t || '_criar', t, criar);
-    execute format('create policy %I on public.%I for update to authenticated using (%s) with check (%s)', t || '_alterar', t, alterar, alterar);
-    execute format('create policy %I on public.%I for delete to authenticated using (%s)', t || '_apagar', t, alterar);
+    if t <> 'historico' then
+      execute format('create policy %I on public.%I for update to authenticated using (%s) with check (%s)', t || '_alterar', t, alterar, alterar);
+    end if;
+    execute format('create policy %I on public.%I for delete to authenticated using (%s)', t || '_apagar', t, case when t = 'historico' then 'public.eh_admin(org_id)' else alterar end);
     execute format('revoke all on public.%I from anon', t);
     execute format('grant select, insert, update, delete on public.%I to authenticated', t);
   end loop;

@@ -7,6 +7,7 @@ import { AppProvider } from '../store/AppStore';
 import OrgGate from './OrgGate';
 import { useInstalar } from '../lib/pwa';
 import { Modal } from './ui';
+import { erroDeSenha } from '../lib/equipe';
 
 const BASE = import.meta.env.BASE_URL;
 const K_LEMBRAR = 'obrix-lembrar';
@@ -17,7 +18,7 @@ function traduzir(msg: string): string {
   if (m.includes('invalid login')) return 'E-mail ou senha incorretos.';
   if (m.includes('email not confirmed')) return 'Confirme seu e-mail antes de entrar (veja a caixa de entrada e o spam).';
   if (m.includes('already registered')) return 'Este e-mail já tem cadastro. Use "Entrar".';
-  if (m.includes('password should be')) return 'A senha precisa ter pelo menos 6 caracteres.';
+  if (m.includes('password should be') || m.includes('weak password')) return 'Senha fraca. Use pelo menos 8 caracteres, com letras e números.';
   if (m.includes('rate limit') || m.includes('too many')) return 'Muitas tentativas. Aguarde alguns minutos.';
   if (m.includes('failed to fetch') || m.includes('network')) return 'Sem conexão com o servidor. Verifique a internet.';
   return msg;
@@ -76,6 +77,8 @@ function Login() {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
         if (error) setMsg({ tipo: 'erro', texto: traduzir(error.message) });
       } else if (modo === 'criar') {
+        const fraca = erroDeSenha(senha);
+        if (fraca) { setMsg({ tipo: 'erro', texto: fraca }); setBusy(false); return; }
         const nomeLimpo = nome.trim().split(/\s+/).join(' ');
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(), password: senha,
@@ -132,9 +135,9 @@ function Login() {
               <label htmlFor="lg-senha">Senha</label>
               <div className="lg-input">
                 <Lock size={18} />
-                <input id="lg-senha" type={ver ? 'text' : 'password'} required minLength={6}
+                <input id="lg-senha" type={ver ? 'text' : 'password'} required minLength={modo === 'criar' ? 8 : undefined}
                   autoComplete={modo === 'entrar' ? 'current-password' : 'new-password'}
-                  value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
+                  value={senha} onChange={(e) => setSenha(e.target.value)} placeholder={modo === 'criar' ? 'Mínimo 8, com letras e números' : 'Sua senha'} />
                 <button type="button" className="lg-eye" onClick={() => setVer((v) => !v)} aria-label={ver ? 'Ocultar senha' : 'Mostrar senha'}>
                   {ver ? <Eye size={18} /> : <EyeOff size={18} />}
                 </button>
@@ -176,7 +179,8 @@ function NovaSenha({ onFim }: { onFim: () => void }) {
   const [busy, setBusy] = useState(false);
   const salvar = async (e: React.FormEvent) => {
     e.preventDefault(); if (!supabase) return;
-    if (senha.length < 6) { setMsg('A senha precisa ter pelo menos 6 caracteres.'); return; }
+    const fraca = erroDeSenha(senha);
+    if (fraca) { setMsg(fraca); return; }
     if (senha !== conf) { setMsg('As senhas não conferem.'); return; }
     setBusy(true); setMsg(null);
     const { error } = await supabase.auth.updateUser({ password: senha });
@@ -193,12 +197,12 @@ function NovaSenha({ onFim }: { onFim: () => void }) {
           <p className="lg-sub">Escolha uma nova senha para acessar sua conta.</p>
           <div className="lg-field"><label htmlFor="ns-1">Nova senha</label>
             <div className="lg-input"><Lock size={18} />
-              <input id="ns-1" type={ver ? 'text' : 'password'} required minLength={6} autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
+              <input id="ns-1" type={ver ? 'text' : 'password'} required minLength={8} autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
               <button type="button" className="lg-eye" onClick={() => setVer((v) => !v)} aria-label={ver ? 'Ocultar senha' : 'Mostrar senha'}>{ver ? <Eye size={18} /> : <EyeOff size={18} />}</button>
             </div></div>
           <div className="lg-field"><label htmlFor="ns-2">Repita a senha</label>
             <div className="lg-input"><Lock size={18} />
-              <input id="ns-2" type={ver ? 'text' : 'password'} required minLength={6} autoComplete="new-password" value={conf} onChange={(e) => setConf(e.target.value)} placeholder="Repita a nova senha" />
+              <input id="ns-2" type={ver ? 'text' : 'password'} required minLength={8} autoComplete="new-password" value={conf} onChange={(e) => setConf(e.target.value)} placeholder="Repita a nova senha" />
             </div></div>
           {msg && <div className="alert alert-danger" role="alert">{msg}</div>}
           <button className="lg-btn" disabled={busy}>{busy ? 'Aguarde…' : <>Salvar nova senha <ArrowRight size={20} /></>}</button>

@@ -1,0 +1,141 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Building2, CalendarRange, Check, ClipboardList, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { useApp } from '../store/AppStore';
+import {
+  CORES, STATUS_OBRA, badgeStatusObra, corPct, fmt, fmtData, nivelPct, pctInt, rotuloNivel,
+  totalComprometido, totalPago, type Obra, type StatusObra,
+} from '../lib/ac21';
+import { Empty, Progress } from '../components/ui';
+import { resumoCrono } from '../lib/schedule';
+import { n2br } from '../lib/dates';
+
+interface Form {
+  nome: string; codigo: string; local: string; responsavel: string; inicio: string; fim: string;
+  ac21: string; status: StatusObra; obs: string;
+}
+const vazio: Form = { nome: '', codigo: '', local: '', responsavel: '', inicio: '', fim: '', ac21: '', status: 'Em Andamento', obs: '' };
+const doObra = (o: Obra): Form => ({ ...o, ac21: String(o.ac21 || '') });
+
+export default function Obras() {
+  const { db, cronos, obraAtivaId, setObraAtiva, salvarObra, excluirObra, toast } = useApp();
+  const nav = useNavigate();
+  const [busca, setBusca] = useState('');
+  const [editId, setEditId] = useState<number | null>(null); // null = nova
+  const [f, setF] = useState<Form>(vazio);
+  const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((x) => ({ ...x, [k]: v }));
+
+  const q = busca.toLowerCase();
+  const lista = q ? db.obras.filter((o) => o.nome.toLowerCase().includes(q) || o.codigo.toLowerCase().includes(q)) : db.obras;
+
+  const nova = () => { setEditId(null); setF(vazio); };
+  const editar = (o: Obra) => { setEditId(o.id); setF(doObra(o)); };
+  const salvar = () => {
+    const nome = f.nome.trim(); const ac21 = parseFloat(f.ac21) || 0;
+    if (!nome) { toast('Informe o nome da obra.'); return; }
+    if (!(ac21 > 0)) { toast('Informe um valor de AC21 maior que zero.'); return; }
+    if (f.inicio && f.fim && f.fim < f.inicio) { toast('A previsão de término não pode ser anterior ao início.'); return; }
+    const cod = f.codigo.trim().toLowerCase();
+    if (cod && db.obras.some((x) => x.id !== editId && x.codigo.trim().toLowerCase() === cod)) { toast('Já existe uma obra com esse código.'); return; }
+    salvarObra({
+      nome, ac21, codigo: f.codigo.trim(), local: f.local.trim(), responsavel: f.responsavel.trim(),
+      inicio: f.inicio, fim: f.fim, status: f.status, obs: f.obs.trim(),
+    }, editId);
+    toast(editId == null ? 'Obra cadastrada.' : 'Obra atualizada.');
+    nova();
+  };
+  const excluir = (o: Obra) => {
+    const nc = db.compras.filter((c) => c.obraId === o.id).length;
+    if (!confirm(`Excluir a obra "${o.nome}"? Serão removidos também seus ${o.itens.length} item(ns) e ${nc} compra(s). Esta ação não pode ser desfeita.`)) return;
+    excluirObra(o.id); if (editId === o.id) nova();
+  };
+  const detalhe = (o: Obra) => { setObraAtiva(o.id); nav('/detalhe'); };
+
+  return (
+    <div className="content">
+      <div className="action-row">
+        <button className="btn btn-primary" onClick={nova}><Plus size={15} /> Nova Obra</button>
+        <div className="spacer" />
+        <div className="search"><Search size={15} /><input placeholder="Buscar obra..." value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
+      </div>
+
+      <div className="obras-split">
+        <div className="panel">
+          <div className="panel-head"><div className="metric-icon mi-blue"><Building2 size={17} /></div>Obras</div>
+          <div className="obra-list-pad">
+            {lista.length === 0 && <Empty icon={<Search size={30} />}>Nenhuma obra encontrada.</Empty>}
+            {lista.map((o) => {
+              const idx = db.obras.indexOf(o);
+              const pg = totalPago(db, o), comp = totalComprometido(db, o), p = pctInt(comp, o.ac21), sl = o.ac21 - comp;
+              const nv = nivelPct(p);
+              const fis = resumoCrono(cronos[String(o.id)]);
+              return (
+                <div key={o.id} className={'obra-card' + (obraAtivaId === o.id || editId === o.id ? ' selected' : '')}>
+                  <div className="obra-dot" style={{ background: CORES[idx % CORES.length] }} />
+                  <div onClick={() => detalhe(o)}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <strong style={{ fontSize: 14 }}>{o.nome}</strong>
+                      <span className={'badge badge-' + (nv === 'ok' ? 'ok' : nv)}>{rotuloNivel[nv]}</span>
+                      <span className={'badge ' + badgeStatusObra(o.status)}>{o.status}</span>
+                    </div>
+                    <div className="sub-line">{o.codigo} · {o.local} · Resp.: {o.responsavel || '—'} · {fmtData(o.inicio)} → {fmtData(o.fim)}</div>
+                    <div className="obra-kpis">
+                      <div><div className="k">AC21</div><strong>{fmt(o.ac21)}</strong></div>
+                      <div><div className="k">Comprometido</div><strong style={{ color: corPct(p) }}>{fmt(comp)}</strong></div>
+                      <div><div className="k">Pago</div><strong>{fmt(pg)}</strong></div>
+                      <div><div className="k">Saldo</div><strong style={{ color: sl < 0 ? 'var(--red)' : 'var(--green)' }}>{fmt(sl)}</strong></div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ flex: 1 }}><Progress value={p} color={corPct(p)} /></div>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: corPct(p) }}>{p}% comprometido</span>
+                    </div>
+                    <div className="fisico" title="Avanço físico do cronograma desta obra">
+                      <CalendarRange size={13} />
+                      {fis ? (<><span>Físico {Math.round(fis.pct)}%</span><Progress value={fis.pct} color="var(--series-3)" /><span>{fis.fim != null ? 'término ' + n2br(fis.fim) : ''}</span></>)
+                        : <span style={{ color: 'var(--text3)' }}>Sem cronograma — abra Cronograma no menu</span>}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch' }}>
+                    <button className="btn btn-sm" onClick={() => detalhe(o)}><ClipboardList size={13} /> Detalhe</button>
+                    <button className="btn btn-sm" onClick={() => editar(o)}><Pencil size={13} /> Editar</button>
+                    <button className="btn btn-sm btn-danger" onClick={() => excluir(o)}><Trash2 size={13} /> Excluir</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-head">
+            <div className="metric-icon mi-blue">{editId == null ? <Plus size={17} /> : <Pencil size={16} />}</div>
+            {editId == null ? 'Nova Obra' : 'Editar Obra'}
+          </div>
+          <div className="panel-body">
+            <div className="form-grid">
+              <div className="form-group form-full"><label>Nome da Obra <span className="req">*</span></label>
+                <input value={f.nome} onChange={(e) => set('nome', e.target.value)} placeholder="Ex: Reforma Sede Porto Alegre" /></div>
+              <div className="form-group"><label>Código</label><input value={f.codigo} onChange={(e) => set('codigo', e.target.value)} placeholder="Ex: AC21-POA-001" /></div>
+              <div className="form-group"><label>Localização</label><input value={f.local} onChange={(e) => set('local', e.target.value)} placeholder="Cidade, Estado" /></div>
+              <div className="form-group"><label>Responsável</label><input value={f.responsavel} onChange={(e) => set('responsavel', e.target.value)} placeholder="Nome do responsável" /></div>
+              <div className="form-group"><label>Data de Início</label><input type="date" value={f.inicio} onChange={(e) => set('inicio', e.target.value)} /></div>
+              <div className="form-group"><label>Previsão de Término</label><input type="date" value={f.fim} onChange={(e) => set('fim', e.target.value)} /></div>
+              <div className="form-group"><label>AC21 Aprovado (R$) <span className="req">*</span></label>
+                <input type="number" min="0" step="0.01" value={f.ac21} onChange={(e) => set('ac21', e.target.value)} placeholder="0.00" /></div>
+              <div className="form-group"><label>Status</label>
+                <select value={f.status} onChange={(e) => set('status', e.target.value as StatusObra)}>
+                  {STATUS_OBRA.map((s) => <option key={s}>{s}</option>)}
+                </select></div>
+              <div className="form-group form-full"><label>Observações</label>
+                <textarea value={f.obs} onChange={(e) => set('obs', e.target.value)} placeholder="Anotações gerais sobre a obra..." /></div>
+            </div>
+          </div>
+          <div className="panel-foot">
+            <button className="btn" onClick={nova}>Cancelar</button>
+            <button className="btn btn-primary" onClick={salvar}><Check size={15} /> Salvar Obra</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, BarChart3, Download, Eye, EyeOff, FileText, Lock, Mail, Users } from 'lucide-react';
+import { ArrowRight, BarChart3, Download, Eye, EyeOff, FileText, Lock, Mail, User, Users } from 'lucide-react';
 import { supabase, supabaseAtivo } from '../lib/supabase';
 import { AppProvider } from '../store/AppStore';
 import OrgGate from './OrgGate';
@@ -57,6 +57,7 @@ function BotaoBaixarApp() {
 
 function Login() {
   const [modo, setModo] = useState<Modo>('entrar');
+  const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [ver, setVer] = useState(false);
@@ -75,8 +76,10 @@ function Login() {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
         if (error) setMsg({ tipo: 'erro', texto: traduzir(error.message) });
       } else if (modo === 'criar') {
+        const nomeLimpo = nome.trim().split(/\s+/).join(' ');
         const { data, error } = await supabase.auth.signUp({
-          email: email.trim(), password: senha, options: { emailRedirectTo: location.origin + BASE },
+          email: email.trim(), password: senha,
+          options: { emailRedirectTo: location.origin + BASE, data: { nome: nomeLimpo, full_name: nomeLimpo } },
         });
         if (error) setMsg({ tipo: 'erro', texto: traduzir(error.message) });
         else if (!data.session) setMsg({ tipo: 'ok', texto: 'Cadastro criado! Enviamos um e-mail de confirmação. Clique no link e depois volte para entrar.' });
@@ -108,6 +111,17 @@ function Login() {
           <span className="logo-crop lg-logo"><img src={BASE + 'assets/obrix-logo.jpg'} alt="Obrix - Gestão inteligente de obras" /></span>
           <h1>{t.titulo}</h1>
           <p className="lg-sub">{t.sub}</p>
+
+          {modo === 'criar' && (
+            <div className="lg-field">
+              <label htmlFor="lg-nome">Nome completo</label>
+              <div className="lg-input">
+                <User size={18} />
+                <input id="lg-nome" type="text" required minLength={3} autoComplete="name" value={nome}
+                  onChange={(e) => setNome(e.target.value)} placeholder="Seu nome completo" />
+              </div>
+            </div>
+          )}
 
           <div className="lg-field">
             <label htmlFor="lg-email">E-mail</label>

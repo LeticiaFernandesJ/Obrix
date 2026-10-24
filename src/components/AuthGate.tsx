@@ -208,11 +208,19 @@ function NovaSenha({ onFim }: { onFim: () => void }) {
   );
 }
 
-/** Ao abrir o sistema (ou entrar), sempre começa na Visão Geral, exceto em links compartilhados (#v / #p). */
+const K_INICIO = 'obrix-inicio-feito';
+
+/**
+ * Ao abrir o sistema ou entrar, começa na Visão Geral (exceto em links compartilhados, #v / #p).
+ * Atualizar a página (F5) mantém a tela em que a pessoa está: a marca fica na aba e some ao sair ou fechar a aba.
+ */
 function IrParaInicio() {
   const nav = useNavigate();
   useEffect(() => {
-    if (!/^#[vp]=/.test(window.location.hash)) nav('/', { replace: true });
+    let jaEntrou = false;
+    try { jaEntrou = sessionStorage.getItem(K_INICIO) === '1'; sessionStorage.setItem(K_INICIO, '1'); } catch { /* sem armazenamento: vai para o início */ }
+    if (jaEntrou || /^#[vp]=/.test(window.location.hash)) return;
+    nav('/', { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return null;
@@ -233,6 +241,7 @@ function sessaoOffline(): Session | null {
 
 /** Apaga do navegador os dados em cache (usado ao sair, para não deixar nada em computador compartilhado). */
 function limparDadosLocais() {
+  try { sessionStorage.removeItem(K_INICIO); } catch { /* ok */ }
   try {
     Object.keys(localStorage)
       .filter((k) => /^(obrix-ac21-v1|obrix-cronos-v1|obrix-org-ativa|obrix-owner|cronograma-obra-v2)/.test(k))
@@ -257,6 +266,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     });
     const { data } = supabase.auth.onAuthStateChange((ev, s) => {
       if (ev === 'PASSWORD_RECOVERY') setRecuperando(true);
+      if (!s && ev === 'SIGNED_OUT') { try { sessionStorage.removeItem(K_INICIO); } catch { /* ok */ } }
       setSessao(s ?? (ev === 'TOKEN_REFRESHED' || ev === 'INITIAL_SESSION' ? sessaoOffline() : null));
     });
     return () => data.subscription.unsubscribe();

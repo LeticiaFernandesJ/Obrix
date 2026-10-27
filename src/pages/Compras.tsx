@@ -5,7 +5,7 @@ import { CATS_COMPRA, exportarExcelCompras, fmt, fmtData, fmtNum, type Compra } 
 import { useDialogo } from '../components/Dialogo';
 import { CompraModal } from '../components/CompraModal';
 import { ImportarNFeModal } from '../components/ImportarNFeModal';
-import { Empty, MaisLinhas, useLimite } from '../components/ui';
+import { Empty, MaisLinhas, PainelFiltros, useLimite } from '../components/ui';
 
 export const badgeCompra = (s: string) => (s === 'Pago' ? 'badge-ok' : s === 'Pendente' ? 'badge-warn' : 'badge-blue');
 
@@ -39,23 +39,7 @@ export default function Compras() {
         <button className="btn btn-success" onClick={() => exportarExcelCompras(db)}><FileSpreadsheet size={15} /> Exportar Excel</button>
       </div>
 
-      <div className="metrics c3">
-        <div className="metric">
-          <div className="metric-head"><div className="metric-label">Total de Compras</div><div className="metric-icon mi-blue"><ShoppingBasket size={18} /></div></div>
-          <div className="metric-value">{compras.length}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-head"><div className="metric-label">Total Pago em Compras</div><div className="metric-icon mi-green"><CheckCircle2 size={18} /></div></div>
-          <div className="metric-value ok">{fmt(totPago)}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-head"><div className="metric-label">Total Pendente</div><div className="metric-icon mi-amber"><Clock size={18} /></div></div>
-          <div className="metric-value warn">{fmt(totPend)}</div>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-title">Filtros</div>
+      <PainelFiltros ativos={[f.obra, f.cat, f.status, f.ini, f.fim].filter(Boolean).length}>
         <div className="filter-bar">
           <div className="form-group"><label htmlFor="compras-1">Obra</label>
             <select id="compras-1" value={f.obra} onChange={(e) => set('obra', e.target.value)}>
@@ -72,6 +56,21 @@ export default function Compras() {
           <div className="form-group"><label htmlFor="compras-4">De</label><input id="compras-4" type="date" value={f.ini} onChange={(e) => set('ini', e.target.value)} /></div>
           <div className="form-group"><label htmlFor="compras-5">Até</label><input id="compras-5" type="date" value={f.fim} onChange={(e) => set('fim', e.target.value)} /></div>
           <button className="btn btn-ghost" onClick={() => setF({ obra: '', cat: '', status: '', ini: '', fim: '' })}><X size={14} /> Limpar</button>
+        </div>
+      </PainelFiltros>
+
+      <div className="metrics c3">
+        <div className="metric">
+          <div className="metric-head"><div className="metric-label">Total de Compras</div><div className="metric-icon mi-blue"><ShoppingBasket size={18} /></div></div>
+          <div className="metric-value">{compras.length}</div>
+        </div>
+        <div className="metric">
+          <div className="metric-head"><div className="metric-label">Total Pago em Compras</div><div className="metric-icon mi-green"><CheckCircle2 size={18} /></div></div>
+          <div className="metric-value ok">{fmt(totPago)}</div>
+        </div>
+        <div className="metric">
+          <div className="metric-head"><div className="metric-label">Total Pendente</div><div className="metric-icon mi-amber"><Clock size={18} /></div></div>
+          <div className="metric-value warn">{fmt(totPend)}</div>
         </div>
       </div>
 

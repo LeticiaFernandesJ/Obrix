@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { FolderOpen, Printer, Save, ShoppingBasket, Table2, BarChart3 } from 'lucide-react';
 import { useApp } from '../store/AppStore';
 import { useDialogo } from '../components/Dialogo';
-import {
+import { hojeISO,
   corPct, exportarExcel, exportarExcelCompras, fmt, nivelPct, pct, pctInt, pctTxt, rotuloNivel, totalComprometido, totalPago,
 } from '../lib/ac21';
 
@@ -20,7 +20,7 @@ export default function Relatorios() {
   const salvar = () => {
     const blob = new Blob([JSON.stringify(exportarTudo(), null, 2)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `backup_obrix_${new Date().toISOString().split('T')[0]}.json`; a.click();
+    a.download = `backup_obrix_${hojeISO()}.json`; a.click();
     registrarHistorico('backup', '💾', 'Backup JSON exportado'); toast('Backup exportado.');
   };
   const carregar = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -41,7 +41,7 @@ export default function Relatorios() {
         <div className="card">
           <div className="card-title">Resumo Geral</div>
           <div className="resumo-row"><span>Total AC21 aprovado</span><b style={{ color: 'var(--blue)' }}>{fmt(totalAC21)}</b></div>
-          <div className="resumo-row"><span><Table2 size={13} style={{ verticalAlign: -2, marginRight: 6, color: 'var(--text3)' }} />Total comprometido (orçado dos itens + compras)</span><b style={{ color: 'var(--green)' }}>{fmt(totComp)}</b></div>
+          <div className="resumo-row"><span><Table2 size={13} style={{ verticalAlign: -2, marginRight: 6, color: 'var(--text3)' }} />Total comprometido (itens orçados ou pagos + compras)</span><b style={{ color: 'var(--green)' }}>{fmt(totComp)}</b></div>
           <div className="resumo-row"><span>% comprometido do AC21</span><b style={{ color: pc }}>{pctTxt(pct(totComp, totalAC21))}%</b></div>
           <div className="resumo-row"><span>Total efetivamente pago</span><b>{fmt(totPg)}</b></div>
           <div className="resumo-row"><span>Total em compras (todas)</span><b>{fmt(totCompras)}</b></div>

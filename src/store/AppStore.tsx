@@ -95,10 +95,12 @@ function gravar(k: string, v: unknown) { try { localStorage.setItem(k, JSON.stri
 
 interface ProviderProps {
   children: ReactNode; userId: string | null; email: string | null; nome?: string; onSignOut: (() => Promise<void>) | null;
+  /** link público sem login: não lê nem grava os dados guardados no navegador (são de quem entrou antes) */
+  semCache?: boolean;
   orgId?: string | null; papel?: Papel | null; permissoes?: Permissoes | null; orgs?: Org[]; trocarOrg?: (id: string) => void; recarregarOrgs?: () => void;
 }
 
-export function AppProvider({ children, userId = null, email, nome = '', onSignOut, orgId = null, papel = null, permissoes = null, orgs = [], trocarOrg, recarregarOrgs }: ProviderProps) {
+export function AppProvider({ children, userId = null, email, nome = '', onSignOut, semCache = false, orgId = null, papel = null, permissoes = null, orgs = [], trocarOrg, recarregarOrgs }: ProviderProps) {
   const { confirmar, avisar } = useDialogo();
   // as janelas de diálogo são chamadas de dentro de callbacks e efeitos que não devem refazer-se a cada renderização
   const confirmarRef = useRef(confirmar); confirmarRef.current = confirmar;
@@ -108,10 +110,12 @@ export function AppProvider({ children, userId = null, email, nome = '', onSignO
   const kDb = K_DB + sufixo, kCronos = K_CRONOS + sufixo;
   const [db, setDb] = useState<DB>(() => {
     // dados guardados antes das equipes (sem sufixo) são aproveitados uma vez, na primeira organização
+    if (semCache) return dbVazio();
     return sanitizarDB(lerJSON<DB>(kDb) ?? (orgId ? lerJSON<DB>(K_DB) : null)) ?? dbVazio();
   });
   const [obraAtivaId, setObraAtiva] = useState<number | null>(null);
   const [cronos, setCronos] = useState<Record<string, Estado>>(() => {
+    if (semCache) return {};
     const raw = lerJSON<Record<string, Partial<Estado>>>(kCronos) ?? (orgId ? lerJSON<Record<string, Partial<Estado>>>(K_CRONOS) : null);
     const out: Record<string, Estado> = {};
     if (raw && typeof raw === 'object') Object.keys(raw).forEach((k) => { out[k] = normalizarEstado(raw[k]); });
@@ -123,7 +127,7 @@ export function AppProvider({ children, userId = null, email, nome = '', onSignO
   });
   const kBkp = K_BKP + sufixo;
   const [backups, setBackups] = useState<Record<string, BackupCrono[]>>(() => {
-    const b = lerJSON<Record<string, BackupCrono[]>>(kBkp);
+    const b = semCache ? null : lerJSON<Record<string, BackupCrono[]>>(kBkp);
     return b && typeof b === 'object' && !Array.isArray(b) ? b : {};
   });
   const backupsRef = useRef(backups); backupsRef.current = backups;
@@ -177,9 +181,9 @@ export function AppProvider({ children, userId = null, email, nome = '', onSignO
   const calcRef = useRef(calc); calcRef.current = calc;
   const calRef = useRef(cal); calRef.current = cal;
 
-  useEffect(() => { gravar(kDb, db); }, [db, kDb]);
-  useEffect(() => { gravar(kCronos, cronos); }, [cronos, kCronos]);
-  useEffect(() => { gravar(kBkp, backups); }, [backups, kBkp]);
+  useEffect(() => { if (!semCache) gravar(kDb, db); }, [db, kDb, semCache]);
+  useEffect(() => { if (!semCache) gravar(kCronos, cronos); }, [cronos, kCronos, semCache]);
+  useEffect(() => { if (!semCache) gravar(kBkp, backups); }, [backups, kBkp, semCache]);
   /* cronograma antigo (único) é adotado pela primeira obra */
   useEffect(() => {
     if (cronos.legacy && db.obras.length) {

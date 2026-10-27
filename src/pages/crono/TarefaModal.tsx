@@ -35,7 +35,7 @@ export function TarefaModal({ indice, marcoInicial = false, selecionada, onClose
   const [dur, setDur] = useState(atual ? String(atual.dur) : '1');
   const [ini, setIni] = useState(atual?.iniM != null ? n2iso(atual.iniM) : '');
   const [pred, setPred] = useState(atual ? predTexto(T, atual) : '');
-  const [pct, setPct] = useState(atual ? String(Math.round(atual.pct)) : '0');
+  const [pct, setPct] = useState(atual ? String(+(+atual.pct).toFixed(2)) : '0');
   const [peso, setPeso] = useState(atual?.peso != null ? String(atual.peso) : '');
   const [modo, setModo] = useState<'equipe' | 'nome'>(atual?.respId ? 'equipe' : nuvem && !atual?.resp ? 'equipe' : 'nome');
   const [respId, setRespId] = useState(atual?.respId ?? '');

@@ -32,10 +32,14 @@ export const STATUS_OBRA: StatusObra[] = ['Em Andamento', 'Planejamento', 'Concl
 export const dbVazio = (): DB => ({ obras: [], compras: [], historico: [], nextId: 1 });
 
 /* =========================== FORMATAÇÃO =========================== */
+/** Arredonda para centavos (evita 0,1 + 0,2 = 0,30000000000000004 nas somas e nas comparações). */
+export const r2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+// r2 também tira o "-0": um saldo de -0,0000001 aparecia como "R$ -0,00"
+const centavos = (v: unknown) => { const n = r2(Number(v || 0)); return n === 0 ? 0 : n; };
 export const fmt = (v: unknown) =>
-  'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  'R$ ' + centavos(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const fmtNum = (v: unknown) =>
-  Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  centavos(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 /** Percentual com 1 casa. Só mostra 100% quando o valor chegou mesmo a 100%: 99,96% aparece como 99,9%. */
 export const pct = (a: number, b: number) => {
   if (!(b > 0)) return 0;
@@ -59,25 +63,26 @@ export function fmtTs(ts: string) {
   const d = new Date(ts);
   return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
-export const hojeISO = () => new Date().toISOString().split('T')[0];
+/** Hoje no relógio do aparelho (AAAA-MM-DD). Não usa UTC: no Brasil, depois das 21h o UTC já é o dia seguinte. */
+export const hojeISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
 /* =========================== CÁLCULOS =========================== */
-export const totalOrc = (o: Obra) => o.itens.reduce((s, i) => s + Number(i.orcado || 0), 0);
-export const totalItens = (o: Obra) => o.itens.reduce((s, i) => s + Number(i.pago || 0), 0);
+export const totalOrc = (o: Obra) => r2(o.itens.reduce((s, i) => s + Number(i.orcado || 0), 0));
+export const totalItens = (o: Obra) => r2(o.itens.reduce((s, i) => s + Number(i.pago || 0), 0));
 export const totalCompras = (db: DB, o: Obra) =>
-  db.compras.filter((c) => c.obraId === o.id && c.status === 'Pago').reduce((s, c) => s + Number(c.total || 0), 0);
+  r2(db.compras.filter((c) => c.obraId === o.id && c.status === 'Pago').reduce((s, c) => s + Number(c.total || 0), 0));
 export const totalComprasTodas = (db: DB, o: Obra) =>
-  db.compras.filter((c) => c.obraId === o.id).reduce((s, c) => s + Number(c.total || 0), 0);
-export const totalPago = (db: DB, o: Obra) => totalItens(o) + totalCompras(db, o);
+  r2(db.compras.filter((c) => c.obraId === o.id).reduce((s, c) => s + Number(c.total || 0), 0));
+export const totalPago = (db: DB, o: Obra) => r2(totalItens(o) + totalCompras(db, o));
 /** O que um item compromete: o valor orçado enquanto não foi pago; depois de pago, o valor realmente pago (maior ou menor). */
 export const comprometidoDoItem = (i: Item) => (Number(i.pago || 0) > 0 ? Number(i.pago) : Number(i.orcado || 0));
 /** Itens orçados que custaram mais do que o previsto: quanto passou e em quantos itens. */
 export function acimaDoOrcado(o: Obra) {
   const l = o.itens.filter((i) => Number(i.orcado || 0) > 0 && Number(i.pago || 0) > Number(i.orcado) + 0.005);
-  return { valor: l.reduce((s, i) => s + Number(i.pago) - Number(i.orcado), 0), qtd: l.length };
+  return { valor: r2(l.reduce((s, i) => s + Number(i.pago) - Number(i.orcado), 0)), qtd: l.length };
 }
 /** Comprometido = tudo que foi lançado: itens (orçados ou não) + todas as compras (pagas ou pendentes). */
-export const totalComprometido = (db: DB, o: Obra) => o.itens.reduce((s, i) => s + comprometidoDoItem(i), 0) + totalComprasTodas(db, o);
+export const totalComprometido = (db: DB, o: Obra) => r2(o.itens.reduce((s, i) => s + comprometidoDoItem(i), 0) + totalComprasTodas(db, o));
 
 /** Passou do AC21? (meio centavo de folga para não acusar estouro por arredondamento) */
 export const estourou = (valor: number, ac21: number) => ac21 > 0 && valor - ac21 > 0.005;
@@ -107,7 +112,7 @@ export function porSituacao<T extends Pick<Obra, 'status'>>(obras: T[], s: Situa
   return s === 'todas' ? obras : obras.filter((o) => (s === 'finalizadas' ? obraFinalizada(o) : !obraFinalizada(o)));
 }
 export const totalNaoOrc = (o: Obra) =>
-  o.itens.filter((i) => i.tipo === 'nao_orcado').reduce((s, i) => s + Number(i.pago || 0), 0);
+  r2(o.itens.filter((i) => i.tipo === 'nao_orcado').reduce((s, i) => s + Number(i.pago || 0), 0));
 
 export const corPct = (p: number) => (p >= 95 ? 'var(--red)' : p >= 80 ? 'var(--amber)' : 'var(--green)');
 export type NivelStatus = 'danger' | 'warn' | 'ok';
@@ -116,23 +121,23 @@ export const rotuloNivel: Record<NivelStatus, string> = { danger: 'Crítico', wa
 export const badgeStatusObra = (s: StatusObra) => (s === 'Concluída' ? 'badge-ok' : s === 'Suspensa' ? 'badge-danger' : 'badge-blue');
 
 /* =========================== EXCEL =========================== */
-const hoje = () => new Date().toISOString().split('T')[0];
+const hoje = () => hojeISO();
 
 export async function exportarExcel(db: DB) {
   const XLSX = await carregarXLSX();
   const wb = XLSX.utils.book_new();
-  const resumo: unknown[][] = [['Obra', 'Código', 'Local', 'Responsável', 'AC21', 'Comprometido', '% Comprometido', 'Pago', 'Saldo (AC21-Comp.)', 'Status']];
+  const resumo: unknown[][] = [['Obra', 'Código', 'Local', 'Responsável', 'AC21', 'Comprometido', '% Comprometido', 'Pago', 'Saldo (AC21-Comp.)', 'Saldo (AC21-Pago)', 'Status']];
   db.obras.forEach((o) => {
     const pg = totalPago(db, o), comp = totalComprometido(db, o);
-    resumo.push([o.nome, o.codigo, o.local, o.responsavel, o.ac21, comp, pct(comp, o.ac21) / 100, pg, o.ac21 - comp, o.status]);
+    resumo.push([o.nome, o.codigo, o.local, o.responsavel, o.ac21, comp, pct(comp, o.ac21) / 100, pg, r2(o.ac21 - comp), r2(o.ac21 - pg), o.status]);
   });
   const wsRes = XLSX.utils.aoa_to_sheet(resumo);
-  wsRes['!cols'] = [35, 16, 20, 18, 16, 16, 16, 16, 10, 14].map((wch) => ({ wch }));
+  wsRes['!cols'] = [35, 16, 20, 18, 16, 16, 16, 16, 18, 18, 14].map((wch) => ({ wch }));
   XLSX.utils.book_append_sheet(wb, wsRes, 'Resumo Geral');
   const usados = new Set<string>(['Resumo Geral', 'Compras']);
   db.obras.forEach((o) => {
     const rows: unknown[][] = [['Descrição', 'Categoria', 'Tipo', 'Orçado', 'Pago', 'Saldo Item', 'Fornecedor', 'NF', 'Data Pgto', 'Observações']];
-    o.itens.forEach((i) => rows.push([i.desc, i.cat, i.tipo === 'nao_orcado' ? 'Não Orçado' : 'Orçado', i.orcado, i.pago, Number(i.orcado || 0) - Number(i.pago || 0), i.forn, i.nf, i.data, i.obs]));
+    o.itens.forEach((i) => rows.push([i.desc, i.cat, i.tipo === 'nao_orcado' ? 'Não Orçado' : 'Orçado', i.orcado, i.pago, r2(Number(i.orcado || 0) - Number(i.pago || 0)), i.forn, i.nf, i.data, i.obs]));
     rows.push([]);
     rows.push(['', '', 'TOTAL', totalOrc(o), totalItens(o)]);
     const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -153,7 +158,7 @@ function sheetCompras(XLSX: XLSXLib, db: DB) {
     rows.push([c.desc, obra?.codigo || '', c.cat, c.forn, c.cnpj, c.nf, c.data, c.venc, c.qtde, c.unid, c.unit, c.total, c.status, c.obs]);
   });
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [35, 16, 16, 22, 18, 14, 12, 8, 8, 14, 14, 12, 30].map((wch) => ({ wch }));
+  ws['!cols'] = [35, 16, 16, 22, 18, 14, 12, 12, 8, 8, 14, 14, 12, 30].map((wch) => ({ wch }));
   return ws;
 }
 
@@ -166,11 +171,16 @@ export async function exportarExcelObra(db: DB, o: Obra) {
     [],
     ['Descrição', 'Categoria', 'Tipo', 'Orçado (R$)', 'Pago (R$)', 'Saldo Item (R$)', 'Fornecedor', 'NF', 'Data', 'Observações'],
   ];
-  o.itens.forEach((i) => rows.push([i.desc, i.cat, i.tipo === 'nao_orcado' ? 'Não Orçado' : 'Orçado', i.orcado, i.pago, Number(i.orcado || 0) - Number(i.pago || 0), i.forn, i.nf, i.data, i.obs]));
+  o.itens.forEach((i) => rows.push([i.desc, i.cat, i.tipo === 'nao_orcado' ? 'Não Orçado' : 'Orçado', i.orcado, i.pago, r2(Number(i.orcado || 0) - Number(i.pago || 0)), i.forn, i.nf, i.data, i.obs]));
   rows.push([]);
-  rows.push(['', '', 'TOTAL ITENS', totalOrc(o), totalPago(db, o)]);
+  rows.push(['', '', 'TOTAL ITENS', totalOrc(o), totalItens(o)]);
+  rows.push(['', '', 'COMPRAS PAGAS', '', totalCompras(db, o)]);
+  rows.push(['', '', 'TOTAL PAGO', '', totalPago(db, o)]);
+  rows.push([]);
   rows.push(['', '', 'AC21 APROVADO', '', '', o.ac21]);
-  rows.push(['', '', 'SALDO DISPONÍVEL', '', '', o.ac21 - totalPago(db, o)]);
+  rows.push(['', '', 'COMPROMETIDO', '', '', totalComprometido(db, o)]);
+  rows.push(['', '', 'SALDO (AC21 - COMPROMETIDO)', '', '', r2(o.ac21 - totalComprometido(db, o))]);
+  rows.push(['', '', 'SALDO (AC21 - PAGO)', '', '', r2(o.ac21 - totalPago(db, o))]);
   const ws = XLSX.utils.aoa_to_sheet(rows);
   ws['!cols'] = [40, 14, 13, 14, 14, 16, 22, 16, 12, 30].map((wch) => ({ wch }));
   XLSX.utils.book_append_sheet(wb, ws, 'Itens');

@@ -197,7 +197,7 @@ function NovaSenha({ onFim }: { onFim: () => void }) {
           <p className="lg-sub">Escolha uma nova senha para acessar sua conta.</p>
           <div className="lg-field"><label htmlFor="ns-1">Nova senha</label>
             <div className="lg-input"><Lock size={18} />
-              <input id="ns-1" type={ver ? 'text' : 'password'} required minLength={8} autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
+              <input id="ns-1" type={ver ? 'text' : 'password'} required minLength={8} autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo 8, com letras e números" />
               <button type="button" className="lg-eye" onClick={() => setVer((v) => !v)} aria-label={ver ? 'Ocultar senha' : 'Mostrar senha'}>{ver ? <Eye size={18} /> : <EyeOff size={18} />}</button>
             </div></div>
           <div className="lg-field"><label htmlFor="ns-2">Repita a senha</label>
@@ -248,7 +248,7 @@ function limparDadosLocais() {
   try { sessionStorage.removeItem(K_INICIO); } catch { /* ok */ }
   try {
     Object.keys(localStorage)
-      .filter((k) => /^(obrix-ac21-v1|obrix-cronos-v1|obrix-org-ativa|obrix-owner|cronograma-obra-v2)/.test(k))
+      .filter((k) => /^(obrix-ac21-v1|obrix-cronos-v1|obrix-crono-bkp-v1|obrix-org-ativa|obrix-owner|cronograma-obra-v2)/.test(k))
       .forEach((k) => localStorage.removeItem(k));
   } catch { /* ok */ }
 }
@@ -265,7 +265,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       // "Lembrar de mim" desmarcado: a sessão vale só enquanto o navegador ficar aberto
       let esquecer = false;
       try { esquecer = !!data.session && localStorage.getItem(K_LEMBRAR) === '0' && !sessionStorage.getItem(K_SESSAO); } catch { /* ok */ }
-      if (esquecer) { await supabase!.auth.signOut(); setSessao(null); }
+      if (esquecer) { limparDadosLocais(); await supabase!.auth.signOut(); setSessao(null); }
       else setSessao(data.session ?? sessaoOffline());
     });
     const { data } = supabase.auth.onAuthStateChange((ev, s) => {
@@ -276,7 +276,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  if (!supabaseAtivo || publico) return <AppProvider userId={null} email={null} onSignOut={null}><IrParaInicio />{children}</AppProvider>;
+  if (!supabaseAtivo || publico) return <AppProvider userId={null} email={null} onSignOut={null} semCache={supabaseAtivo}><IrParaInicio />{children}</AppProvider>;
   if (sessao === undefined) return <div className="lg-page"><div className="lg-shade" /><div className="lg-loading">Carregando…</div></div>;
   if (!sessao) return <Login />;
   if (recuperando) return <NovaSenha onFim={() => setRecuperando(false)} />;

@@ -6,7 +6,7 @@ import {
   CORES, SITUACOES, badgeStatusObra, corPct, fmt, gravarSituacao, lerSituacao, nivelPct, obraFinalizada, pct, pctInt, pctTxt, porSituacao,
   rotuloNivel, situacaoVerba, totalComprometido, totalPago, type Situacao,
 } from '../lib/ac21';
-import { resumoCrono } from '../lib/schedule';
+import { pctFis, resumoCrono } from '../lib/schedule';
 import { ChartCanvas, brMoneyTick, type TT } from '../components/ui';
 
 const K_FILTRO = 'obrix-dash-obra';
@@ -197,7 +197,7 @@ export default function Dashboard() {
                     <td style={{ minWidth: 130 }}>
                       <div className="progress"><div className="progress-fill" style={{ width: Math.min(pComp, 100) + '%', background: corPct(pComp) }} /></div>
                     </td>
-                    <td style={{ minWidth: 90, fontWeight: 600 }}>{fis ? Math.round(fis.pct) + '%' : <span style={{ color: 'var(--text3)', fontWeight: 400 }}>-</span>}</td>
+                    <td style={{ minWidth: 90, fontWeight: 600 }}>{fis ? pctFis(fis.pct) + '%' : <span style={{ color: 'var(--text3)', fontWeight: 400 }}>-</span>}</td>
                     <td><span className={'badge badge-' + (nv === 'ok' ? 'ok' : nv)}>{rotuloNivel[nv]}</span></td>
                     <td><span className={'badge ' + badgeStatusObra(o.status)}>{o.status}</span></td>
                     <td className="td-right" style={{ color: slc < -0.005 ? 'var(--red)' : 'var(--green)', fontWeight: 700 }}>{fmt(slc)}</td>

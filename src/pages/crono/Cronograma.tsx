@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, CalendarDays, ChevronsLeft, ChevronsRight, Diamond, Pencil, Plus, Save, Trash2, BarChart3 } from 'lucide-react';
 import { useApp } from '../../store/AppStore';
-import {
+import { pctFis,
   type CampoGrade, type Zoom, aplicarCampo, filhos, linhasVisiveis, pctRealAtual, predTexto,
 } from '../../lib/schedule';
 import { hojeN, n2br, n2iso, parseData } from '../../lib/dates';
@@ -166,7 +166,7 @@ export default function Cronograma() {
     if (!b) { el.classList.remove('on'); return; }
     const i = +(b.dataset.i as string), t = T[i], k = calc[i]; if (!t || !k) return;
     el.innerHTML = `<b>${esc(t.nome || '(sem nome)')}</b><span>${n2br(k.ini)} → ${n2br(k.fim)} · ${k.dur} ${k.dur === 1 ? 'dia útil' : 'dias úteis'}<br>` +
-      `avanço ${Math.round(k.pct)}%${k.res ? '' : ` · folga ${k.folga} d${k.crit ? ' · caminho crítico' : ''}`}` +
+      `avanço ${pctFis(k.pct)}%${k.res ? '' : ` · folga ${k.folga} d${k.crit ? ' · caminho crítico' : ''}`}` +
       `${t.resp ? '<br>resp.: ' + esc(t.resp) : ''}${t.bl && t.bl.i != null ? '<br>base: ' + n2br(t.bl.i) + ' → ' + n2br(t.bl.f) : ''}</span>`;
     el.style.left = Math.min(window.innerWidth - 300, e.clientX + 14) + 'px';
     el.style.top = e.clientY + 16 + 'px'; el.classList.add('on');
@@ -299,7 +299,7 @@ export default function Cronograma() {
                           }
                           if (col.k === 'pred') return <td key={col.k} className={cl}><Cell {...base} value={res ? '' : predTexto(T, t)} readOnly title="ex.: 5  |  5TI+2  |  4;7II" onCommit={(v) => edit(i, 'pred', v)} /></td>;
                           if (col.k === 'pct') {
-                            const p = Math.round(k.pct || 0);
+                            const p = pctFis(k.pct || 0);
                             return <td key={col.k} className={cl}><div className="pct-wrap"><div className="pct-bar" style={{ width: p + '%' }} /><Cell {...base} value={String(p)} readOnly={cro(i) || res} title={cro(i) || res ? undefined : 'Digite o percentual e aperte Enter'} onCommit={(v) => edit(i, 'pct', v)} /></div></td>;
                           }
                           if (col.k === 'peso') return <td key={col.k} className={cl}><Cell {...base} value={res ? fmtN(k.peso, 1) : String(t.peso ?? '')} readOnly placeholder={res ? '' : String(Math.max(0, +t.dur || 0))} onCommit={(v) => edit(i, 'peso', v)} /></td>;

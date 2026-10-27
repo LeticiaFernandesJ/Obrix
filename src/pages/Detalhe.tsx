@@ -4,11 +4,11 @@ import {
   Search, ShoppingBasket, Trash2, X, AlertTriangle,
 } from 'lucide-react';
 import { useApp } from '../store/AppStore';
-import {
+import { r2, comprometidoDoItem,
   CATS_ITEM, CORES, badgeStatusObra, corPct, estourou, exportarExcelObra, fmt, fmtData, fmtNum, nivelPct, pct, pctInt, pctTxt, rotuloNivel,
   acimaDoOrcado, situacaoVerba, totalComprasTodas, totalComprometido, totalCompras, totalPago, type Item, type Obra, type TipoItem,
 } from '../lib/ac21';
-import { ChartCanvas, Empty, Modal, Progress, brMoneyTick, type TT, CampoDinheiro } from '../components/ui';
+import { ChartCanvas, Empty, Modal, PainelFiltros, Progress, brMoneyTick, type TT, CampoDinheiro } from '../components/ui';
 import { useDialogo } from '../components/Dialogo';
 import { CompraModal } from '../components/CompraModal';
 import { badgeCompra } from './Compras';
@@ -104,7 +104,7 @@ export default function Detalhe() {
     pago: o.itens.filter((i) => i.cat === c).reduce((s, i) => s + Number(i.pago || 0), 0),
     comp: 0,
   }));
-  catData.forEach((c) => { c.comp = c.pago; });
+  catData.forEach((c, k) => { c.comp = r2(o.itens.filter((i) => i.cat === cats[k]).reduce((s, i) => s + comprometidoDoItem(i), 0)); });
   if (totalComprasTodas(db, o) > 0) catData.push({ cat: 'Compras (Mat.)', orc: 0, pago: pgCompras, comp: totalComprasTodas(db, o) });
   const catColors = catData.map((_, i) => CORES[i % CORES.length]);
   const crono = cronos[String(o.id)];
@@ -203,8 +203,7 @@ export default function Detalhe() {
       </div>
 
       {aba === 'itens' && (<>
-        <div className="card">
-          <div className="card-title">Filtros</div>
+        <PainelFiltros ativos={[f.cat, f.tipo, f.forn, f.ini, f.fim].filter(Boolean).length}>
           <div className="filter-bar">
             <div className="form-group"><label htmlFor="detalhe-10">Categoria</label>
               <select id="detalhe-10" value={f.cat} onChange={(e) => set('cat', e.target.value)}><option value="">Todas</option>{CATS_ITEM.map((c) => <option key={c}>{c}</option>)}</select></div>
@@ -216,8 +215,8 @@ export default function Detalhe() {
             <div className="form-group"><label htmlFor="detalhe-13">Data fim</label><input id="detalhe-13" type="date" value={f.fim} onChange={(e) => set('fim', e.target.value)} /></div>
             <button className="btn btn-ghost" onClick={() => setF({ cat: '', tipo: '', forn: '', ini: '', fim: '' })}><X size={14} /> Limpar</button>
           </div>
-          {itens.length !== o.itens.length && <div style={{ fontSize: 12, color: 'var(--amber)', marginTop: 10 }}>Exibindo {itens.length} de {o.itens.length} itens (filtrado)</div>}
-        </div>
+        </PainelFiltros>
+        {itens.length !== o.itens.length && <div style={{ fontSize: 12, color: 'var(--amber)', margin: '-6px 4px 12px' }}>Exibindo {itens.length} de {o.itens.length} itens (filtrado)</div>}
 
         <div className="card">
           <div className="card-title">Itens</div>

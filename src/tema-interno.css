@@ -413,3 +413,11 @@
 .shell .aviso-travado { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; background: var(--brand-soft); color: var(--brand-text); font-size: 13px; }
 
 .shell .sel-situacao { height: 38px; padding: 0 12px; border-radius: 10px; font: inherit; font-size: 13px; }
+
+.shell .filtros-painel { padding: 0; }
+.shell .filtros-toggle { display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px 20px; background: transparent; border: 0; font: inherit; font-size: 15px; font-weight: 700; color: var(--text); cursor: pointer; text-align: left; border-radius: inherit; }
+.shell .filtros-toggle span:first-of-type { flex: 0 1 auto; }
+.shell .filtros-seta { margin-left: auto; transition: transform .2s; color: var(--text3); }
+.shell .filtros-seta.aberta { transform: rotate(180deg); }
+.shell .filtros-n { min-width: 22px; height: 22px; padding: 0 7px; display: inline-grid; place-items: center; border-radius: 11px; background: var(--brand, #1565C0); color: #fff; font-size: 12px; font-weight: 700; }
+.shell .filtros-corpo { padding: 0 20px 20px; }

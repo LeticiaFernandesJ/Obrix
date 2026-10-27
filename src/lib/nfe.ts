@@ -81,10 +81,21 @@ export function comprasDaNFe(nf: NFe, o: OpcoesLancamento): Omit<Compra, 'id'>[]
 
   if (o.modo === 'itens') {
     const venc = nf.parcelas[0]?.venc ?? '';
-    return nf.itens.map((i) => ({
-      ...base, desc: i.desc || `Item da NF ${nf.numero}`, qtde: i.qtde, unid: i.unid, unit: i.unit, total: i.total, venc,
-      obs: `Item da NF ${nf.numero}. ${chave}`.trim(),
-    }));
+    // frete, seguro, impostos e descontos da nota ficam fora do valor dos produtos: rateia a diferença
+    // entre o total da nota e a soma dos itens, para a soma das compras bater com o que a nota cobra
+    const soma = r2(nf.itens.reduce((s, i) => s + i.total, 0));
+    const dif = r2(nf.total - soma);
+    const rateia = nf.itens.length > 0 && soma > 0 && Math.abs(dif) >= 0.01;
+    let resto = dif;
+    return nf.itens.map((i, k) => {
+      const extra = !rateia ? 0 : k === nf.itens.length - 1 ? r2(resto) : r2((dif * i.total) / soma);
+      resto = r2(resto - extra);
+      const total = r2(i.total + extra);
+      return {
+        ...base, desc: i.desc || `Item da NF ${nf.numero}`, qtde: i.qtde, unid: i.unid, unit: rateia && i.qtde > 0 ? r2(total / i.qtde) : i.unit, total, venc,
+        obs: `Item da NF ${nf.numero}. ${rateia ? 'Inclui o rateio de frete, impostos e descontos da nota. ' : ''}${chave}`.trim(),
+      };
+    });
   }
   const resumo = nf.itens.slice(0, 5).map((i) => `${i.qtde} ${i.unid} ${i.desc}`).join('; ') + (nf.itens.length > 5 ? `; e mais ${nf.itens.length - 5} item(ns)` : '');
   const obs = [`Itens: ${resumo || 'sem itens'}.`, chave].filter(Boolean).join(' ');

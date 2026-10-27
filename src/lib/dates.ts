@@ -48,6 +48,10 @@ export function parseData(txt: unknown): number | null {
     if (a < 100) a += 2000;
     return Math.round(Date.UTC(a, +m[2] - 1, +m[1]) / DIA);
   }
-  const t = Date.parse(s);
-  return isNaN(t) ? null : Math.round(t / DIA);
+  // 2026-03-05T10:00:00-03:00: vale o dia escrito, sem converter de fuso
+  m = /^(\d{4})-(\d{2})-(\d{2})[T ]/.exec(s);
+  if (m) return Math.round(Date.UTC(+m[1], +m[2] - 1, +m[3]) / DIA);
+  const t = new Date(s);
+  // texto livre (ex.: 5 mar 2026) é lido no fuso local; usa o dia local para não escorregar um dia em outros fusos
+  return isNaN(t.getTime()) ? null : Math.round(Date.UTC(t.getFullYear(), t.getMonth(), t.getDate()) / DIA);
 }

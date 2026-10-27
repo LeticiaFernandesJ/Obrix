@@ -9,7 +9,7 @@ import { useDialogo } from './Dialogo';
 import { useInstalar } from '../lib/pwa';
 import { AlertasSino } from './AlertasSino';
 import type { Area } from '../lib/equipe';
-import { exportarExcel } from '../lib/ac21';
+import { hojeISO, exportarExcel } from '../lib/ac21';
 import { CronoActions } from '../pages/crono/CronoActions';
 
 const BASE = import.meta.env.BASE_URL;
@@ -73,7 +73,7 @@ function AC21Actions() {
   const salvar = () => {
     const blob = new Blob([JSON.stringify(exportarTudo(), null, 2)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `backup_obrix_${new Date().toISOString().split('T')[0]}.json`; a.click();
+    a.download = `backup_obrix_${hojeISO()}.json`; a.click();
     registrarHistorico('backup', '💾', 'Backup JSON exportado');
     toast('Backup exportado.');
   };

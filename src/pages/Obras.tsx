@@ -9,7 +9,7 @@ import {
 } from '../lib/ac21';
 import { useDialogo } from '../components/Dialogo';
 import { Empty, Modal, Progress, CampoDinheiro } from '../components/ui';
-import { resumoCrono } from '../lib/schedule';
+import { pctFis, resumoCrono } from '../lib/schedule';
 import { n2br } from '../lib/dates';
 
 interface Form {
@@ -103,7 +103,7 @@ export default function Obras() {
                     </div>
                     <div className="fisico" title="Avanço físico do cronograma desta obra">
                       <CalendarRange size={13} />
-                      {fis ? (<><span>Físico {Math.round(fis.pct)}%</span><Progress value={fis.pct} color="var(--series-3)" /><span>{fis.fim != null ? 'término ' + n2br(fis.fim) : ''}</span></>)
+                      {fis ? (<><span>Físico {pctFis(fis.pct)}%</span><Progress value={fis.pct} color="var(--series-3)" /><span>{fis.fim != null ? 'término ' + n2br(fis.fim) : ''}</span></>)
                         : <span style={{ color: 'var(--text3)' }}>Sem cronograma. Abra Cronograma no menu</span>}
                     </div>
                   </div>

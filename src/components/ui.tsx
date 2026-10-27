@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { ChevronDown, Filter, X } from 'lucide-react';
 import { mascaraMoeda, valorDaMascara } from '../lib/ac21';
 import { Chart, type ChartConfiguration, registerables } from 'chart.js';
 
@@ -84,6 +84,21 @@ export function ChartCanvas({ config, height }: { config: ChartConfiguration<any
 }
 
 /** Mostra as primeiras linhas e deixa a pessoa pedir mais. Volta ao começo quando `chave` muda (ex.: o filtro). */
+/** Filtros recolhidos: só mostra os campos ao clicar em "Filtros". O número indica quantos filtros estão em uso. */
+export function PainelFiltros({ ativos, children }: { ativos: number; children: ReactNode }) {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <div className="card filtros-painel">
+      <button type="button" className="filtros-toggle" aria-expanded={aberto} onClick={() => setAberto((a) => !a)}>
+        <Filter size={16} /> <span>Filtros</span>
+        {ativos > 0 && <span className="filtros-n" aria-label={ativos === 1 ? '1 filtro em uso' : ativos + ' filtros em uso'}>{ativos}</span>}
+        <ChevronDown size={17} className={'filtros-seta' + (aberto ? ' aberta' : '')} />
+      </button>
+      {aberto && <div className="filtros-corpo">{children}</div>}
+    </div>
+  );
+}
+
 export function useLimite(chave: string, passo = 50) {
   const [limite, setLimite] = useState(passo);
   useEffect(() => { setLimite(passo); }, [chave, passo]);

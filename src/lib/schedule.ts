@@ -252,7 +252,8 @@ export function calcular(S: Estado, cal: Cal): Calc[] {
     }
     const lf = c[i].lf as number;
     c[i].li = c[i].dur <= 1 ? antUtil(cal, lf) : subUtil(cal, lf, c[i].dur - 1);
-    c[i].folga = difUtil(cal, c[i].fim, lf) - 1;
+    const fimI = c[i].fim as number; // folga negativa = quantos dias úteis passou do limite
+    c[i].folga = lf >= fimI ? difUtil(cal, fimI, lf) - 1 : -(difUtil(cal, lf, fimI) - 1);
     c[i].crit = c[i].folga <= 0 && (c[i].pct || 0) < 100;
   }
   for (let i = 0; i < n; i++) if (c[i].res) {
@@ -398,6 +399,9 @@ export function tendencia(S: Estado, c: Calc[], cal: Cal, cp: CurvaPrev): Tenden
 export function realEm(n: number, serie: { n: number; p: number }[]): number | null {
   let v: number | null = null; serie.forEach((p) => { if (p.n <= n) v = p.p; }); return v;
 }
+
+/** Avanço físico inteiro: só mostra 100% quando está mesmo completo (99,6% aparece como 99%). */
+export const pctFis = (p: number) => { const v = Number(p) || 0; return v >= 99.995 ? 100 : Math.min(99, Math.round(v)); };
 
 /* =========================== FORMATAÇÃO =========================== */
 /** "1 dia" / "3 dias" (aceita negativos: "-1 dia"). */

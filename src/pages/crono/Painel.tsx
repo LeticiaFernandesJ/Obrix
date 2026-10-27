@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useApp } from '../../store/AppStore';
-import { curvaPrevista, difUtil, diasTxt, fmtN, pctPrevistoEm, pctRealAtual, tendencia } from '../../lib/schedule';
+import { pctFis, curvaPrevista, difUtil, diasTxt, fmtN, pctPrevistoEm, pctRealAtual, tendencia } from '../../lib/schedule';
 import { hojeN, n2br, n2brc, parseData } from '../../lib/dates';
 import { CronoHeader } from './CronoHeader';
 import { dicaCurva, exportarCurvaCSV, exportarCurvaPNG, htmlCurvaS } from './curvaS';
@@ -118,7 +118,7 @@ export default function Painel() {
                 const at = (o.k.fim as number) < sd && (+o.t.pct || 0) < 100, dias = at ? difUtil(cal, o.k.fim, sd) - 1 : 0;
                 return (
                   <tr key={o.t.id}><td>{o.t.nome || '-'}<br /><span style={{ color: 'var(--muted)' }}>{o.t.resp}</span></td>
-                    <td className="n">{n2br(o.k.fim)}</td><td className="n">{Math.round(o.k.pct)}%</td>
+                    <td className="n">{n2br(o.k.fim)}</td><td className="n">{pctFis(o.k.pct)}%</td>
                     <td className="n" style={{ color: at ? 'var(--critical)' : 'var(--warning)', fontWeight: 600 }}>{at ? diasTxt(dias) : 'caminho crítico'}</td></tr>
                 );
               })}
@@ -131,8 +131,8 @@ export default function Painel() {
             <table className="list"><tbody>
               {fases.map((o) => (
                 <tr key={o.t.id}><td style={{ width: '45%' }}><b style={{ fontWeight: 600 }}>{o.t.nome || '-'}</b><br /><span style={{ color: 'var(--muted)' }}>{n2brc(o.k.ini)} – {n2brc(o.k.fim)}</span></td>
-                  <td><div className="bar-mini"><i style={{ width: Math.round(o.k.pct) + '%' }} /></div></td>
-                  <td className="n" style={{ width: 44 }}>{Math.round(o.k.pct)}%</td></tr>
+                  <td><div className="bar-mini"><i style={{ width: pctFis(o.k.pct) + '%' }} /></div></td>
+                  <td className="n" style={{ width: 44 }}>{pctFis(o.k.pct)}%</td></tr>
               ))}
             </tbody></table>
           ) : <div className="empty">Agrupe tarefas em fases (botão ⇥) para ver o avanço por fase.</div>}
@@ -145,7 +145,7 @@ export default function Painel() {
           <table className="list"><thead><tr><th>Tarefa</th><th>Início</th><th>Término</th><th>Dur.</th><th>%</th><th>Responsável</th></tr></thead><tbody>
             {prox.map((o) => (
               <tr key={o.t.id}><td style={{ fontWeight: 600 }}>{o.t.nome || '-'}</td><td>{n2br(o.k.ini)}</td><td>{n2br(o.k.fim)}</td><td>{o.k.dur}d</td>
-                <td><span className="pill">{Math.round(o.k.pct)}%</span></td><td>{o.t.resp}</td></tr>
+                <td><span className="pill">{pctFis(o.k.pct)}%</span></td><td>{o.t.resp}</td></tr>
             ))}
           </tbody></table>
         ) : <div className="empty">Sem tarefas previstas para as próximas 3 semanas.</div>}

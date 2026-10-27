@@ -3,7 +3,7 @@ import { FolderOpen, HelpCircle, Home, Save, Send, Upload } from 'lucide-react';
 import { useApp } from '../../store/AppStore';
 import { Modal } from '../../components/ui';
 import { useDialogo } from '../../components/Dialogo';
-import {
+import { fmtN,
   baixar, curvaPrevista, desempacotar, empacotar, exemplo, exportarCSV, importarTexto, nomeArquivo,
   normalizarEstado, novaTarefa, novoEstado, pctPrevistoEm, pctRealAtual, type Estado, type Tarefa,
 } from '../../lib/schedule';
@@ -125,7 +125,7 @@ export function CronoActions() {
     const assunto = encodeURIComponent(`Cronograma - ${crono.meta.nome || 'obra'} - status ${n2br(sd)}`);
     const corpo = encodeURIComponent(
       `Segue a atualização do cronograma.\n\nObra: ${crono.meta.nome || '-'}\nContrato: ${crono.meta.contrato || '-'}\nEmpresa: ${crono.meta.empresa || '-'}\n` +
-      `Data de status: ${n2br(sd)}\nAvanço realizado: ${real.toFixed(1)}%  (previsto ${prev.toFixed(1)}%)\n\n` +
+      `Data de status: ${n2br(sd)}\nAvanço realizado: ${fmtN(real, 1)}%  (previsto ${fmtN(prev, 1)}%)\n\n` +
       (crono.meta.obs ? `Observações:\n${crono.meta.obs}\n\n` : '') +
       `Painel online (somente leitura). Cole o link no navegador:\n${grande ? '[link muito grande: envie o arquivo em anexo]' : links?.ro}\n`);
     return `mailto:${encodeURIComponent(crono.meta.pmo || '')}?subject=${assunto}&body=${corpo}`;

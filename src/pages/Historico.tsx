@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useApp } from '../store/AppStore';
 import { fmtTs } from '../lib/ac21';
-import { MaisLinhas, useLimite } from '../components/ui';
+import { MaisLinhas, PainelFiltros, useLimite } from '../components/ui';
 
 export default function Historico() {
   const { db } = useApp();
@@ -13,8 +13,7 @@ export default function Historico() {
   const pagina = useLimite(tipo + '|' + dt, 100);
   return (
     <div className="content">
-      <div className="card">
-        <div className="card-title">Filtros</div>
+      <PainelFiltros ativos={[tipo, dt].filter(Boolean).length}>
         <div className="filter-bar">
           <div className="form-group"><label htmlFor="historico-1">Tipo</label>
             <select id="historico-1" value={tipo} onChange={(e) => setTipo(e.target.value)}>
@@ -23,7 +22,7 @@ export default function Historico() {
           <div className="form-group"><label htmlFor="historico-2">Data</label><input id="historico-2" type="date" value={dt} onChange={(e) => setDt(e.target.value)} /></div>
           <button className="btn btn-ghost" onClick={() => { setTipo(''); setDt(''); }}><X size={14} /> Limpar</button>
         </div>
-      </div>
+      </PainelFiltros>
       <div className="card">
         <div className="card-title">{hist.length === 1 ? '1 registro encontrado' : `${hist.length} registros encontrados`}</div>
         {hist.length === 0 ? <div className="empty">Nenhum registro.</div> : hist.slice(0, pagina.limite).map((h) => (

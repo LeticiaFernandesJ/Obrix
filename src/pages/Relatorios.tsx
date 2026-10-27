@@ -3,7 +3,7 @@ import { FolderOpen, Printer, Save, ShoppingBasket, Table2, BarChart3 } from 'lu
 import { useApp } from '../store/AppStore';
 import { useDialogo } from '../components/Dialogo';
 import {
-  corPct, exportarExcel, exportarExcelCompras, fmt, nivelPct, pct, pctInt, rotuloNivel, totalComprometido, totalPago,
+  corPct, exportarExcel, exportarExcelCompras, fmt, nivelPct, pct, pctInt, pctTxt, rotuloNivel, totalComprometido, totalPago,
 } from '../lib/ac21';
 
 export default function Relatorios() {
@@ -42,7 +42,7 @@ export default function Relatorios() {
           <div className="card-title">Resumo Geral</div>
           <div className="resumo-row"><span>Total AC21 aprovado</span><b style={{ color: 'var(--blue)' }}>{fmt(totalAC21)}</b></div>
           <div className="resumo-row"><span><Table2 size={13} style={{ verticalAlign: -2, marginRight: 6, color: 'var(--text3)' }} />Total comprometido (orçado dos itens + compras)</span><b style={{ color: 'var(--green)' }}>{fmt(totComp)}</b></div>
-          <div className="resumo-row"><span>% comprometido do AC21</span><b style={{ color: pc }}>{pct(totComp, totalAC21)}%</b></div>
+          <div className="resumo-row"><span>% comprometido do AC21</span><b style={{ color: pc }}>{pctTxt(pct(totComp, totalAC21))}%</b></div>
           <div className="resumo-row"><span>Total efetivamente pago</span><b>{fmt(totPg)}</b></div>
           <div className="resumo-row"><span>Total em compras (todas)</span><b>{fmt(totCompras)}</b></div>
           <div className="resumo-row total"><span>Saldo disponível (AC21 – comprometido)</span><b style={{ color: totalAC21 - totComp < 0 ? 'var(--red)' : 'var(--green)' }}>{fmt(totalAC21 - totComp)}</b></div>
@@ -74,7 +74,7 @@ export default function Relatorios() {
                   <tr key={o.id}>
                     <td>{o.nome}</td><td><code>{o.codigo}</code></td><td>{fmt(o.ac21)}</td>
                     <td className="td-right" style={{ fontWeight: 700, color: corPct(pComp) }}>{fmt(comp)}</td>
-                    <td className="td-right" style={{ fontWeight: 700, color: corPct(pComp) }}>{pComp}%</td>
+                    <td className="td-right" style={{ fontWeight: 700, color: corPct(pComp) }}>{pctTxt(pComp)}%</td>
                     <td className="td-right">{fmt(pgo)}</td>
                     <td className="td-right" style={{ color: sl < 0 ? 'var(--red)' : 'var(--green)', fontWeight: 600 }}>{fmt(sl)}</td>
                     <td><span className={'badge badge-' + (nv === 'ok' ? 'ok' : nv)}>{rotuloNivel[nv]}</span></td>
@@ -85,7 +85,7 @@ export default function Relatorios() {
             <tfoot><tr>
               <td colSpan={2}>TOTAL</td><td>{fmt(totalAC21)}</td>
               <td className="td-right" style={{ color: pc }}>{fmt(totComp)}</td>
-              <td className="td-right" style={{ color: pc }}>{pct(totComp, totalAC21)}%</td>
+              <td className="td-right" style={{ color: pc }}>{pctTxt(pct(totComp, totalAC21))}%</td>
               <td className="td-right">{fmt(totPg)}</td>
               <td className="td-right" style={{ color: totalAC21 - totComp < 0 ? 'var(--red)' : 'var(--green)' }}>{fmt(totalAC21 - totComp)}</td><td />
             </tr></tfoot>

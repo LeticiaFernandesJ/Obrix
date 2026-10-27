@@ -36,8 +36,20 @@ export const fmt = (v: unknown) =>
   'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const fmtNum = (v: unknown) =>
   Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-export const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 1000) / 10 : 0);
-export const pctInt = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
+/** Percentual com 1 casa. Só mostra 100% quando o valor chegou mesmo a 100%: 99,96% aparece como 99,9%. */
+export const pct = (a: number, b: number) => {
+  if (!(b > 0)) return 0;
+  const v = Math.round((a / b) * 1000) / 10;
+  return a < b ? Math.min(v, 99.9) : v;
+};
+/** Percentual inteiro, com a mesma regra: abaixo de 100% nunca arredonda para 100. */
+export const pctInt = (a: number, b: number) => {
+  if (!(b > 0)) return 0;
+  const v = Math.round((a / b) * 100);
+  return a < b ? Math.min(v, 99) : v;
+};
+/** Percentual como texto brasileiro: 99,7 */
+export const pctTxt = (n: number) => String(n).replace('.', ',');
 export function fmtData(s?: string) {
   if (!s) return '-';
   const [y, m, d] = s.split('-');
@@ -57,8 +69,38 @@ export const totalCompras = (db: DB, o: Obra) =>
 export const totalComprasTodas = (db: DB, o: Obra) =>
   db.compras.filter((c) => c.obraId === o.id).reduce((s, c) => s + Number(c.total || 0), 0);
 export const totalPago = (db: DB, o: Obra) => totalItens(o) + totalCompras(db, o);
-/** Comprometido = orçado dos itens + todas as compras (pagas ou pendentes). */
-export const totalComprometido = (db: DB, o: Obra) => totalOrc(o) + totalComprasTodas(db, o);
+/** O que um item compromete: o maior entre o orçado e o pago (gasto fora do orçamento também conta). */
+export const comprometidoDoItem = (i: Item) => Math.max(Number(i.orcado || 0), Number(i.pago || 0));
+/** Comprometido = tudo que foi lançado: itens (orçados ou não) + todas as compras (pagas ou pendentes). */
+export const totalComprometido = (db: DB, o: Obra) => o.itens.reduce((s, i) => s + comprometidoDoItem(i), 0) + totalComprasTodas(db, o);
+
+/** Passou do AC21? (meio centavo de folga para não acusar estouro por arredondamento) */
+export const estourou = (valor: number, ac21: number) => ac21 > 0 && valor - ac21 > 0.005;
+export type SituacaoVerba = 'estourada' | 'esgotada' | 'limite' | 'ok';
+/** Situação da verba pelo valor comprometido: estourada (passou), esgotada (100%, sem saldo), no limite (a partir de 90%) ou ok. */
+export function situacaoVerba(comprometido: number, ac21: number): SituacaoVerba {
+  if (!(ac21 > 0)) return 'ok';
+  if (estourou(comprometido, ac21)) return 'estourada';
+  if (comprometido >= ac21 - 0.005) return 'esgotada';
+  return comprometido / ac21 >= 0.9 ? 'limite' : 'ok';
+}
+
+/* obras ativas e finalizadas */
+export type Situacao = 'ativas' | 'finalizadas' | 'todas';
+export const SITUACOES: { id: Situacao; rotulo: string }[] = [
+  { id: 'ativas', rotulo: 'Obras ativas' }, { id: 'finalizadas', rotulo: 'Obras finalizadas' }, { id: 'todas', rotulo: 'Todas as obras' },
+];
+/** Finalizada = status Concluída. Ativas: em andamento, planejamento e suspensas. */
+export const obraFinalizada = (o: Pick<Obra, 'status'>) => o.status === 'Concluída';
+const K_SITUACAO = 'obrix-situacao-obras';
+/** Filtro escolhido (vale para o painel e a lista de obras, enquanto a aba estiver aberta). Padrão: ativas. */
+export const lerSituacao = (): Situacao => {
+  try { const v = sessionStorage.getItem(K_SITUACAO); return v === 'finalizadas' || v === 'todas' ? v : 'ativas'; } catch { return 'ativas'; }
+};
+export const gravarSituacao = (s: Situacao) => { try { sessionStorage.setItem(K_SITUACAO, s); } catch { /* ok */ } };
+export function porSituacao<T extends Pick<Obra, 'status'>>(obras: T[], s: Situacao): T[] {
+  return s === 'todas' ? obras : obras.filter((o) => (s === 'finalizadas' ? obraFinalizada(o) : !obraFinalizada(o)));
+}
 export const totalNaoOrc = (o: Obra) =>
   o.itens.filter((i) => i.tipo === 'nao_orcado').reduce((s, i) => s + Number(i.pago || 0), 0);
 

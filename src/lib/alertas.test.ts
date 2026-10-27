@@ -28,9 +28,12 @@ describe('alertas', () => {
     expect(gerarAlertas(base(o), { '1': cronograma(100, 0) }, HOJE)).toEqual([]);
   });
 
-  it('verba: atenção a partir de 90% e crítico a partir de 100% do comprometido', () => {
+  it('verba: atenção a partir de 90%, esgotada em 100% e crítico só quando passa do AC21', () => {
     expect(gerarAlertas(base(obra({ itens: [item(900, 0)] })), {}, HOJE).map((a) => [a.id, a.nivel])).toEqual([['verba-1', 'atencao']]);
-    const a = gerarAlertas(base(obra({ itens: [item(1000, 0)] })), {}, HOJE);
+    expect(gerarAlertas(base(obra({ itens: [item(997, 0)] })), {}, HOJE).map((a) => a.titulo)).toEqual(['Verba no limite']);
+    const e = gerarAlertas(base(obra({ itens: [item(1000, 0)] })), {}, HOJE);
+    expect(e.map((x) => [x.id, x.nivel, x.titulo])).toEqual([['verba-1', 'atencao', 'Verba esgotada']]);
+    const a = gerarAlertas(base(obra({ itens: [item(1100, 0)] })), {}, HOJE);
     expect(a.map((x) => [x.id, x.nivel])).toEqual([['verba-1', 'critico']]);
     expect(a[0].titulo).toBe('Verba estourada'); expect(a[0].rota).toBe('/detalhe'); expect(a[0].obraId).toBe(1);
   });
@@ -73,8 +76,12 @@ describe('alertas', () => {
     expect(ids(a)).toEqual(['venc-1']);
   });
 
+  it('obra finalizada não gera alerta de verba', () => {
+    expect(gerarAlertas(base(obra({ status: 'Concluída', itens: [item(1100, 0)] })), {}, HOJE)).toEqual([]);
+  });
+
   it('cada obra tem os seus alertas', () => {
-    const db: DB = { ...dbVazio(), obras: [obra({ id: 1, itens: [item(1000, 0)] }), obra({ id: 2, codigo: '', nome: 'Ponte', itens: [item(950, 0)] })] };
+    const db: DB = { ...dbVazio(), obras: [obra({ id: 1, itens: [item(1100, 0)] }), obra({ id: 2, codigo: '', nome: 'Ponte', itens: [item(950, 0)] })] };
     const a = gerarAlertas(db, {}, HOJE);
     expect(a.map((x) => [x.id, x.nivel])).toEqual([['verba-1', 'critico'], ['verba-2', 'atencao']]);
     expect(a[1].texto.startsWith('Ponte:')).toBe(true);

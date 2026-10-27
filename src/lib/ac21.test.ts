@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { type DB, fmt, mascaraMoeda, novoId, pct, pctInt, sanitizarDB, totalComprometido, totalPago, valorDaMascara } from './ac21';
+import {
+  type DB, estourou, fmt, mascaraMoeda, novoId, pct, pctInt, pctTxt, porSituacao, sanitizarDB, situacaoVerba, totalComprometido, totalPago, valorDaMascara,
+} from './ac21';
 
 const db: DB = {
   nextId: 10, historico: [],
@@ -15,8 +17,9 @@ const db: DB = {
 };
 
 describe('contas do AC21', () => {
-  it('comprometido = orçado dos itens + todas as compras', () => {
-    expect(totalComprometido(db, db.obras[0])).toBe(300 + 200 + 80);
+  it('comprometido = tudo que foi lançado: itens (orçados ou não) + todas as compras', () => {
+    // i1 orçado 300 (pago 100) + i2 não orçado, pago 50 + compras 200 e 80
+    expect(totalComprometido(db, db.obras[0])).toBe(300 + 50 + 200 + 80);
   });
   it('pago = itens pagos + compras com status Pago', () => {
     expect(totalPago(db, db.obras[0])).toBe(100 + 50 + 200);
@@ -24,6 +27,32 @@ describe('contas do AC21', () => {
   it('percentuais e moeda', () => {
     expect(pct(1, 3)).toBe(33.3); expect(pctInt(1, 3)).toBe(33); expect(pct(5, 0)).toBe(0);
     expect(fmt(1234.5).replace(/\s/g, ' ')).toBe('R$ 1.234,50');
+  });
+});
+
+describe('verba e alerta de estouro', () => {
+  it('99,74% do AC21 não é 100% nem estourou (caso reportado)', () => {
+    expect(pctInt(2915790.59, 2923305)).toBe(99);
+    expect(pct(2915790.59, 2923305)).toBe(99.7);
+    expect(estourou(2915790.59, 2923305)).toBe(false);
+    expect(situacaoVerba(2915790.59, 2923305)).toBe('limite');
+  });
+  it('arredondamento nunca vira 100% antes da hora', () => {
+    expect(pctInt(999.9, 1000)).toBe(99); expect(pct(999.99, 1000)).toBe(99.9);
+    expect(pctInt(1000, 1000)).toBe(100); expect(pctInt(1100, 1000)).toBe(110);
+  });
+  it('situação: ok, limite, esgotada (igual) e estourada (passou)', () => {
+    expect(situacaoVerba(500, 1000)).toBe('ok'); expect(situacaoVerba(900, 1000)).toBe('limite');
+    expect(situacaoVerba(1000, 1000)).toBe('esgotada'); expect(situacaoVerba(1000.004, 1000)).toBe('esgotada');
+    expect(situacaoVerba(1000.01, 1000)).toBe('estourada'); expect(situacaoVerba(5, 0)).toBe('ok');
+  });
+  it('percentual em texto brasileiro', () => { expect(pctTxt(99.7)).toBe('99,7'); expect(pctTxt(100)).toBe('100'); });
+  it('obras ativas e finalizadas', () => {
+    const o = (status: string) => ({ status }) as never;
+    const lista = [o('Em Andamento'), o('Concluída'), o('Suspensa'), o('Planejamento')];
+    expect(porSituacao(lista, 'ativas')).toHaveLength(3);
+    expect(porSituacao(lista, 'finalizadas')).toHaveLength(1);
+    expect(porSituacao(lista, 'todas')).toHaveLength(4);
   });
 });
 

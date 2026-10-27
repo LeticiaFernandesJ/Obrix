@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, CalendarRange, Check, ClipboardList, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useApp } from '../store/AppStore';
 import {
-  CORES, STATUS_OBRA, badgeStatusObra, corPct, fmt, fmtData, nivelPct, pctInt, rotuloNivel,
-  totalComprometido, totalPago, type Obra, type StatusObra,
+  CORES, SITUACOES, STATUS_OBRA, badgeStatusObra, corPct, fmt, fmtData, gravarSituacao, lerSituacao, nivelPct, pctInt, porSituacao, rotuloNivel,
+  totalComprometido, totalPago, type Obra, type Situacao, type StatusObra,
   plural,
 } from '../lib/ac21';
 import { useDialogo } from '../components/Dialogo';
@@ -26,13 +26,15 @@ export default function Obras() {
   const { confirmar } = useDialogo();
   const nav = useNavigate();
   const [busca, setBusca] = useState('');
+  const [situacao, setSituacao] = useState<Situacao>(lerSituacao);
   const [editId, setEditId] = useState<number | null>(null); // null = nova
   const [aberto, setAberto] = useState(false); // formulário visível só ao clicar em Nova Obra ou Editar
   const [f, setF] = useState<Form>(vazio);
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((x) => ({ ...x, [k]: v }));
 
   const q = busca.toLowerCase();
-  const lista = q ? db.obras.filter((o) => o.nome.toLowerCase().includes(q) || o.codigo.toLowerCase().includes(q)) : db.obras;
+  const doFiltro = porSituacao(db.obras, situacao);
+  const lista = q ? doFiltro.filter((o) => o.nome.toLowerCase().includes(q) || o.codigo.toLowerCase().includes(q)) : doFiltro;
 
   const nova = () => { setEditId(null); setF(vazio); setAberto(true); };
   const editar = (o: Obra) => { setEditId(o.id); setF(doObra(o)); setAberto(true); };
@@ -63,6 +65,9 @@ export default function Obras() {
       <div className="action-row">
         {podeEditar && <button className="btn btn-accent" onClick={nova}><Plus size={15} /> Nova Obra</button>}
         <div className="spacer" />
+        <select aria-label="Situação das obras" className="sel-situacao" value={situacao} onChange={(e) => { const s = e.target.value as Situacao; setSituacao(s); gravarSituacao(s); }}>
+          {SITUACOES.map((x) => <option key={x.id} value={x.id}>{x.rotulo} ({porSituacao(db.obras, x.id).length})</option>)}
+        </select>
         <div className="search"><Search size={15} /><input aria-label="Buscar obra" placeholder="Buscar obra..." value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
       </div>
 
@@ -70,7 +75,7 @@ export default function Obras() {
         <div className="panel">
           <div className="panel-head"><div className="metric-icon mi-blue"><Building2 size={17} /></div>Obras</div>
           <div className="obra-list-pad">
-            {lista.length === 0 && <Empty icon={<Search size={30} />}>Nenhuma obra encontrada.</Empty>}
+            {lista.length === 0 && <Empty icon={<Search size={30} />}>{q || !db.obras.length ? 'Nenhuma obra encontrada.' : situacao === 'finalizadas' ? 'Nenhuma obra finalizada.' : 'Nenhuma obra ativa. Escolha "Todas as obras" para ver as outras.'}</Empty>}
             {lista.map((o) => {
               const idx = db.obras.indexOf(o);
               const pg = totalPago(db, o), comp = totalComprometido(db, o), p = pctInt(comp, o.ac21), sl = o.ac21 - comp;

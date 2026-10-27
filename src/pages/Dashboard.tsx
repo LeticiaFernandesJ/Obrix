@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CreditCard, TrendingUp, Gauge, AlertTriangle, Building2 } from 'lucide-react';
+import { CreditCard, TrendingUp, Gauge, AlertTriangle, Building2, Filter } from 'lucide-react';
 import { useApp } from '../store/AppStore';
 import {
-  CORES, badgeStatusObra, corPct, fmt, nivelPct, pct, pctInt, rotuloNivel, totalComprometido, totalPago,
+  CORES, SITUACOES, badgeStatusObra, corPct, fmt, gravarSituacao, lerSituacao, nivelPct, obraFinalizada, pct, pctInt, pctTxt, porSituacao,
+  rotuloNivel, situacaoVerba, totalComprometido, totalPago, type Situacao,
 } from '../lib/ac21';
 import { resumoCrono } from '../lib/schedule';
 import { ChartCanvas, brMoneyTick, type TT } from '../components/ui';
@@ -14,14 +15,17 @@ const lerFiltro = () => { try { return sessionStorage.getItem(K_FILTRO) || 'toda
 export default function Dashboard() {
   const { db, cronos, setObraAtiva } = useApp();
   const [filtro, setFiltro] = useState(lerFiltro);
-  // obra apagada ou inexistente: volta para "todas"
-  const selecionada = filtro === 'todas' ? null : db.obras.find((o) => String(o.id) === filtro) ?? null;
-  const obras = selecionada ? [selecionada] : db.obras;
+  const [situacao, setSituacao] = useState<Situacao>(lerSituacao);
+  const base = porSituacao(db.obras, situacao);
+  // obra apagada, inexistente ou fora da situação escolhida: volta para "todas"
+  const selecionada = filtro === 'todas' ? null : base.find((o) => String(o.id) === filtro) ?? null;
+  const obras = selecionada ? [selecionada] : base;
   const escolher = (v: string) => { setFiltro(v); try { sessionStorage.setItem(K_FILTRO, v); } catch { /* ok */ } };
+  const trocarSituacao = (s: Situacao) => { setSituacao(s); gravarSituacao(s); };
   const totalAC21 = obras.reduce((s, o) => s + Number(o.ac21), 0);
   const totPg = obras.reduce((s, o) => s + totalPago(db, o), 0);
   const totComp = obras.reduce((s, o) => s + totalComprometido(db, o), 0);
-  const saldo = totalAC21 - totPg;
+  const saldo = totalAC21 - totPg, saldoComp = totalAC21 - totComp;
   const pg = pct(totPg, totalAC21), pgComp = pct(totComp, totalAC21);
   const nomes = obras.map((o) => (o.nome.length > 28 ? o.nome.substring(0, 26) + '…' : o.nome));
   const aPagar = Math.max(0, totComp - totPg), livre = Math.max(0, totalAC21 - totComp);
@@ -29,53 +33,66 @@ export default function Dashboard() {
 
   return (
     <div className="content">
-      {db.obras.length > 1 && (
+      {(db.obras.length > 1 || db.obras.some(obraFinalizada)) && (
         <div className="filtro-obra">
           <span className="obra-pick">
-            <Building2 size={16} />
-            <select aria-label="Filtrar por obra" value={selecionada ? filtro : 'todas'} onChange={(e) => escolher(e.target.value)}>
-              <option value="todas">Todas as obras ({db.obras.length})</option>
-              {db.obras.map((o) => <option key={o.id} value={String(o.id)}>{o.codigo ? o.codigo + ' - ' : ''}{o.nome}</option>)}
+            <Filter size={16} />
+            <select aria-label="Situação das obras" value={situacao} onChange={(e) => trocarSituacao(e.target.value as Situacao)}>
+              {SITUACOES.map((x) => <option key={x.id} value={x.id}>{x.rotulo} ({porSituacao(db.obras, x.id).length})</option>)}
             </select>
           </span>
+          {base.length > 1 && <span className="obra-pick">
+            <Building2 size={16} />
+            <select aria-label="Filtrar por obra" value={selecionada ? filtro : 'todas'} onChange={(e) => escolher(e.target.value)}>
+              <option value="todas">Todas as obras ({base.length})</option>
+              {base.map((o) => <option key={o.id} value={String(o.id)}>{o.codigo ? o.codigo + ' - ' : ''}{o.nome}</option>)}
+            </select>
+          </span>}
           {selecionada && <button className="link-btn" onClick={() => escolher('todas')}>Ver todas as obras</button>}
         </div>
       )}
       {obras.map((o) => {
-        const comp = pctInt(totalComprometido(db, o), o.ac21);
-        if (comp >= 100) return <div key={o.id} className="alert alert-danger"><AlertTriangle size={17} /><span>AC21 <b>{o.codigo}</b> - {o.nome}: custo comprometido <b>ESTOURADO</b> ({comp}% do AC21)</span></div>;
-        if (comp >= 90) return <div key={o.id} className="alert alert-warn"><AlertTriangle size={17} /><span>AC21 <b>{o.codigo}</b> - {o.nome}: comprometido atingiu {comp}% do AC21 (atenção!)</span></div>;
+        if (obraFinalizada(o)) return null;
+        const vc = totalComprometido(db, o), sv = situacaoVerba(vc, o.ac21);
+        if (sv === 'estourada') return <div key={o.id} className="alert alert-danger"><AlertTriangle size={17} /><span>AC21 <b>{o.codigo}</b> - {o.nome}: custo comprometido <b>ESTOURADO</b> em {fmt(vc - o.ac21)}</span></div>;
+        if (sv === 'esgotada') return <div key={o.id} className="alert alert-warn"><AlertTriangle size={17} /><span>AC21 <b>{o.codigo}</b> - {o.nome}: todo o AC21 está comprometido, sem saldo</span></div>;
+        if (sv === 'limite') return <div key={o.id} className="alert alert-warn"><AlertTriangle size={17} /><span>AC21 <b>{o.codigo}</b> - {o.nome}: comprometido atingiu {pctTxt(pct(vc, o.ac21))}% do AC21 (atenção!)</span></div>;
         return null;
       })}
 
-      <div className="metrics c4">
+      <div className="metrics c5">
         <div className="metric">
           <div className="metric-head"><div className="metric-label">Total AC21 Aprovado</div><div className="metric-icon mi-blue"><CreditCard size={18} /></div></div>
           <div className="metric-value">{fmt(totalAC21)}</div>
-          <div className="metric-sub">{selecionada ? selecionada.status : obras.length === 1 ? '1 obra ativa' : `${obras.length} obras ativas`}</div>
+          <div className="metric-sub">{selecionada ? selecionada.status : `${obras.length} ${obras.length === 1 ? 'obra' : 'obras'}${situacao === 'ativas' ? ' ativas' : situacao === 'finalizadas' ? ' finalizadas' : ''}`.replace('1 obra ativas', '1 obra ativa').replace('1 obra finalizadas', '1 obra finalizada')}</div>
         </div>
         <div className="metric">
           <div className="metric-head">
             <div className="metric-label">Comprometido</div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              <div className="metric-hint">{pgComp}% do AC21</div>
+              <div className="metric-hint">{pctTxt(pgComp)}% do AC21</div>
               <div className="metric-icon mi-green"><TrendingUp size={18} /></div>
             </div>
           </div>
           <div className="metric-value" style={{ color: corPct(pgComp) }}>{fmt(totComp)}</div>
-          <div className="metric-sub">Orçado dos itens + compras (pagas e pendentes)</div>
+          <div className="metric-sub">Itens (orçados ou não) + compras</div>
           <div className="metric-bar"><div className="metric-bar-fill" style={{ width: Math.min(pgComp, 100) + '%', background: corPct(pgComp) }} /></div>
+        </div>
+        <div className="metric">
+          <div className="metric-head"><div className="metric-label">Saldo (AC21 − Comprometido)</div><div className="metric-icon mi-amber"><Gauge size={18} /></div></div>
+          <div className={'metric-value ' + (saldoComp < -0.005 ? 'danger' : '')} style={saldoComp < -0.005 ? undefined : { color: 'var(--brand)' }}>{fmt(saldoComp)}</div>
+          <div className={'metric-sub ' + (saldoComp < -0.005 ? 'danger' : 'ok')}>{saldoComp < -0.005 ? 'Verba estourada' : saldoComp < 0.005 ? 'Sem saldo' : 'Disponível para comprometer'}</div>
         </div>
         <div className="metric">
           <div className="metric-head"><div className="metric-label">Total Efetivamente Pago</div><div className="metric-icon mi-blue"><CreditCard size={18} /></div></div>
           <div className="metric-value">{fmt(totPg)}</div>
-          <div className="metric-sub">{pg}% do AC21 pago</div>
+          <div className="metric-sub">{pctTxt(pg)}% do AC21 pago</div>
           <div className="metric-bar"><div className="metric-bar-fill" style={{ width: Math.min(pg, 100) + '%', background: corPct(pg) }} /></div>
         </div>
         <div className="metric">
           <div className="metric-head"><div className="metric-label">Saldo (AC21 − Pago)</div><div className="metric-icon mi-amber"><Gauge size={18} /></div></div>
           <div className={'metric-value ' + (saldo < 0 ? 'danger' : '')} style={saldo < 0 ? undefined : { color: 'var(--brand)' }}>{fmt(saldo)}</div>
-          <div className={'metric-sub ' + (saldo < 0 ? 'danger' : 'ok')}>{saldo < 0 ? 'Verba estourada' : 'Dentro do limite'}</div>
+          <div className={'metric-sub ' + (saldo < 0 ? 'danger' : 'ok')}>{saldo < 0 ? 'Pago acima do AC21' : 'Disponível'}</div>
         </div>
       </div>
 
@@ -158,12 +175,12 @@ export default function Dashboard() {
           <table>
             <thead><tr>
               <th>Obra</th><th>Código</th><th>Responsável</th><th className="td-right">AC21</th><th className="td-right">Comprometido</th>
-              <th className="td-right">% Comp.</th><th className="td-right">Pago</th><th>Barra</th><th>Físico</th><th>Status</th><th>Situação</th><th className="td-right">Saldo (AC21−Pago)</th>
+              <th className="td-right">% Comp.</th><th className="td-right">Pago</th><th>Barra</th><th>Físico</th><th>Status</th><th>Situação</th><th className="td-right">Saldo (AC21−Comp.)</th><th className="td-right">Saldo (AC21−Pago)</th>
             </tr></thead>
             <tbody>
-              {obras.length === 0 && <tr><td colSpan={12} className="td-empty">Nenhuma obra cadastrada.</td></tr>}
+              {obras.length === 0 && <tr><td colSpan={13} className="td-empty">{db.obras.length ? 'Nenhuma obra nesta situação.' : 'Nenhuma obra cadastrada.'}</td></tr>}
               {obras.map((o) => {
-                const pgo = totalPago(db, o), comp = totalComprometido(db, o), sl = o.ac21 - pgo, pComp = pctInt(comp, o.ac21);
+                const pgo = totalPago(db, o), comp = totalComprometido(db, o), sl = o.ac21 - pgo, slc = o.ac21 - comp, pComp = pctInt(comp, o.ac21);
                 const nv = nivelPct(pComp);
                 const fis = resumoCrono(cronos[String(o.id)]);
                 return (
@@ -175,7 +192,7 @@ export default function Dashboard() {
                     <td>{o.responsavel || '-'}</td>
                     <td className="td-right">{fmt(o.ac21)}</td>
                     <td className="td-right" style={{ fontWeight: 700, color: corPct(pComp) }}>{fmt(comp)}</td>
-                    <td className="td-right" style={{ fontWeight: 700, color: corPct(pComp) }}>{pComp}%</td>
+                    <td className="td-right" style={{ fontWeight: 700, color: corPct(pComp) }}>{pctTxt(pct(comp, o.ac21))}%</td>
                     <td className="td-right">{fmt(pgo)}</td>
                     <td style={{ minWidth: 130 }}>
                       <div className="progress"><div className="progress-fill" style={{ width: Math.min(pComp, 100) + '%', background: corPct(pComp) }} /></div>
@@ -183,6 +200,7 @@ export default function Dashboard() {
                     <td style={{ minWidth: 90, fontWeight: 600 }}>{fis ? Math.round(fis.pct) + '%' : <span style={{ color: 'var(--text3)', fontWeight: 400 }}>-</span>}</td>
                     <td><span className={'badge badge-' + (nv === 'ok' ? 'ok' : nv)}>{rotuloNivel[nv]}</span></td>
                     <td><span className={'badge ' + badgeStatusObra(o.status)}>{o.status}</span></td>
+                    <td className="td-right" style={{ color: slc < -0.005 ? 'var(--red)' : 'var(--green)', fontWeight: 700 }}>{fmt(slc)}</td>
                     <td className="td-right" style={{ color: sl < 0 ? 'var(--red)' : 'var(--green)', fontWeight: 700 }}>{fmt(sl)}</td>
                   </tr>
                 );

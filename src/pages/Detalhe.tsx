@@ -5,8 +5,8 @@ import {
 } from 'lucide-react';
 import { useApp } from '../store/AppStore';
 import {
-  CATS_ITEM, CORES, badgeStatusObra, corPct, exportarExcelObra, fmt, fmtData, fmtNum, nivelPct, pct, pctInt, rotuloNivel,
-  totalComprasTodas, totalComprometido, totalCompras, totalPago, type Item, type Obra, type TipoItem,
+  CATS_ITEM, CORES, badgeStatusObra, corPct, estourou, exportarExcelObra, fmt, fmtData, fmtNum, nivelPct, pct, pctInt, pctTxt, rotuloNivel,
+  situacaoVerba, totalComprasTodas, totalComprometido, totalCompras, totalPago, type Item, type Obra, type TipoItem,
 } from '../lib/ac21';
 import { ChartCanvas, Empty, Modal, Progress, brMoneyTick, type TT, CampoDinheiro } from '../components/ui';
 import { useDialogo } from '../components/Dialogo';
@@ -83,7 +83,7 @@ export default function Detalhe() {
   const pg = totalPago(db, o), p = pctInt(pg, o.ac21);
   const pgCompras = totalCompras(db, o);
   const comp = totalComprometido(db, o), pComp = pctInt(comp, o.ac21);
-  const sl = o.ac21 - pg;
+  const sl = o.ac21 - pg, slComp = o.ac21 - comp, sv = situacaoVerba(comp, o.ac21);
   const comprasObra = db.compras.filter((c) => c.obraId === o.id);
   const nv = nivelPct(p);
 
@@ -134,13 +134,15 @@ export default function Detalhe() {
         </div>
       </div>
 
-      {pComp >= 100 ? (
-        <div className="alert alert-danger"><AlertTriangle size={17} /><div>Comprometido <strong>ESTOUROU</strong> o AC21 em {fmt(Math.abs(o.ac21 - comp))}! Revise itens e compras.</div></div>
-      ) : sl < 0 ? (
+      {sv === 'estourada' ? (
+        <div className="alert alert-danger"><AlertTriangle size={17} /><div>Comprometido <strong>ESTOUROU</strong> o AC21 em {fmt(comp - o.ac21)}! Revise itens e compras.</div></div>
+      ) : sv === 'esgotada' ? (
+        <div className="alert alert-warn"><AlertTriangle size={17} /><div>Todo o AC21 já está comprometido: não há mais saldo para novos lançamentos.</div></div>
+      ) : estourou(pg, o.ac21) ? (
         <div className="alert alert-danger"><AlertTriangle size={17} /><div>Valor pago superou o AC21 em {fmt(Math.abs(sl))}.</div></div>
       ) : null}
 
-      <div className="metrics c5">
+      <div className="metrics c6">
         <div className="metric">
           <div className="metric-head"><div className="metric-label">AC21 Aprovado</div><div className="metric-icon mi-blue"><CreditCard size={17} /></div></div>
           <div className="metric-value sm" style={{ color: 'var(--blue)' }}>{fmt(o.ac21)}</div>
@@ -149,14 +151,19 @@ export default function Detalhe() {
         <div className="metric">
           <div className="metric-head"><div className="metric-label">Comprometido</div><div className="metric-icon mi-blue"><ClipboardCheck size={17} /></div></div>
           <div className="metric-value sm" style={{ color: corPct(pComp) }}>{fmt(comp)}</div>
-          <div className="metric-sub">Orçado dos itens + compras</div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: corPct(pComp), marginTop: 3 }}>{pComp}% do AC21</div>
+          <div className="metric-sub">Itens (orçados ou não) + compras</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: corPct(pComp), marginTop: 3 }}>{pctTxt(pct(comp, o.ac21))}% do AC21</div>
           <div className="metric-bar" style={{ marginTop: 6 }}><div className="metric-bar-fill" style={{ width: Math.min(pComp, 100) + '%', background: corPct(pComp) }} /></div>
+        </div>
+        <div className="metric">
+          <div className="metric-head"><div className="metric-label">Saldo (AC21 − Comprometido)</div><div className="metric-icon mi-green"><CreditCard size={17} /></div></div>
+          <div className={'metric-value sm ' + (slComp < -0.005 ? 'danger' : '')}>{fmt(slComp)}</div>
+          <div className={'metric-sub ' + (slComp < -0.005 ? 'danger' : 'ok')} style={{ fontWeight: 700 }}>{slComp < -0.005 ? 'Estourado' : slComp < 0.005 ? 'Sem saldo' : 'Disponível'}</div>
         </div>
         <div className="metric">
           <div className="metric-head"><div className="metric-label">Total Efetivamente Pago</div><div className="metric-icon mi-green"><CheckCircle2 size={17} /></div></div>
           <div className="metric-value sm">{fmt(pg)}</div>
-          <div className="metric-sub">{pct(pg, o.ac21)}% do AC21 pago</div>
+          <div className="metric-sub">{pctTxt(pct(pg, o.ac21))}% do AC21 pago</div>
           <div className="metric-bar"><div className="metric-bar-fill" style={{ width: Math.min(p, 100) + '%', background: corPct(p) }} /></div>
         </div>
         <div className="metric">

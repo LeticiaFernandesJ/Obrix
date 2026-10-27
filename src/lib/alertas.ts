@@ -1,4 +1,4 @@
-import { type DB, fmt, hojeISO, pctInt, plural, totalComprometido, totalPago } from './ac21';
+import { type DB, estourou, fmt, hojeISO, obraFinalizada, pct, pctTxt, plural, situacaoVerba, totalComprometido, totalPago } from './ac21';
 import { hojeN, parseData } from './dates';
 import { calcularEVM } from './evm';
 import { diasEntre } from './financeiro';
@@ -22,11 +22,12 @@ export function gerarAlertas(db: DB, cronos: Record<string, Estado>, hoje: strin
     const ativa = o.status !== 'Concluída' && o.status !== 'Suspensa';
 
     /* verba */
-    if (o.ac21 > 0) {
-      const comp = pctInt(totalComprometido(db, o), o.ac21);
-      if (comp >= 100) out.push({ id: `verba-${o.id}`, nivel: 'critico', titulo: 'Verba estourada', texto: `${quem}: comprometido ${fmt(totalComprometido(db, o))}, ${comp}% do AC21.`, rota: '/detalhe', obraId: o.id });
-      else if (comp >= 90) out.push({ id: `verba-${o.id}`, nivel: 'atencao', titulo: 'Verba no limite', texto: `${quem}: ${comp}% do AC21 já está comprometido.`, rota: '/detalhe', obraId: o.id });
-      if (totalPago(db, o) > o.ac21) out.push({ id: `pago-${o.id}`, nivel: 'critico', titulo: 'Pagamentos acima do AC21', texto: `${quem}: pago ${fmt(totalPago(db, o))}, mais que os ${fmt(o.ac21)} aprovados.`, rota: '/detalhe', obraId: o.id });
+    if (o.ac21 > 0 && !obraFinalizada(o)) {
+      const vc = totalComprometido(db, o), sv = situacaoVerba(vc, o.ac21), pc = pctTxt(pct(vc, o.ac21));
+      if (sv === 'estourada') out.push({ id: `verba-${o.id}`, nivel: 'critico', titulo: 'Verba estourada', texto: `${quem}: comprometido ${fmt(vc)}, ${fmt(vc - o.ac21)} acima do AC21.`, rota: '/detalhe', obraId: o.id });
+      else if (sv === 'esgotada') out.push({ id: `verba-${o.id}`, nivel: 'atencao', titulo: 'Verba esgotada', texto: `${quem}: todo o AC21 já está comprometido (sem saldo).`, rota: '/detalhe', obraId: o.id });
+      else if (sv === 'limite') out.push({ id: `verba-${o.id}`, nivel: 'atencao', titulo: 'Verba no limite', texto: `${quem}: ${pc}% do AC21 já está comprometido.`, rota: '/detalhe', obraId: o.id });
+      if (estourou(totalPago(db, o), o.ac21)) out.push({ id: `pago-${o.id}`, nivel: 'critico', titulo: 'Pagamentos acima do AC21', texto: `${quem}: pago ${fmt(totalPago(db, o))}, mais que os ${fmt(o.ac21)} aprovados.`, rota: '/detalhe', obraId: o.id });
     }
 
     /* contas a pagar */

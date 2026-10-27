@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, CalendarRange, Check, ClipboardList, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Building2, CalendarRange, Check, ClipboardList, Filter, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useApp } from '../store/AppStore';
 import {
   CORES, SITUACOES, STATUS_OBRA, badgeStatusObra, corPct, fmt, fmtData, gravarSituacao, lerSituacao, nivelPct, pctInt, porSituacao, rotuloNivel,
@@ -65,10 +65,16 @@ export default function Obras() {
       <div className="action-row">
         {podeEditar && <button className="btn btn-accent" onClick={nova}><Plus size={15} /> Nova Obra</button>}
         <div className="spacer" />
-        <select aria-label="Situação das obras" className="sel-situacao" value={situacao} onChange={(e) => { const s = e.target.value as Situacao; setSituacao(s); gravarSituacao(s); }}>
-          {SITUACOES.map((x) => <option key={x.id} value={x.id}>{x.rotulo} ({porSituacao(db.obras, x.id).length})</option>)}
-        </select>
         <div className="search"><Search size={15} /><input aria-label="Buscar obra" placeholder="Buscar obra..." value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
+      </div>
+
+      <div className="filtro-obra">
+        <span className="obra-pick">
+          <Filter size={16} />
+          <select aria-label="Situação das obras" value={situacao} onChange={(e) => { const s = e.target.value as Situacao; setSituacao(s); gravarSituacao(s); }}>
+            {SITUACOES.map((x) => <option key={x.id} value={x.id}>{x.rotulo} ({porSituacao(db.obras, x.id).length})</option>)}
+          </select>
+        </span>
       </div>
 
       <div className="obras-split um">

@@ -412,7 +412,6 @@
 .shell .modal input[readonly], .shell .modal input:disabled, .shell .modal select:disabled { background-color: var(--surface-2); color: var(--text2); cursor: not-allowed; opacity: 1; }
 .shell .aviso-travado { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; background: var(--brand-soft); color: var(--brand-text); font-size: 13px; }
 
-.shell .sel-situacao { height: 38px; padding: 0 12px; border-radius: 10px; font: inherit; font-size: 13px; }
 
 .shell .filtros-painel { padding: 0; }
 .shell .filtros-toggle { display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px 20px; background: transparent; border: 0; font: inherit; font-size: 15px; font-weight: 700; color: var(--text); cursor: pointer; text-align: left; border-radius: inherit; }

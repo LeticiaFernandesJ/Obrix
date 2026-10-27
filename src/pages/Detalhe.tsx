@@ -6,7 +6,7 @@ import {
 import { useApp } from '../store/AppStore';
 import {
   CATS_ITEM, CORES, badgeStatusObra, corPct, estourou, exportarExcelObra, fmt, fmtData, fmtNum, nivelPct, pct, pctInt, pctTxt, rotuloNivel,
-  situacaoVerba, totalComprasTodas, totalComprometido, totalCompras, totalPago, type Item, type Obra, type TipoItem,
+  acimaDoOrcado, situacaoVerba, totalComprasTodas, totalComprometido, totalCompras, totalPago, type Item, type Obra, type TipoItem,
 } from '../lib/ac21';
 import { ChartCanvas, Empty, Modal, Progress, brMoneyTick, type TT, CampoDinheiro } from '../components/ui';
 import { useDialogo } from '../components/Dialogo';
@@ -83,6 +83,7 @@ export default function Detalhe() {
   const pg = totalPago(db, o), p = pctInt(pg, o.ac21);
   const pgCompras = totalCompras(db, o);
   const comp = totalComprometido(db, o), pComp = pctInt(comp, o.ac21);
+  const acima = acimaDoOrcado(o);
   const sl = o.ac21 - pg, slComp = o.ac21 - comp, sv = situacaoVerba(comp, o.ac21);
   const comprasObra = db.compras.filter((c) => c.obraId === o.id);
   const nv = nivelPct(p);
@@ -190,7 +191,8 @@ export default function Detalhe() {
           <i style={{ width: Math.min(pComp, 100) + '%', background: corPct(pComp) + '55' }} />
           <i style={{ width: Math.min(p, 100) + '%', background: corPct(p) }} />
         </div>
-        <div style={{ fontSize: 11, marginTop: 8, color: 'var(--text3)' }}>Barra sólida = efetivamente pago &nbsp;|&nbsp; Barra clara = comprometido total (orçamentos + compras, pagos ou não)</div>
+        <div style={{ fontSize: 11, marginTop: 8, color: 'var(--text3)' }}>Barra sólida = efetivamente pago &nbsp;|&nbsp; Barra clara = comprometido total (valor orçado do que ainda não foi pago + valor real do que já foi pago)</div>
+        {acima.qtd > 0 && <div style={{ fontSize: 12.5, marginTop: 8, color: 'var(--red)', fontWeight: 600 }}>Gasto acima do orçado: {fmt(acima.valor)} em {acima.qtd} {acima.qtd === 1 ? 'item' : 'itens'} (veja a coluna Saldo Item).</div>}
       </div>
 
       <div className="tabs">

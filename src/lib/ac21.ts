@@ -69,8 +69,13 @@ export const totalCompras = (db: DB, o: Obra) =>
 export const totalComprasTodas = (db: DB, o: Obra) =>
   db.compras.filter((c) => c.obraId === o.id).reduce((s, c) => s + Number(c.total || 0), 0);
 export const totalPago = (db: DB, o: Obra) => totalItens(o) + totalCompras(db, o);
-/** O que um item compromete: o maior entre o orçado e o pago (gasto fora do orçamento também conta). */
-export const comprometidoDoItem = (i: Item) => Math.max(Number(i.orcado || 0), Number(i.pago || 0));
+/** O que um item compromete: o valor orçado enquanto não foi pago; depois de pago, o valor realmente pago (maior ou menor). */
+export const comprometidoDoItem = (i: Item) => (Number(i.pago || 0) > 0 ? Number(i.pago) : Number(i.orcado || 0));
+/** Itens orçados que custaram mais do que o previsto: quanto passou e em quantos itens. */
+export function acimaDoOrcado(o: Obra) {
+  const l = o.itens.filter((i) => Number(i.orcado || 0) > 0 && Number(i.pago || 0) > Number(i.orcado) + 0.005);
+  return { valor: l.reduce((s, i) => s + Number(i.pago) - Number(i.orcado), 0), qtd: l.length };
+}
 /** Comprometido = tudo que foi lançado: itens (orçados ou não) + todas as compras (pagas ou pendentes). */
 export const totalComprometido = (db: DB, o: Obra) => o.itens.reduce((s, i) => s + comprometidoDoItem(i), 0) + totalComprasTodas(db, o);
 

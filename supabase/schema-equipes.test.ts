@@ -430,6 +430,27 @@ describe('acesso "só as minhas tarefas" no cronograma', () => {
   });
 });
 
+describe('cronogramas de obras diferentes não se misturam', () => {
+  let org = '';
+  const sql = (txt: string) => como(C, () => db.exec(txt));
+  beforeAll(async () => {
+    org = (await linhas<{ org: string }>(C, `select public.criar_organizacao('Org Duas Obras') as org`))[0].org;
+    await sql(`insert into public.obras (org_id, id, nome) values ('${org}', 1, 'Bento'), ('${org}', 2, 'Ponte');
+      insert into public.cronogramas (org_id, obra_id, nome) values ('${org}', 1, 'crono 1'), ('${org}', 2, 'crono 2');
+      insert into public.tarefas (org_id, obra_id, id, ordem, nome) values ('${org}', 1, 't1', 0, 'Fundação'), ('${org}', 2, 't1', 0, 'Pilares');`);
+  });
+  it('o mesmo id de tarefa pode existir em duas obras sem conflito', async () => {
+    expect(await linhas(C, `select 1 from public.tarefas where org_id = '${org}' and id = 't1'`)).toHaveLength(2);
+  });
+  it('trocar as tarefas de uma obra deixa a outra intacta', async () => {
+    await sql(`delete from public.tarefas where org_id = '${org}' and obra_id = 1;
+      insert into public.tarefas (org_id, obra_id, id, ordem, nome) values ('${org}', 1, 'n1', 0, 'Nova A'), ('${org}', 1, 'n2', 1, 'Nova B');`);
+    const o1 = await linhas<{ nome: string }>(C, `select nome from public.tarefas where org_id = '${org}' and obra_id = 1 order by ordem`);
+    const o2 = await linhas<{ nome: string }>(C, `select nome from public.tarefas where org_id = '${org}' and obra_id = 2`);
+    expect(o1.map((r) => r.nome)).toEqual(['Nova A', 'Nova B']); expect(o2.map((r) => r.nome)).toEqual(['Pilares']);
+  });
+});
+
 describe('limite de organizações por conta', () => {
   it('cada conta cria no máximo 5 organizações (a migrada também conta)', async () => {
     let criadas = 0, erroFinal: string | null = null;

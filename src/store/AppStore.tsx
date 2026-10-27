@@ -10,10 +10,12 @@ import { useDialogo } from '../components/Dialogo';
 import { ConflitoErro, type Snap, type Tabela, type Versoes, TABELAS, deLinhas, enviarMudancas, lerNuvem, paraLinhas, snapDe, snapVazio, versoesDe } from '../lib/nuvem';
 import { type Area, type Org, type Papel, type Permissoes, podeAlterar, podeEditarArea, podeVerArea, soMinhasTarefas } from '../lib/equipe';
 import { validarEdicaoMinhas } from '../lib/minhasTarefas';
+import { type BackupCrono, empilharBackup, trocarCronoDaObra } from '../lib/importacao';
 
 const K_DB = 'obrix-ac21-v1';
 const K_CRONO = 'cronograma-obra-v2'; // legado (cronograma único)
 const K_CRONOS = 'obrix-cronos-v1';
+const K_BKP = 'obrix-crono-bkp-v1'; // cópias de segurança dos cronogramas, antes de substituir
 const K_TEMA = 'obrix-tema';
 
 export type StatusNuvem = 'local' | 'carregando' | 'salvando' | 'salvo' | 'erro';
@@ -38,7 +40,11 @@ interface Ctx {
   cal: Cal;
   calc: Calc[];
   updateCrono: (fn: (S: Estado, cal: Cal, calcAtual: Calc[]) => void) => void;
-  carregarCrono: (obj: Partial<Estado> | null) => void;
+  /** troca o cronograma de UMA obra (a ativa, ou a indicada em obraId), guardando antes uma cópia de segurança. false = não aplicou */
+  carregarCrono: (obj: Partial<Estado> | null, opc?: { obraId?: number; motivo?: string }) => boolean;
+  /** cópias de segurança do cronograma da obra ativa (as mais novas primeiro) */
+  backupsCrono: BackupCrono[];
+  restaurarCrono: (ts: string) => void;
   readOnly: boolean;
 
   /* equipe */
@@ -115,6 +121,13 @@ export function AppProvider({ children, userId = null, email, nome = '', onSignO
     }
     return out;
   });
+  const kBkp = K_BKP + sufixo;
+  const [backups, setBackups] = useState<Record<string, BackupCrono[]>>(() => {
+    const b = lerJSON<Record<string, BackupCrono[]>>(kBkp);
+    return b && typeof b === 'object' && !Array.isArray(b) ? b : {};
+  });
+  const backupsRef = useRef(backups); backupsRef.current = backups;
+  const carregarRef = useRef<Ctx['carregarCrono']>();
   const [shared, setShared] = useState<Estado | null>(null);
   const [readOnly, setReadOnly] = useState(false);
   const [tema, setTema] = useState<'light' | 'dark'>(() => {
@@ -166,6 +179,7 @@ export function AppProvider({ children, userId = null, email, nome = '', onSignO
 
   useEffect(() => { gravar(kDb, db); }, [db, kDb]);
   useEffect(() => { gravar(kCronos, cronos); }, [cronos, kCronos]);
+  useEffect(() => { gravar(kBkp, backups); }, [backups, kBkp]);
   /* cronograma antigo (único) é adotado pela primeira obra */
   useEffect(() => {
     if (cronos.legacy && db.obras.length) {
@@ -271,7 +285,7 @@ export function AppProvider({ children, userId = null, email, nome = '', onSignO
         if (atual.db.obras.length && !roRef.current && areaRef.current('obras')) {
           await enviarMudancas(supabase, orgId, paraLinhas(atual.db, atual.cronos), snapRef.current, tabelasRef.current);
           // os dados antigos (sem organização) já subiram: não devem ir também para outra organização
-          [K_DB, K_CRONOS, K_CRONO].forEach((k) => { try { localStorage.removeItem(k); } catch { /* ok */ } });
+          [K_DB, K_CRONOS, K_CRONO, K_BKP].forEach((k) => { try { localStorage.removeItem(k); } catch { /* ok */ } });
         }
         ultimoRef.current = atual.payload;
       }
@@ -361,7 +375,7 @@ export function AppProvider({ children, userId = null, email, nome = '', onSignO
       const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       const ro = m[1] === 'v';
       if (ro) { setShared(est); setReadOnly(true); }
-      else if (!roRef.current) setCronos((c) => ({ ...c, [chaveRef.current]: est }));
+      else if (!roRef.current) carregarRef.current?.(est, { motivo: 'Antes de abrir um link editável' });
       window.history.replaceState(null, '', base + (ro ? '/painel' + window.location.hash : '/cronograma'));
       window.dispatchEvent(new PopStateEvent('popstate'));
     }).catch((e: Error) => { void avisarRef.current(/expirou|grande demais/.test(e.message) ? e.message : 'Não consegui ler o link, ele pode ter sido cortado pelo e-mail. Peça o arquivo .json.'); });
@@ -411,6 +425,7 @@ export function AppProvider({ children, userId = null, email, nome = '', onSignO
     });
     setObraAtiva((cur) => (cur === id ? null : cur));
     setCronos((c) => { const { [String(id)]: _removido, ...resto } = c; return resto; });
+    setBackups((b) => { const { [String(id)]: _b, ...resto } = b; return resto; });
   }, [mutarDb, toast]);
 
   const salvarItem: Ctx['salvarItem'] = useCallback((obraId, item, id) => mutarDb((d) => {
@@ -492,16 +507,34 @@ export function AppProvider({ children, userId = null, email, nome = '', onSignO
       return { ...prev, [k]: S };
     });
   }, [toast]);
-  const carregarCrono = useCallback((obj: Partial<Estado> | null) => {
-    if (roRef.current || !areaRef.current('cronograma')) return;
+  const carregarCrono: Ctx['carregarCrono'] = useCallback((obj, opc) => {
+    if (roRef.current || !areaRef.current('cronograma')) return false;
     const est = normalizarEstado(obj);
-    setCronos((prev) => ({ ...prev, [chaveRef.current]: est }));
+    const obraId = opc?.obraId;
+    const obrasIds = estadoRef.current.db.obras.map((o) => o.id);
+    if (obraId != null && !obrasIds.includes(obraId)) return false;
+    const k = obraId != null ? String(obraId) : chaveRef.current;
+    const antes = estadoRef.current.cronos[k];
+    if (antes) setBackups((b) => ({ ...b, [k]: empilharBackup(b[k] ?? [], { ts: new Date().toISOString(), motivo: opc?.motivo ?? 'Antes de carregar outro cronograma', estado: antes }) }));
+    // só a chave desta obra muda; as outras obras continuam exatamente como estavam
+    setCronos((prev) => (obraId != null ? trocarCronoDaObra(prev, obraId, est, obrasIds) : { ...prev, [k]: est }));
+    return true;
+  }, []);
+  carregarRef.current = carregarCrono;
+  const restaurarCrono = useCallback((ts: string) => {
+    if (roRef.current || !areaRef.current('cronograma')) return;
+    const k = chaveRef.current;
+    const b = (backupsRef.current[k] ?? []).find((x) => x.ts === ts); if (!b) return;
+    const atual = estadoRef.current.cronos[k] ?? b.estado;
+    // restaurar também é reversível: a versão que estava aberta vira uma cópia
+    setBackups((p) => ({ ...p, [k]: empilharBackup((p[k] ?? []).filter((x) => x.ts !== ts), { ts: new Date().toISOString(), motivo: 'Antes de restaurar uma versão anterior', estado: atual }) }));
+    setCronos((prev) => ({ ...prev, [k]: normalizarEstado(b.estado) }));
   }, []);
 
   const value: Ctx = {
     db, obraAtivaId, obraAtual, cronos, exportarTudo, setObraAtiva, salvarObra, excluirObra, salvarItem, excluirItem, salvarCompra, excluirCompra,
     registrarHistorico, importarDB,
-    crono, cal, calc, updateCrono, carregarCrono, readOnly,
+    crono, cal, calc, updateCrono, carregarCrono, backupsCrono: backups[chave] ?? [], restaurarCrono, readOnly,
     userId, orgId, orgNome: orgAtual?.nome ?? '', orgs, papel, permissoes, podeEditar, podeEditarArea: editaArea, podeVerArea: veArea, soMinhas, podeEditarTarefa,
     trocarOrg: trocarOrg ?? (() => undefined), recarregarOrgs: recarregarOrgs ?? (() => undefined),
     usuario: email, nomeUsuario: nome, sair: onSignOut ? sairSeguro : null, nuvem, recarregarNuvem: () => { void carregarNuvem(); }, tentarSincronizar: () => { void salvarAgora(); },

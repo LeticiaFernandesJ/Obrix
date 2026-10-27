@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  type DB, estourou, fmt, mascaraMoeda, novoId, pct, pctInt, pctTxt, porSituacao, sanitizarDB, situacaoVerba, totalComprometido, totalPago, valorDaMascara,
+  type DB, acimaDoOrcado, estourou, fmt, mascaraMoeda, novoId, pct, pctInt, pctTxt, porSituacao, sanitizarDB, situacaoVerba, totalComprometido, totalPago, valorDaMascara,
 } from './ac21';
 
 const db: DB = {
@@ -17,9 +17,18 @@ const db: DB = {
 };
 
 describe('contas do AC21', () => {
-  it('comprometido = tudo que foi lançado: itens (orçados ou não) + todas as compras', () => {
-    // i1 orçado 300 (pago 100) + i2 não orçado, pago 50 + compras 200 e 80
-    expect(totalComprometido(db, db.obras[0])).toBe(300 + 50 + 200 + 80);
+  it('comprometido = itens (valor pago se já pago, senão o orçado) + todas as compras', () => {
+    // i1 pago 100 (orçado era 300) + i2 não orçado pago 50 + compras 200 e 80
+    expect(totalComprometido(db, db.obras[0])).toBe(100 + 50 + 200 + 80);
+  });
+  it('item pago por mais ou por menos: vale o valor realmente pago; sem pagamento, o orçado', () => {
+    const o = (orcado: number, pago: number) => ({ ...db.obras[0], itens: [{ ...db.obras[0].itens[0], orcado, pago }] });
+    const vazio = { ...db, compras: [] };
+    expect(totalComprometido(vazio, o(500, 0))).toBe(500);
+    expect(totalComprometido(vazio, o(500, 1000))).toBe(1000);
+    expect(totalComprometido(vazio, o(500, 400))).toBe(400);
+    expect(acimaDoOrcado(o(500, 1000))).toEqual({ valor: 500, qtd: 1 });
+    expect(acimaDoOrcado(o(500, 400)).qtd).toBe(0);
   });
   it('pago = itens pagos + compras com status Pago', () => {
     expect(totalPago(db, db.obras[0])).toBe(100 + 50 + 200);

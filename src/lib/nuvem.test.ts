@@ -192,3 +192,21 @@ describe('responsável da equipe no banco', () => {
     expect(tarefas).toEqual([{ t: 'tarefas', temColuna: true }, { t: 'tarefas', temColuna: false }]);
   });
 });
+
+describe('cronograma por obra na nuvem', () => {
+  it('mudar o cronograma de uma obra só envia as linhas dela; a outra não é tocada', async () => {
+    const { cliente, log } = falso(); const snap = snapVazio();
+    const d = db(); d.obras.push({ ...d.obras[0], id: 3, nome: 'Obra B', codigo: 'B-1', itens: [] });
+    const A = exemplo(), B = exemplo();
+    await enviarMudancas(cliente, 'u', paraLinhas(d, { '2': A, '3': B }), snap);
+    // as duas obras usam os mesmos ids de tarefa, e mesmo assim são linhas diferentes (a chave inclui a obra)
+    const nA = A.tarefas.length;
+    log.length = 0;
+    const A2 = JSON.parse(JSON.stringify(A)); A2.tarefas[0].nome = 'Mudou só na A'; A2.tarefas.pop();
+    await enviarMudancas(cliente, 'u', paraLinhas(d, { '2': A2, '3': B }), snap);
+    expect(log).toEqual(['delete tarefas id=' + A.tarefas[nA - 1].id, 'upsert tarefas 1']);
+    const L = paraLinhas(d, { '2': A2, '3': B });
+    expect(L.tarefas.filter((t) => Number(t.obra_id) === 3)).toHaveLength(B.tarefas.length);
+    expect(deLinhas(L).cronos['3'].tarefas.map((t) => t.nome)).toEqual(B.tarefas.map((t) => t.nome));
+  });
+});

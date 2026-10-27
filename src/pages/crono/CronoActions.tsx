@@ -5,58 +5,94 @@ import { Modal } from '../../components/ui';
 import { useDialogo } from '../../components/Dialogo';
 import {
   baixar, curvaPrevista, desempacotar, empacotar, exemplo, exportarCSV, importarTexto, nomeArquivo,
-  novaTarefa, novoEstado, pctPrevistoEm, pctRealAtual, type Estado,
+  normalizarEstado, novaTarefa, novoEstado, pctPrevistoEm, pctRealAtual, type Estado, type Tarefa,
 } from '../../lib/schedule';
+import { MODOS_IMPORT, type Extra, type ModoImport, aplicarImportacao, lerArquivo, montarArquivo, textoResumo } from '../../lib/importacao';
 import { exportarMSProject, lerMSProject } from '../../lib/msproject';
 import { hojeN, n2br, parseData } from '../../lib/dates';
 
 type M = 'home' | 'import' | 'save' | 'open' | 'share' | 'help' | null;
 const BASE = import.meta.env.BASE_URL;
-const importadas = (n: number) => (n === 1 ? '1 tarefa importada.' : `${n} tarefas importadas.`);
 
 export function CronoActions() {
-  const { crono, cal, calc, carregarCrono, readOnly, podeEditarArea, toast } = useApp();
+  const { crono, cal, calc, carregarCrono, backupsCrono, restaurarCrono, obraAtual, readOnly, podeEditarArea, toast } = useApp();
   const podeEditar = podeEditarArea('cronograma');
-  const { avisar } = useDialogo();
+  const { avisar, confirmar } = useDialogo();
   const [m, setM] = useState<M>(null);
   const fechar = () => setM(null);
   const filePick = useRef<HTMLInputElement>(null);
   const modoArq = useRef<'json' | 'csv' | 'msp'>('json');
   const [impTxt, setImpTxt] = useState('');
-  const [impLimpa, setImpLimpa] = useState(false);
+  const [modo, setModo] = useState<ModoImport>('atualizar');
   const [opLink, setOpLink] = useState('');
   const [links, setLinks] = useState<{ ro: string; ed: string } | null>(null);
   const [validade, setValidade] = useState(30);
 
-  const clone = (): Estado => JSON.parse(JSON.stringify(crono));
+  const obraRef = obraAtual ? { id: obraAtual.id, nome: obraAtual.nome, codigo: obraAtual.codigo } : null;
+  const nomeObra = obraAtual ? `${obraAtual.codigo ? obraAtual.codigo + ' - ' : ''}${obraAtual.nome}` : 'esta obra';
+  /** obra que estava aberta quando o arquivo foi escolhido: se mudar até a leitura, nada é importado */
+  const alvo = useRef<number | null>(null);
+  const escolherArquivo = (tipo: 'json' | 'csv' | 'msp') => { modoArq.current = tipo; alvo.current = obraAtual?.id ?? null; filePick.current?.click(); };
+  const arquivoJson = () => JSON.stringify(montarArquivo(obraRef, crono), null, 1);
   const zeraHash = () => { try { if (location.hash) history.replaceState(null, '', location.pathname + location.search); } catch { /* ok */ } };
 
-  const importar = () => {
-    const S = clone(); if (impLimpa) S.tarefas = [];
-    const n = importarTexto(S, cal, impTxt);
-    if (n) carregarCrono(S);
-    fechar(); setImpTxt('');
-    toast(n ? importadas(n) : 'Nada reconhecido. Confira o texto colado.');
+  /** Calcula o resultado, mostra o que vai mudar nesta obra, pede confirmação e só então aplica (tudo ou nada). */
+  const aplicar = async (vindas: Tarefa[], md: ModoImport, opc: { mesmaObra?: boolean; extra?: Extra; aviso?: string; origem?: string } = {}): Promise<boolean> => {
+    const destino = obraAtual?.id;
+    try {
+      const r = aplicarImportacao(crono, vindas, md, opc);
+      const msg = `${opc.aviso ?? ''}Importar na obra "${nomeObra}"?\n\nResultado: ${textoResumo(r.resumo)}.\n\nAs outras obras não são alteradas. Uma cópia da versão atual fica guardada e pode ser restaurada.`;
+      if (!(await confirmar(msg, { titulo: 'Importar cronograma', confirmar: 'Importar', perigo: md === 'substituir' || !!opc.aviso }))) return false;
+      if (!carregarCrono(r.estado, { obraId: destino, motivo: `Antes de importar${opc.origem ? ' ' + opc.origem : ''}` })) { await avisar('Não foi possível importar. Nada foi alterado.'); return false; }
+      toast(`Importado na obra ${nomeObra}: ${textoResumo(r.resumo)}.`);
+      return true;
+    } catch (e) { await avisar(`Não importei: ${(e as Error).message} Nada foi alterado.`); return false; }
+  };
+  /** Troca o cronograma inteiro da obra por um já pronto (arquivo .json ou link), com a mesma conferência. */
+  const aplicarCompleto = async (est: Estado, aviso = '', origem = ''): Promise<boolean> => {
+    const destino = obraAtual?.id;
+    try {
+      if (!est.tarefas.length) throw new Error('o arquivo não tem nenhuma tarefa.');
+      const msg = `${aviso}Substituir o cronograma da obra "${nomeObra}" pelo do arquivo (${est.tarefas.length} tarefas)?\n\nAs outras obras não são alteradas. Uma cópia da versão atual fica guardada e pode ser restaurada.`;
+      if (!(await confirmar(msg, { titulo: 'Abrir cronograma', confirmar: 'Substituir', perigo: true }))) return false;
+      if (!carregarCrono(est, { obraId: destino, motivo: `Antes de abrir ${origem || 'um cronograma'}` })) { await avisar('Não foi possível abrir. Nada foi alterado.'); return false; }
+      toast(`Cronograma da obra ${nomeObra} substituído.`);
+      return true;
+    } catch (e) { await avisar(`Não abri: ${(e as Error).message} Nada foi alterado.`); return false; }
+  };
+
+  const importar = async () => {
+    const tmp = novoEstado(); const n = importarTexto(tmp, cal, impTxt);
+    if (!n) { toast('Nada reconhecido. Confira o texto colado.'); return; }
+    if (await aplicar(tmp.tarefas, modo, { origem: 'do texto colado' })) { fechar(); setImpTxt(''); }
   };
 
   const onArquivo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]; if (!f) return;
+    const destino = alvo.current; const tipo = modoArq.current; const doImport = m === 'import';
     const r = new FileReader();
     r.onload = () => {
-      try {
-        if (/\.xml$/i.test(f.name) || modoArq.current === 'msp') {
-          const p = lerMSProject(String(r.result)); const S = clone();
-          if (impLimpa) { S.tarefas = []; S.medicoes = []; if (p.cal) S.cal = p.cal; if (p.inicio) S.meta.inicio = p.inicio; if (p.nome && !S.meta.nome) S.meta.nome = p.nome; }
-          S.tarefas = S.tarefas.concat(p.tarefas); carregarCrono(S);
-          fechar(); toast(importadas(p.tarefas.length));
-        } else if (/\.(csv|txt)$/i.test(f.name) || modoArq.current === 'csv') {
-          const S = clone(); const n = importarTexto(S, cal, String(r.result));
-          if (n) carregarCrono(S);
-          fechar(); toast(n ? importadas(n) : 'Nada reconhecido. Confira o arquivo.');
-        } else {
-          carregarCrono(JSON.parse(String(r.result))); fechar(); toast('Cronograma aberto.');
-        }
-      } catch (err) { void avisar('Não consegui ler este arquivo: ' + (err as Error).message); }
+      void (async () => {
+        try {
+          if (destino !== (obraAtual?.id ?? null)) { await avisar('Você trocou de obra enquanto escolhia o arquivo. Nada foi alterado; escolha o arquivo de novo.'); return; }
+          const txt = String(r.result);
+          if (/\.xml$/i.test(f.name) || tipo === 'msp') {
+            const p = lerMSProject(txt);
+            if (await aplicar(p.tarefas, modo, { extra: { cal: p.cal, inicio: p.inicio, nome: p.nome }, origem: f.name })) fechar();
+          } else if (/\.(csv|txt)$/i.test(f.name) || tipo === 'csv') {
+            const tmp = novoEstado(); const n = importarTexto(tmp, cal, txt);
+            if (!n) { toast('Nada reconhecido. Confira o arquivo.'); return; }
+            if (await aplicar(tmp.tarefas, modo, { origem: f.name })) fechar();
+          } else {
+            const { estado, obra } = lerArquivo(JSON.parse(txt));
+            const mesma = !!obra && obra.id === obraAtual?.id && obra.nome === obraAtual?.nome;
+            const aviso = obra && !mesma ? `ATENÇÃO: este arquivo foi exportado da obra "${obra.codigo ? obra.codigo + ' - ' : ''}${obra.nome}" e você está na obra "${nomeObra}".\n\n` : '';
+            const md: ModoImport = doImport ? modo : 'substituir';
+            const ok = md === 'substituir' ? await aplicarCompleto(estado, aviso, f.name) : await aplicar(estado.tarefas, md, { mesmaObra: mesma, aviso, origem: f.name });
+            if (ok) fechar();
+          }
+        } catch (err) { void avisar('Não consegui ler este arquivo: ' + (err as Error).message + ' Nada foi alterado.'); }
+      })();
     };
     r.readAsText(f, 'utf-8'); e.target.value = '';
   };
@@ -66,7 +102,7 @@ export function CronoActions() {
     const mm = /[#&?](?:v|p)=([A-Za-z0-9_-]+)/.exec(t);
     const carga = mm ? mm[1] : /^[zj][A-Za-z0-9_-]{20,}$/.test(t) ? t : null;
     if (!carga) { void avisar('Não encontrei o código do cronograma nesse texto. Cole o link inteiro, do http até o final.'); return; }
-    try { const obj = await desempacotar(carga); carregarCrono(obj); fechar(); toast('Cronograma carregado do link.'); }
+    try { const obj = await desempacotar(carga); if (await aplicarCompleto(normalizarEstado(obj), '', 'um link')) fechar(); }
     catch (e) { void avisar(/expirou|grande demais/.test((e as Error).message) ? (e as Error).message : 'O link parece incompleto, provavelmente foi cortado pelo e-mail. Peça o arquivo .json em anexo.'); }
   };
 
@@ -100,7 +136,7 @@ export function CronoActions() {
     home: (
       <Modal title="Tela inicial" onClose={fechar} footer={<>
         <button className="btn" onClick={fechar}>Voltar ao cronograma</button>
-        {tem && <button className="btn" onClick={() => baixar(nomeArquivo(crono, 'json'), JSON.stringify(crono, null, 1))}>Baixar cópia</button>}
+        {tem && <button className="btn" onClick={() => baixar(nomeArquivo(crono, 'json'), arquivoJson())}>Baixar cópia</button>}
         <button className="btn" onClick={() => setM('import')}>Colar do Excel</button>
         <button className="btn" onClick={() => { zeraHash(); const E = novoEstado(); E.tarefas = [novaTarefa({ nome: '' })]; carregarCrono(E); fechar(); }}>Começar do zero</button>
         <button className="btn btn-primary" onClick={() => { zeraHash(); carregarCrono(exemplo()); fechar(); }}>Ver um exemplo pronto</button>
@@ -114,19 +150,34 @@ export function CronoActions() {
     import: (
       <Modal title="Importar cronograma" size="lg" onClose={fechar} footer={<>
         <button className="btn" onClick={fechar}>Cancelar</button>
-        <button className="btn" onClick={() => { modoArq.current = 'msp'; filePick.current?.click(); }}>Arquivo do MS Project (.xml)…</button>
-        <button className="btn" onClick={() => { modoArq.current = 'csv'; filePick.current?.click(); }}>Escolher arquivo CSV…</button>
-        <button className="btn btn-primary" onClick={importar}>Importar</button>
+        <button className="btn" onClick={() => escolherArquivo('msp')}>Arquivo do MS Project (.xml)…</button>
+        <button className="btn" onClick={() => escolherArquivo('csv')}>Arquivo CSV…</button>
+        <button className="btn" onClick={() => escolherArquivo('json')}>Arquivo do Obrix (.json)…</button>
+        <button className="btn btn-primary" onClick={() => void importar()}>Importar o texto colado</button>
       </>}>
+        <div className="note">A importação vale <b>só para a obra {nomeObra}</b>. As outras obras nunca são alteradas, e antes de aplicar você confirma o que vai mudar.</div>
         <p>Copie as linhas do Excel (Ctrl+C) e cole abaixo, ou cole um texto separado por ponto e vírgula. A primeira linha pode ser o cabeçalho.</p>
-        <div className="note"><b>MS Project:</b> no Project, use Arquivo &gt; Salvar como &gt; XML e escolha o arquivo pelo botão abaixo. Vêm tarefas, níveis, durações, predecessoras, percentuais e responsáveis. Marque "substituir" para trazer também o calendário e a data de início. Arquivos .mpp e do Primavera não são lidos.</div>
+        <div className="note"><b>MS Project:</b> no Project, use Arquivo &gt; Salvar como &gt; XML e escolha o arquivo pelo botão abaixo. Vêm tarefas, níveis, durações, predecessoras, percentuais e responsáveis. Em "Substituir" vêm também o calendário e a data de início. Arquivos .mpp e do Primavera não são lidos.</div>
         <div className="note"><b>Colunas reconhecidas:</b> EDT/Item · Tarefa · Duração · Início · Término · Predecessoras · % · Peso · Responsável.<br />
           O nível das fases vem do EDT (1, 1.1, 1.1.2) ou dos espaços no início do nome.</div>
         <div className="field"><label htmlFor="cronoactions-1">Cole aqui</label>
           <textarea id="cronoactions-1" className="mono" value={impTxt} onChange={(e) => setImpTxt(e.target.value)}
             placeholder={'Item\tTarefa\tDuração\tInício\tPredecessoras\n1\tFundações\t\t\n1.1\tEscavação\t5\t02/03/2026\t\n1.2\tSapatas\t8\t\t2'} /></div>
-        <label className="opcao">
-          <input type="checkbox" checked={impLimpa} onChange={(e) => setImpLimpa(e.target.checked)} /> substituir o cronograma atual</label>
+        <div className="field"><label htmlFor="cronoactions-modo">O que fazer com as tarefas</label>
+          <select id="cronoactions-modo" value={modo} onChange={(e) => setModo(e.target.value as ModoImport)}>
+            {MODOS_IMPORT.map((x) => <option key={x.id} value={x.id}>{x.rotulo}</option>)}
+          </select>
+          <small>{MODOS_IMPORT.find((x) => x.id === modo)?.ajuda}</small></div>
+        {backupsCrono.length > 0 && (
+          <div className="field"><label>Versões anteriores desta obra</label>
+            {backupsCrono.map((b) => (
+              <div key={b.ts} style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between', padding: '6px 0', fontSize: 12.5 }}>
+                <span>{new Date(b.ts).toLocaleString('pt-BR')} · {b.motivo} · {b.estado.tarefas.length} tarefas</span>
+                <button className="btn btn-sm" onClick={async () => {
+                  if (await confirmar(`Voltar o cronograma da obra "${nomeObra}" para a versão de ${new Date(b.ts).toLocaleString('pt-BR')}? A versão atual também fica guardada.`, { titulo: 'Restaurar versão', confirmar: 'Restaurar' })) { restaurarCrono(b.ts); fechar(); toast('Versão anterior restaurada.'); }
+                }}>Restaurar</button>
+              </div>))}
+          </div>)}
       </Modal>
     ),
     save: (
@@ -135,7 +186,7 @@ export function CronoActions() {
         <button className="btn" onClick={() => { fechar(); setTimeout(() => window.print(), 150); }}>Imprimir / PDF</button>
         <button className="btn" onClick={() => { exportarCSV(crono, calc); fechar(); }}>Baixar CSV (Excel)</button>
         <button className="btn" onClick={() => { baixar(nomeArquivo(crono, 'xml'), exportarMSProject(crono, calc), 'application/xml;charset=utf-8'); fechar(); }}>Exportar para MS Project (.xml)</button>
-        <button className="btn btn-primary" onClick={() => { baixar(nomeArquivo(crono, 'json'), JSON.stringify(crono, null, 1)); fechar(); }}>Baixar cronograma (.json)</button>
+        <button className="btn btn-primary" onClick={() => { baixar(nomeArquivo(crono, 'json'), arquivoJson()); fechar(); }}>Baixar cronograma (.json)</button>
       </>}>
         <p>O arquivo <b>.json</b> é o cronograma completo e pode ser reaberto e editado aqui. O <b>.csv</b> abre no Excel para conferência ou impressão e o <b>.xml</b> abre no Microsoft Project.</p>
       </Modal>
@@ -143,10 +194,10 @@ export function CronoActions() {
     open: (
       <Modal title="Abrir cronograma" onClose={fechar} footer={<>
         <button className="btn" onClick={fechar}>Cancelar</button>
-        <button className="btn" onClick={() => { modoArq.current = 'json'; filePick.current?.click(); }}>Escolher arquivo…</button>
+        <button className="btn" onClick={() => escolherArquivo('json')}>Escolher arquivo…</button>
         <button className="btn btn-primary" onClick={abrirLink}>Abrir link colado</button>
       </>}>
-        <p>Abra um arquivo <b>.json</b> que você salvou ou recebeu em anexo, ou cole abaixo o link que chegou por e-mail.</p>
+        <p>Abra um arquivo <b>.json</b> que você salvou ou recebeu em anexo, ou cole abaixo o link que chegou por e-mail. Ele <b>substitui o cronograma da obra {nomeObra}</b> (as outras obras não mudam) e você confirma antes.</p>
         <div className="field"><label htmlFor="cronoactions-2">Link ou código recebido</label>
           <textarea id="cronoactions-2" style={{ minHeight: 80, fontSize: 11 }} value={opLink} onChange={(e) => setOpLink(e.target.value)} placeholder="cole aqui o link inteiro" /></div>
       </Modal>
@@ -154,7 +205,7 @@ export function CronoActions() {
     share: (
       <Modal title="Enviar ao PMO" size="lg" onClose={fechar} footer={<>
         <button className="btn" onClick={fechar}>Fechar</button>
-        <button className="btn" onClick={() => baixar(nomeArquivo(crono, 'json'), JSON.stringify(crono, null, 1))}>Baixar arquivo para anexar</button>
+        <button className="btn" onClick={() => baixar(nomeArquivo(crono, 'json'), arquivoJson())}>Baixar arquivo para anexar</button>
         {links && <a className="btn btn-primary" href={emailHref()}>Abrir e-mail</a>}
       </>}>
         {!links ? <p>Gerando o link…</p> : (<>

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { BellRing, Check, Lock, UserRound, Users } from 'lucide-react';
+import { BellRing, Check, UserRound, Users } from 'lucide-react';
 import { useApp } from '../../store/AppStore';
 import { Modal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { type Membro, listarMembros } from '../../lib/equipe';
-import { aplicarCampo, inicioDaNovaTarefa, novaTarefa, predParse, predTexto } from '../../lib/schedule';
+import { aplicarCampo, calcular, ehResumo, inicioDaNovaTarefa, makeCal, novaTarefa, predParse, predTexto, type Estado } from '../../lib/schedule';
 import { hojeN, n2iso, parseData } from '../../lib/dates';
 
 /** Nome que aparece para a equipe: o cadastrado ou, na falta dele, o e-mail. */
@@ -26,8 +26,8 @@ export function TarefaModal({ indice, marcoInicial = false, selecionada, onClose
   const limitado = !podeEditarArea('cronograma');
   const T = crono.tarefas;
   const atual = indice != null ? T[indice] : null;
-  /** tarefa já criada: só o % concluído e o responsável podem mudar (o resto fica como foi cadastrado) */
-  const travado = indice != null;
+  /** linha-resumo (fase com tarefas dentro): duração, datas e avanço vêm das tarefas filhas */
+  const resumo = indice != null && ehResumo(T, indice);
   const nuvem = !!supabase && !!orgId;
 
   const [nome, setNome] = useState(atual?.nome ?? (marcoInicial ? 'Marco' : ''));
@@ -55,9 +55,9 @@ export function TarefaModal({ indice, marcoInicial = false, selecionada, onClose
   const sobreSi = modo === 'equipe' && !!escolhido && escolhido.user_id === userId;
 
   const salvar = () => {
-    if (!travado && !nome.trim()) { toast('Informe o nome da tarefa.'); return; }
+    if (!nome.trim()) { toast('Informe o nome da tarefa.'); return; }
     const d = marco ? 0 : parseFloat(dur.replace(',', '.'));
-    if (!travado && !marco && !(d >= 0)) { toast('A duração precisa ser um número de dias úteis.'); return; }
+    if (!resumo && !marco && !(d >= 0)) { toast('A duração precisa ser um número de dias úteis.'); return; }
     const p = parseFloat(pct.replace(',', '.'));
     if (pct.trim() !== '' && !(p >= 0 && p <= 100)) { toast('O percentual concluído vai de 0 a 100.'); return; }
     if (!limitado && modo === 'equipe' && !escolhido) { toast('Escolha uma pessoa da equipe ou use "Só o nome".'); return; }
@@ -67,13 +67,29 @@ export function TarefaModal({ indice, marcoInicial = false, selecionada, onClose
     const pos = T.length ? Math.min(selecionada + 1, T.length) : 0;
     const linha = indice ?? pos;
 
-    updateCrono((S, cal, ca) => {
-      if (indice != null) {
-        // tarefa existente: só o percentual e o responsável
-        aplicarCampo(S, cal, ca, indice, 'pct', pct.trim() === '' ? '0' : String(p));
-        if (!limitado) { S.tarefas[indice].resp = respTexto; S.tarefas[indice].respId = respIdFinal; }
-        return;
+    /** tarefa existente: todos os dados podem mudar (quem só altera as próprias tarefas não troca o responsável) */
+    const editar = (S: Estado, cal: ReturnType<typeof makeCal>, ca: ReturnType<typeof calcular>, i: number) => {
+      const t = S.tarefas[i];
+      const predicts = predParse(S.tarefas, pred, i);
+      t.nome = nome.trim();
+      if (!resumo) {
+        t.marco = marco; t.dur = marco ? 0 : d;
+        t.iniM = parseData(ini);
+        aplicarCampo(S, cal, ca, i, 'pct', pct.trim() === '' ? '0' : String(p));
+        aplicarCampo(S, cal, ca, i, 'peso', peso);
       }
+      t.pred = predicts.filter((x) => x.id !== t.id);
+      if (!limitado) { t.resp = respTexto; t.respId = respIdFinal; }
+    };
+    if (indice != null) {
+      // confere antes de gravar: uma ligação que fecha um ciclo (A depende de B e B de A) não é aceita
+      const prova: Estado = JSON.parse(JSON.stringify(crono)); const calP = makeCal(prova);
+      editar(prova, calP, calcular(prova, calP), indice);
+      if (calcular(prova, makeCal(prova)).some((k) => k.erro === 'ciclo')) { toast('Essas predecessoras formam um ciclo: uma tarefa não pode depender dela mesma, direta ou indiretamente.'); return; }
+    }
+
+    updateCrono((S, cal, ca) => {
+      if (indice != null) { editar(S, cal, ca, indice); return; }
       // as predecessoras são números das linhas como estão na tela agora, antes de a nova linha entrar
       const predicts = predParse(S.tarefas, pred, indice ?? -1);
       S.tarefas.splice(pos, 0, novaTarefa({ nivel: S.tarefas[selecionada] ? S.tarefas[selecionada].nivel : 0 }));
@@ -99,31 +115,31 @@ export function TarefaModal({ indice, marcoInicial = false, selecionada, onClose
       <button className="btn" onClick={onClose}>Cancelar</button>
       <button className="btn btn-primary" onClick={salvar}><Check size={15} /> {indice == null ? 'Adicionar tarefa' : 'Salvar tarefa'}</button>
     </>}>
-      {travado && <p className="aviso-travado"><Lock size={14} /> Depois de criada, só o <b>% concluído</b> e o <b>responsável</b> podem ser alterados. Os demais dados ficam como foram cadastrados.</p>}
+      {resumo && <p className="dica" style={{ marginTop: 0 }}>Esta linha é uma fase (tem tarefas dentro): a duração, as datas e o avanço são calculados a partir das tarefas filhas. Aqui dá para mudar o nome, as predecessoras e o responsável.</p>}
       {indice == null && T.length > 0 && <p className="dica" style={{ marginTop: 0 }}>Entra logo abaixo da linha {selecionada + 1}{T[selecionada]?.nome ? ` (${T[selecionada].nome})` : ''}, no mesmo nível.</p>}
       <div className="form-grid">
         <div className="form-group form-full"><label htmlFor="tarefa-nome">Nome da tarefa <span className="req">*</span></label>
-          <input id="tarefa-nome" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Concretagem da laje do 2º pavimento" maxLength={160} autoFocus={!travado} readOnly={travado} />
+          <input id="tarefa-nome" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Concretagem da laje do 2º pavimento" maxLength={160} autoFocus />
         </div>
 
         <div className="form-group"><label htmlFor="tarefa-tipo">Tipo</label>
-          <select id="tarefa-tipo" disabled={travado} value={marco ? 'marco' : 'tarefa'} onChange={(e) => { const m = e.target.value === 'marco'; setMarco(m); if (!m && (dur === '0' || dur === '')) setDur('1'); }}>
+          <select id="tarefa-tipo" disabled={resumo} value={marco ? 'marco' : 'tarefa'} onChange={(e) => { const m = e.target.value === 'marco'; setMarco(m); if (!m && (dur === '0' || dur === '')) setDur('1'); }}>
             <option value="tarefa">Tarefa (tem duração)</option><option value="marco">Marco (um evento, duração 0)</option>
           </select></div>
         <div className="form-group"><label htmlFor="tarefa-dur">Duração (dias úteis)</label>
-          <input id="tarefa-dur" inputMode="decimal" value={marco ? '0' : dur} disabled={marco || travado} onChange={(e) => setDur(e.target.value)} /></div>
+          <input id="tarefa-dur" inputMode="decimal" value={marco ? '0' : dur} disabled={marco || resumo} onChange={(e) => setDur(e.target.value)} /></div>
 
         <div className="form-group"><label htmlFor="tarefa-ini">Data de início</label>
-          <input id="tarefa-ini" type="date" disabled={travado} value={ini} onChange={(e) => setIni(e.target.value)} />
+          <input id="tarefa-ini" type="date" disabled={resumo} value={ini} onChange={(e) => setIni(e.target.value)} />
           <span className="dica">{indice == null ? 'Vazio: começa hoje, no dia em que a tarefa é criada (ou depois das predecessoras). O término vem da duração.' : 'Vazio: o início vem das predecessoras ou da data do projeto. O término vem da duração.'}</span></div>
         <div className="form-group"><label htmlFor="tarefa-pred">Predecessoras (opcional)</label>
-          <input id="tarefa-pred" readOnly={travado} value={pred} onChange={(e) => setPred(e.target.value)} placeholder="Ex: 5  ou  5TI+2  ou  4;7II" />
+          <input id="tarefa-pred" value={pred} onChange={(e) => setPred(e.target.value)} placeholder="Ex: 5  ou  5TI+2  ou  4;7II" />
           <span className="dica">Número da linha que precisa terminar antes. TI+2 = começa 2 dias depois.</span></div>
 
         <div className="form-group"><label htmlFor="tarefa-pct">% concluído</label>
-          <input id="tarefa-pct" inputMode="decimal" autoFocus={travado} value={pct} onChange={(e) => setPct(e.target.value)} /></div>
+          <input id="tarefa-pct" inputMode="decimal" disabled={resumo} value={pct} onChange={(e) => setPct(e.target.value)} /></div>
         <div className="form-group"><label htmlFor="tarefa-peso">Peso (opcional)</label>
-          <input id="tarefa-peso" inputMode="decimal" readOnly={travado} value={peso} onChange={(e) => setPeso(e.target.value)} placeholder="Importância da tarefa na obra" /></div>
+          <input id="tarefa-peso" inputMode="decimal" disabled={resumo} value={peso} onChange={(e) => setPeso(e.target.value)} placeholder="Importância da tarefa na obra" /></div>
 
         {limitado ? (
           <div className="form-group form-full">

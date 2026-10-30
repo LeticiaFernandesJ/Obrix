@@ -471,6 +471,30 @@ describe('pagamento parcial no banco', () => {
     expect((await linhas<{ q: boolean }>(C, `select quitado q from public.itens where org_id = '${org}'`))[0].q).toBe(true);
     expect(await tenta(C, `update public.compras set valor_pago = -1 where org_id = '${org}' and id = 3`)).not.toBeNull();
   });
+  it('a visão de resumo usa as mesmas regras do app (item quitado e compra parcial)', async () => {
+    // item orçado em 500, quitado por 100; compra de 1000 com 400 pagos: comprometido 100 + 1000, pago 100 + 400
+    const r = await linhas<{ comprometido: string; pago: string }>(C, `select comprometido, pago from public.v_obras_resumo where org_id = '${org}'`);
+    expect(Number(r[0].comprometido)).toBe(1100); expect(Number(r[0].pago)).toBe(500);
+  });
+});
+
+describe('administrador não reescreve colunas sensíveis pela API', () => {
+  let org = '';
+  beforeAll(async () => {
+    org = (await linhas<{ org: string }>(C, `select public.criar_organizacao('Org Colunas') as org`))[0].org;
+  });
+  it('não troca o e-mail nem o dono de um membro, nem o criador da organização', async () => {
+    expect(await tenta(C, `update public.membros set email = 'outro@x.com' where org_id = '${org}'`)).toMatch(/permission denied/);
+    expect(await tenta(C, `update public.membros set user_id = '${A}' where org_id = '${org}'`)).toMatch(/permission denied/);
+    expect(await tenta(C, `update public.organizacoes set criado_por = '${A}' where id = '${org}'`)).toMatch(/permission denied/);
+  });
+  it('continua podendo renomear a organização', async () => {
+    expect(await tenta(C, `update public.organizacoes set nome = 'Novo nome' where id = '${org}'`)).toBeNull();
+  });
+  it('convite não pode ser reescrito depois de criado', async () => {
+    await como(C, () => db.exec(`insert into public.convites (org_id, papel) values ('${org}', 'leitor')`));
+    expect(await tenta(C, `update public.convites set papel = 'admin' where org_id = '${org}'`)).toMatch(/permission denied/);
+  });
 });
 
 describe('limite de organizações por conta', () => {

@@ -454,6 +454,11 @@ revoke all on public.organizacoes, public.membros, public.convites from anon;
 grant select, update, delete on public.organizacoes to authenticated;
 grant select, update, delete on public.membros to authenticated;
 grant select, insert, update, delete on public.convites to authenticated;
+-- A API só precisa alterar estas colunas. O resto (user_id, e-mail, criado_por, token...) não pode ser reescrito nem por um
+-- administrador: sem isso, um administrador poderia colocar outra conta na sua organização ou burlar o limite de organizações.
+revoke update on public.organizacoes, public.membros, public.convites from authenticated;
+grant update (nome) on public.organizacoes to authenticated;
+grant update (papel, permissoes) on public.membros to authenticated;
 
 -- Quem já estava na equipe ganha o nome que informou no cadastro (se informou).
 update public.membros m set nome = trim(u.raw_user_meta_data->>'nome')
@@ -461,20 +466,23 @@ update public.membros m set nome = trim(u.raw_user_meta_data->>'nome')
   where u.id = m.user_id and m.nome = '' and coalesce(trim(u.raw_user_meta_data->>'nome'), '') <> '';
 
 -- ───────────────────────── 7) RESUMO POR OBRA ─────────────────────────
-create view public.v_obras_resumo with (security_invoker = true) as
+-- Mesmas regras do app: item vale o maior entre orçado e pago (ou o pago, se quitado); compra Parcial conta só o que já foi pago.
+create or replace view public.v_obras_resumo with (security_invoker = true) as
 select
   o.org_id, o.id, o.nome, o.codigo, o.status, o.ac21,
-  coalesce(i.orcado, 0) + coalesce(c.total_todas, 0)                   as comprometido,
+  coalesce(i.comprometido, 0) + coalesce(c.total_todas, 0)             as comprometido,
   coalesce(i.pago, 0)   + coalesce(c.total_pagas, 0)                   as pago,
   o.ac21 - (coalesce(i.pago, 0) + coalesce(c.total_pagas, 0))          as saldo,
   case when o.ac21 > 0
-       then round((coalesce(i.orcado, 0) + coalesce(c.total_todas, 0)) / o.ac21 * 100, 1)
+       then round((coalesce(i.comprometido, 0) + coalesce(c.total_todas, 0)) / o.ac21 * 100, 1)
        else 0 end                                                       as pct_comprometido
 from public.obras o
-left join (select org_id, obra_id, sum(orcado) orcado, sum(pago) pago
+left join (select org_id, obra_id,
+                  sum(case when quitado and pago > 0 then pago else greatest(orcado, pago) end) comprometido,
+                  sum(pago) pago
            from public.itens group by org_id, obra_id) i on i.org_id = o.org_id and i.obra_id = o.id
 left join (select org_id, obra_id, sum(total) total_todas,
-                  sum(total) filter (where status = 'Pago') total_pagas
+                  sum(case status when 'Pago' then total when 'Parcial' then least(valor_pago, total) else 0 end) total_pagas
            from public.compras group by org_id, obra_id) c on c.org_id = o.org_id and c.obra_id = o.id;
 grant select on public.v_obras_resumo to authenticated;
 

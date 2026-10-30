@@ -7,7 +7,7 @@ import { fmtN,
   baixar, curvaPrevista, desempacotar, empacotar, exemplo, exportarCSV, importarTexto, nomeArquivo,
   normalizarEstado, novaTarefa, novoEstado, pctPrevistoEm, pctRealAtual, type Estado, type Tarefa,
 } from '../../lib/schedule';
-import { MODOS_IMPORT, type Extra, type ModoImport, aplicarImportacao, lerArquivo, montarArquivo, textoResumo } from '../../lib/importacao';
+import { AVISO_ARQUIVO_GRANDE, MODOS_IMPORT, arquivoGrandeDemais, type Extra, type ModoImport, aplicarImportacao, lerArquivo, montarArquivo, textoResumo } from '../../lib/importacao';
 import { exportarMSProject, lerMSProject } from '../../lib/msproject';
 import { hojeN, n2br, parseData } from '../../lib/dates';
 
@@ -69,6 +69,7 @@ export function CronoActions() {
 
   const onArquivo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]; if (!f) return;
+    if (arquivoGrandeDemais(f)) { e.target.value = ''; void avisar(AVISO_ARQUIVO_GRANDE + ' Nada foi alterado.'); return; }
     const destino = alvo.current; const tipo = modoArq.current; const doImport = m === 'import';
     const r = new FileReader();
     r.onload = () => {

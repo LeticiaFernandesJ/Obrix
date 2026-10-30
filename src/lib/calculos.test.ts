@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type DB, type Obra, acimaDoOrcado, pagoDaCompra, restanteDaCompra, corPct, dbVazio, nivelPct, fmt, fmtNum, hojeISO, r2, totalComprometido, totalPago, totalItens, pct, pctInt, situacaoVerba } from './ac21';
 import { comprasDaNFe, lerNFe } from './nfe';
-import { type Estado, calcular, curvaPrevista, makeCal, novaTarefa, novoEstado, pctFis, pctPrevistoEm, pctRealAtual } from './schedule';
+import { type Estado, calcular, curvaPrevista, diasUteisApos, makeCal, novaTarefa, novoEstado, pctFis, pctPrevistoEm, pctRealAtual, tendencia } from './schedule';
 import { calcularEVM } from './evm';
 import { diasEntre, fluxoMensal, resumoFinanceiro } from './financeiro';
 import { n2iso, parseData } from './dates';
@@ -215,5 +215,28 @@ describe('faixas de status iguais às do alerta de verba', () => {
     expect([89, 90, 99, 100, 120].map((p) => nivelPct(p))).toEqual(['ok', 'warn', 'warn', 'danger', 'danger']);
     expect([89, 90, 99, 100].map((p) => corPct(p))).toEqual(['var(--green)', 'var(--amber)', 'var(--amber)', 'var(--red)']);
     expect(nivelPct(pctInt(2915790.59, 2923305))).toBe('warn'); // o caso do alerta falso: 99,74%
+  });
+});
+
+describe('dias úteis entre duas datas (faltam / atrasada há)', () => {
+  const cal = { sab: false, dom: false, fer: new Set<number>() };
+  const d = (iso: string) => parseData(iso) as number;
+  it('conta os dias úteis depois da primeira data até a segunda, também em fim de semana e feriado', () => {
+    expect(diasUteisApos(cal, d('2026-03-06'), d('2026-03-09'))).toBe(1); // sexta -> segunda
+    expect(diasUteisApos(cal, d('2026-03-06'), d('2026-03-06'))).toBe(0);
+    expect(diasUteisApos(cal, d('2026-03-07'), d('2026-03-09'))).toBe(1); // sábado -> segunda: a segunda ainda não aconteceu, conta 1
+    expect(diasUteisApos(cal, d('2026-03-02'), d('2026-03-13'))).toBe(9); // duas semanas
+    expect(diasUteisApos(cal, d('2026-03-09'), d('2026-03-06'))).toBe(-1); // para trás é negativo e simétrico
+    const feriado = { ...cal, fer: new Set([d('2026-03-09')]) };
+    expect(diasUteisApos(feriado, d('2026-03-06'), d('2026-03-10'))).toBe(1); // a segunda é feriado
+    expect(diasUteisApos(cal, null, d('2026-03-10'))).toBe(0);
+  });
+  it('tendência adiantada mostra dias negativos certos (antes dava o triplo)', () => {
+    const S = novoEstado(); S.meta.inicio = '2026-03-02'; S.meta.statusDate = '2026-03-06';
+    S.tarefas = [novaTarefa({ nome: 'A', dur: 10, pct: 80 })];
+    const cal2 = makeCal(S), c = calcular(S, cal2), cp = curvaPrevista(S, c, cal2);
+    const t = tendencia(S, c, cal2, cp)!;
+    expect(t.atraso).toBe(diasUteisApos(cal2, t.fimPrev, t.fimProj));
+    expect(t.atraso).toBeLessThan(0); expect(t.atraso).toBeGreaterThan(-10);
   });
 });

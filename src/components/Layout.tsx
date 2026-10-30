@@ -9,6 +9,7 @@ import { useDialogo } from './Dialogo';
 import { useInstalar } from '../lib/pwa';
 import { AlertasSino } from './AlertasSino';
 import type { Area } from '../lib/equipe';
+import { AVISO_ARQUIVO_GRANDE, arquivoGrandeDemais } from '../lib/importacao';
 import { hojeISO, exportarExcel } from '../lib/ac21';
 import { CronoActions } from '../pages/crono/CronoActions';
 
@@ -68,7 +69,7 @@ export function LogoObrix() {
 function AC21Actions() {
   const { db, exportarTudo, importarDB, registrarHistorico, toast, podeEditarArea } = useApp();
   const podeEditar = (['obras', 'compras', 'cronograma'] as const).every((a) => podeEditarArea(a));
-  const { avisar } = useDialogo();
+  const { avisar, confirmar } = useDialogo();
   const input = useRef<HTMLInputElement>(null);
   const salvar = () => {
     const blob = new Blob([JSON.stringify(exportarTudo(), null, 2)], { type: 'application/json' });
@@ -79,13 +80,20 @@ function AC21Actions() {
   };
   const carregar = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]; if (!f) return;
+    if (arquivoGrandeDemais(f)) { e.target.value = ''; void avisar(AVISO_ARQUIVO_GRANDE, 'Não foi possível carregar'); return; }
     const r = new FileReader();
     r.onload = (ev) => {
-      try {
-        const ok = importarDB(JSON.parse(String(ev.target?.result)));
-        if (!ok) throw new Error('arquivo de backup inválido (sem lista de obras)');
-        toast('Dados carregados com sucesso!');
-      } catch (err) { void avisar('Erro ao carregar o arquivo: ' + (err as Error).message, 'Não foi possível carregar'); }
+      void (async () => {
+        try {
+          const dados = JSON.parse(String(ev.target?.result));
+          const n = Array.isArray(dados?.obras) ? dados.obras.length : 0;
+          if (!n) throw new Error('arquivo de backup inválido (sem lista de obras)');
+          // carregar um backup troca TUDO o que existe hoje: confirma antes
+          if (!(await confirmar(`Carregar este backup substitui todas as obras, itens, compras e cronogramas que existem agora pelos do arquivo (${n} ${n === 1 ? 'obra' : 'obras'}).\n\nSe quiser guardar o que existe hoje, cancele e use "Salvar" primeiro.`, { titulo: 'Carregar backup', confirmar: 'Substituir tudo', perigo: true }))) return;
+          if (!importarDB(dados)) throw new Error('arquivo de backup inválido');
+          toast('Dados carregados com sucesso!');
+        } catch (err) { void avisar('Erro ao carregar o arquivo: ' + (err as Error).message, 'Não foi possível carregar'); }
+      })();
     };
     r.readAsText(f); e.target.value = '';
   };

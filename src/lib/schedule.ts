@@ -65,20 +65,25 @@ export function novaTarefa(o?: Partial<Tarefa>): Tarefa {
   };
 }
 
+const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/;
+/** Limites para o que vem de arquivo ou link: um cronograma malformado não pode travar a tela nem encher o armazenamento. */
+const MAX_TAREFAS = 5000, MAX_PRED = 50, MAX_FERIADOS = 1000, MAX_MEDICOES = 5000;
+const texto = (v: unknown, max: number) => (typeof v === 'string' ? v : typeof v === 'number' && Number.isFinite(v) ? String(v) : '').slice(0, max);
+
 /** Normaliza um objeto vindo de arquivo/link para um Estado completo. */
 export function normalizarEstado(obj: Partial<Estado> | null | undefined): Estado {
   const base = novoEstado();
   const o = (obj && typeof obj === 'object' ? obj : {}) as Partial<Estado>;
   const n = (v: unknown, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
   const nn = (v: unknown) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
-  const tarefas = (Array.isArray(o.tarefas) ? o.tarefas : []).filter((t) => t && typeof t === 'object').map((t) => {
+  const tarefas = (Array.isArray(o.tarefas) ? o.tarefas : []).filter((t) => t && typeof t === 'object').slice(0, MAX_TAREFAS).map((t) => {
     const x = novaTarefa(t as Partial<Tarefa>);
-    x.nome = String(x.nome ?? ''); x.resp = String(x.resp ?? '');
-    x.respId = typeof x.respId === 'string' && x.respId ? x.respId : null;
+    x.id = texto(x.id, 64) || novaTarefa().id; x.nome = texto(x.nome, 300); x.resp = texto(x.resp, 200);
+    x.respId = typeof x.respId === 'string' && x.respId ? x.respId.slice(0, 64) : null;
     x.nivel = Math.max(0, Math.min(8, Math.round(n(x.nivel)))); x.dur = Math.max(0, n(x.dur, 1));
     x.pct = Math.max(0, Math.min(100, n(x.pct))); x.iniM = nn(x.iniM); x.rIni = nn(x.rIni); x.rFim = nn(x.rFim); x.peso = nn(x.peso);
-    x.pred = (Array.isArray(x.pred) ? x.pred : []).filter((p) => p && typeof p.id === 'string')
-      .map((p) => ({ id: p.id, tipo: (['TI', 'II', 'TT', 'IT'].includes(p.tipo) ? p.tipo : 'TI') as TipoPred, lag: n(p.lag) }));
+    x.pred = (Array.isArray(x.pred) ? x.pred : []).filter((p) => p && typeof p.id === 'string').slice(0, MAX_PRED)
+      .map((p) => ({ id: p.id.slice(0, 64), tipo: (['TI', 'II', 'TT', 'IT'].includes(p.tipo) ? p.tipo : 'TI') as TipoPred, lag: n(p.lag) }));
     return x;
   });
   // evita ids repetidos e nível maior que o permitido pela linha anterior
@@ -90,10 +95,17 @@ export function normalizarEstado(obj: Partial<Estado> | null | undefined): Estad
   });
   return {
     ...base, v: 2,
-    meta: { ...base.meta, ...(o.meta && typeof o.meta === 'object' ? o.meta : {}) },
-    cal: { sab: !!o.cal?.sab, dom: !!o.cal?.dom, fer: Array.isArray(o.cal?.fer) ? o.cal!.fer.map(String) : [] },
+    meta: (() => {
+      const m = (o.meta && typeof o.meta === 'object' ? o.meta : {}) as Record<string, unknown>;
+      const dia = (v: unknown, padrao: string) => (typeof v === 'string' && DATA_ISO.test(v) ? v : padrao);
+      return {
+        nome: texto(m.nome, 160), contrato: texto(m.contrato, 160), empresa: texto(m.empresa, 160), resp: texto(m.resp, 160), pmo: texto(m.pmo, 160), obs: texto(m.obs, 2000),
+        inicio: dia(m.inicio, base.meta.inicio), statusDate: dia(m.statusDate, base.meta.statusDate),
+      };
+    })(),
+    cal: { sab: !!o.cal?.sab, dom: !!o.cal?.dom, fer: Array.isArray(o.cal?.fer) ? o.cal!.fer.filter((d) => typeof d === 'string' && DATA_ISO.test(d)).slice(0, MAX_FERIADOS) : [] },
     tarefas,
-    medicoes: (Array.isArray(o.medicoes) ? o.medicoes : []).filter((m) => m && typeof m.d === 'string').map((m) => ({ d: m.d, p: n(m.p) })),
+    medicoes: (Array.isArray(o.medicoes) ? o.medicoes : []).filter((m) => m && typeof m.d === 'string' && DATA_ISO.test(m.d)).slice(0, MAX_MEDICOES).map((m) => ({ d: m.d, p: Math.max(0, Math.min(100, n(m.p))) })),
     zoom: (['d', 's', 'm', 'q'].includes(String(o.zoom)) ? o.zoom : 's') as Zoom,
     baseline: !!o.baseline,
   };
@@ -124,6 +136,16 @@ export function difUtil(cal: Cal, a: number | null, b: number | null): number {
   if (b < a) return -difUtil(cal, b, a);
   let c = 0; for (let n = a; n <= b; n++) if (ehUtil(cal, n)) c++;
   return c;
+}
+
+/**
+ * Dias úteis que passaram de a (exclusive) até b (inclusive): de sexta para a segunda seguinte é 1. Negativo se b é antes de a.
+ * Serve para "faltam N dias" e "atrasada há N dias" sem errar quando a data de status cai num sábado, domingo ou feriado.
+ */
+export function diasUteisApos(cal: Cal, a: number | null, b: number | null): number {
+  if (a == null || b == null) return 0;
+  if (b === a) return 0;
+  return b > a ? difUtil(cal, a + 1, b) : -difUtil(cal, b + 1, a);
 }
 
 /* =========================== HIERARQUIA =========================== */
@@ -394,7 +416,7 @@ export function tendencia(S: Estado, c: Calc[], cal: Cal, cp: CurvaPrev): Tenden
     if (t > sd) pts.push({ n: t, v: Math.min(100, v) });
   }
   if (!pts.length || pts[pts.length - 1].v < 99.9) pts.push({ n: fimProj, v: 100 });
-  return { spi, fimProj, pontos: pts, es, real, ini, fimPrev, atraso: difUtil(cal, fimPrev, fimProj) - 1 };
+  return { spi, fimProj, pontos: pts, es, real, ini, fimPrev, atraso: diasUteisApos(cal, fimPrev, fimProj) };
 }
 export function realEm(n: number, serie: { n: number; p: number }[]): number | null {
   let v: number | null = null; serie.forEach((p) => { if (p.n <= n) v = p.p; }); return v;
@@ -475,14 +497,19 @@ export function nomeArquivo(S: Estado, ext: string): string {
   return `${n || 'cronograma'}-${n2iso(parseData(S.meta.statusDate) ?? hojeN())}.${ext}`;
 }
 
+/** Célula de texto do CSV: entre aspas, aspas duplicadas, e sem começar com = + - @ (o Excel trataria como fórmula). */
+export const celulaCsv = (v: unknown) => {
+  const t = String(v ?? '');
+  return '"' + (/^[=+\-@\t\r]/.test(t) ? "'" + t : t).replace(/"/g, '""') + '"';
+};
 export function exportarCSV(S: Estado, c: Calc[]) {
   const sep = ';';
   const cab = ['Nº', 'EDT', 'Tarefa', 'Duração', 'Início', 'Término', 'Predecessoras', 'Peso', '% Concluído', 'Responsável', 'Início real', 'Término real', 'Folga'];
   const linhas = [cab.join(sep)];
   S.tarefas.forEach((t, i) => {
     const k = c[i] || ({} as Calc);
-    linhas.push([i + 1, edt(S.tarefas, i), '"' + String(t.nome || '').replace(/"/g, '""') + '"', k.dur || 0, n2br(k.ini), n2br(k.fim),
-      predTexto(S.tarefas, t), fmtN(k.peso, 2), Math.round(k.pct || 0), '"' + String(t.resp || '') + '"',
+    linhas.push([i + 1, edt(S.tarefas, i), celulaCsv(t.nome), k.dur || 0, n2br(k.ini), n2br(k.fim),
+      predTexto(S.tarefas, t), fmtN(k.peso, 2), Math.round(k.pct || 0), celulaCsv(t.resp),
       n2br(t.rIni), n2br(t.rFim), k.res ? '' : (k.folga ?? '')].join(sep));
   });
   linhas.push('');

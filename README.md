@@ -81,6 +81,9 @@ Os dados pertencem a uma **organização** (sua empresa ou equipe), não a uma p
 - **Organizações:** cada conta cria no máximo 5.
 - **Convites:** no campo "Para quem", um e-mail (com @) trava o convite: só essa conta consegue aceitar, e um convite de administrador pede confirmação ao ser gerado.
 - **Link do PMO:** tem validade (7, 30, 90 dias ou sem validade), recusa links que descomprimem para algo gigante e continua sem poder ser cancelado depois de enviado.
+- **Arquivos e links recebidos:** um link editável (#p=) mostra para qual obra vai e pede confirmação antes de trocar o cronograma; arquivos acima de 20 MB são recusados; o backup só substitui os dados depois de confirmado; cronogramas vindos de arquivo ou link têm textos, listas e datas limitados e validados; o CSV exportado não vira fórmula no Excel (texto que começa com = + - @ ganha apóstrofo).
+- **Banco:** um administrador só consegue alterar, pela API, o nome da organização e o papel e as permissões dos membros (e-mail, dono, criador e convites ficam travados). Depois de atualizar o app, rode de novo o `supabase/schema-equipes.sql`.
+- **Painel do Supabase (não dá para conferir pelo código):** em Authentication, mantenha a senha mínima em 8 ou mais, ative a proteção contra senhas vazadas e deixe só o endereço do app em Site URL e Redirect URLs. Na publicação pelo GitHub Pages os cabeçalhos de segurança do `vercel.json` não valem; prefira a Vercel.
 - **Edição simultânea:** se outra pessoa alterou as mesmas linhas desde que você abriu a tela, o app avisa e deixa você escolher entre manter a sua versão ou usar a da nuvem. Isso depende da coluna `updated_at` das tarefas, criada pelo `schema-equipes.sql`.
 - **Dependências:** `npm audit` sem vulnerabilidades. O projeto usa Vite 8 e Vitest 5 (Node 20.19 ou mais novo).
 

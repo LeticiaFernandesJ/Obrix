@@ -219,6 +219,8 @@ export async function exportarExcelCompras(db: DB) {
 /* =========================== VALIDAÇÃO DE DADOS =========================== */
 const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const str = (v: unknown) => (v == null ? '' : String(v));
+/** Valor em reais vindo de arquivo: nunca negativo (o banco recusa) nem infinito. */
+const din = (v: unknown) => Math.max(0, num(v));
 
 /** Normaliza qualquer objeto vindo de backup/armazenamento para um DB seguro. Retorna null se não houver obras. */
 export function sanitizarDB(raw: unknown): DB | null {
@@ -231,19 +233,19 @@ export function sanitizarDB(raw: unknown): DB | null {
   const status: StatusObra[] = ['Em Andamento', 'Planejamento', 'Concluída', 'Suspensa'];
   const obras: Obra[] = (r.obras as Partial<Obra>[]).filter((o) => o && typeof o === 'object').map((o) => ({
     id: uniq(o.id), nome: str(o.nome) || 'Obra sem nome', codigo: str(o.codigo), local: str(o.local),
-    responsavel: str(o.responsavel), inicio: str(o.inicio), fim: str(o.fim), ac21: num(o.ac21),
+    responsavel: str(o.responsavel), inicio: str(o.inicio), fim: str(o.fim), ac21: din(o.ac21),
     status: status.includes(o.status as StatusObra) ? (o.status as StatusObra) : 'Em Andamento', obs: str(o.obs),
     itens: (Array.isArray(o.itens) ? o.itens : []).filter((i) => i && typeof i === 'object').map((i: Partial<Item>) => ({
       id: uniq(i.id), desc: str(i.desc) || 'Item', cat: str(i.cat) || 'Outros',
       tipo: (i.tipo === 'nao_orcado' ? 'nao_orcado' : 'orcado') as TipoItem,
-      orcado: num(i.orcado), pago: num(i.pago), ...(i.quitado === true ? { quitado: true } : {}), forn: str(i.forn), nf: str(i.nf), data: str(i.data), obs: str(i.obs),
+      orcado: din(i.orcado), pago: din(i.pago), ...(i.quitado === true ? { quitado: true } : {}), forn: str(i.forn), nf: str(i.nf), data: str(i.data), obs: str(i.obs),
     })),
   }));
   const obraIds = new Set(obras.map((o) => o.id));
   const compras: Compra[] = (Array.isArray(r.compras) ? r.compras : []).filter((c) => c && typeof c === 'object' && obraIds.has(num((c as Compra).obraId)))
     .map((c: Partial<Compra>) => ({
       id: uniq(c.id), obraId: num(c.obraId), desc: str(c.desc) || 'Compra', cat: str(c.cat) || 'Outros', forn: str(c.forn),
-      cnpj: str(c.cnpj), nf: str(c.nf), data: str(c.data), qtde: num(c.qtde), unid: str(c.unid), unit: num(c.unit), total: num(c.total), ...(num(c.valorPago) > 0 ? { valorPago: num(c.valorPago) } : {}), venc: str(c.venc),
+      cnpj: str(c.cnpj), nf: str(c.nf), data: str(c.data), qtde: din(c.qtde), unid: str(c.unid), unit: din(c.unit), total: din(c.total), ...(din(c.valorPago) > 0 ? { valorPago: din(c.valorPago) } : {}), venc: str(c.venc),
       status: (['Pago', 'Pendente', 'Parcial'].includes(str(c.status)) ? c.status : 'Pendente') as StatusCompra, obs: str(c.obs),
     }));
   const historico: Historico[] = (Array.isArray(r.historico) ? r.historico : []).filter((h) => h && typeof h === 'object')

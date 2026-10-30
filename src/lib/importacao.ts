@@ -4,6 +4,10 @@ import { type Estado, type Pred, type Tarefa, normalizarEstado, novaTarefa } fro
    Tudo aqui é função pura: calcula o cronograma novo de UMA obra e devolve; quem chama aplica de uma vez só. */
 
 export const LIMITE_TAREFAS = 3000;
+/** Tamanho máximo de um arquivo importado (cronograma, backup, NF-e): arquivos maiores travam a tela e não são cronogramas. */
+export const LIMITE_ARQUIVO_MB = 20;
+export const arquivoGrandeDemais = (f: { size: number }) => f.size > LIMITE_ARQUIVO_MB * 1024 * 1024;
+export const AVISO_ARQUIVO_GRANDE = `O arquivo tem mais de ${LIMITE_ARQUIVO_MB} MB, o que é grande demais para ser importado com segurança.`;
 export const MAX_BACKUPS = 3;
 
 /** atualizar: casa as tarefas do arquivo com as já existentes (sem duplicar); acrescentar: coloca no fim; substituir: troca tudo. */

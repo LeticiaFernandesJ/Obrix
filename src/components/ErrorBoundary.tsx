@@ -1,7 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { ehErroDeArquivoAntigo, recarregarUmaVez } from '../lib/recarregar';
 
-const PREFIXOS = /^(obrix-ac21-v1|obrix-cronos-v1|obrix-org-ativa|cronograma-obra-v2)/;
+const PREFIXOS = /^(obrix-ac21-v1|obrix-cronos-v1|obrix-crono-bkp-v1|obrix-org-ativa|cronograma-obra-v2)/;
 const chaves = () => { try { return Object.keys(localStorage).filter((k) => PREFIXOS.test(k)); } catch { return []; } };
 
 export default class ErrorBoundary extends Component<{ children: ReactNode }, { erro: Error | null }> {

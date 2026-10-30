@@ -3,6 +3,7 @@ import { FileUp, Check } from 'lucide-react';
 import { Modal } from './ui';
 import { useApp } from '../store/AppStore';
 import { CATS_COMPRA, fmt, fmtData, plural, type StatusCompra } from '../lib/ac21';
+import { AVISO_ARQUIVO_GRANDE, arquivoGrandeDemais } from '../lib/importacao';
 import { type ModoLancamento, type NFe, comprasDaNFe, lerNFe, notaJaLancada } from '../lib/nfe';
 
 interface Arquivo { nome: string; nf?: NFe; erro?: string; usar: boolean; duplicada: boolean }
@@ -21,6 +22,7 @@ export function ImportarNFeModal({ obraId, onClose }: { obraId?: number | null; 
     const novos: Arquivo[] = [];
     for (const f of Array.from(lista)) {
       try {
+        if (arquivoGrandeDemais(f)) throw new Error(AVISO_ARQUIVO_GRANDE);
         const nf = lerNFe(await f.text());
         const duplicada = notaJaLancada(db, nf) || novos.some((n) => n.nf && n.nf.chave && n.nf.chave === nf.chave);
         novos.push({ nome: f.name, nf, duplicada, usar: !duplicada });

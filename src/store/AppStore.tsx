@@ -374,12 +374,18 @@ export function AppProvider({ children, userId = null, email, nome = '', onSignO
     const carregarHash = () => {
     const m = /^#(v|p)=(.+)$/s.exec(window.location.hash);
     if (!m) return;
-    desempacotar(m[2]).then((obj) => {
+    desempacotar(m[2]).then(async (obj) => {
       const est = normalizarEstado(obj);
       const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       const ro = m[1] === 'v';
       if (ro) { setShared(est); setReadOnly(true); }
-      else if (!roRef.current) carregarRef.current?.(est, { motivo: 'Antes de abrir um link editável' });
+      else if (!roRef.current) {
+        // um link recebido não pode trocar o cronograma sem a pessoa saber: mostra o destino e pede confirmação
+        const obra = estadoRef.current.db.obras.find((o) => String(o.id) === chaveRef.current);
+        const alvo = obra ? `da obra "${obra.nome}"` : 'aberto';
+        const ok = await confirmarRef.current(`Este link quer substituir o cronograma ${alvo} por outro com ${est.tarefas.length} tarefas${est.meta.nome ? ` ("${est.meta.nome}")` : ''}.\n\nSó continue se você confia em quem enviou. Uma cópia do cronograma atual fica guardada.`, { titulo: 'Link com cronograma', confirmar: 'Substituir', cancelar: 'Não abrir', perigo: true });
+        if (ok) carregarRef.current?.(est, { motivo: 'Antes de abrir um link editável' });
+      }
       window.history.replaceState(null, '', base + (ro ? '/painel' + window.location.hash : '/cronograma'));
       window.dispatchEvent(new PopStateEvent('popstate'));
     }).catch((e: Error) => { void avisarRef.current(/expirou|grande demais/.test(e.message) ? e.message : 'Não consegui ler o link, ele pode ter sido cortado pelo e-mail. Peça o arquivo .json.'); });

@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useApp } from '../../store/AppStore';
-import { pctFis, curvaPrevista, difUtil, diasTxt, fmtN, pctPrevistoEm, pctRealAtual, tendencia } from '../../lib/schedule';
+import { pctFis, curvaPrevista, diasUteisApos, diasTxt, fmtN, pctPrevistoEm, pctRealAtual, tendencia } from '../../lib/schedule';
 import { hojeN, n2br, n2brc, parseData } from '../../lib/dates';
 import { CronoHeader } from './CronoHeader';
 import { dicaCurva, exportarCurvaCSV, exportarCurvaPNG, htmlCurvaS } from './curvaS';
@@ -27,7 +27,7 @@ export default function Painel() {
   const desl = fimBase != null && fimProj != null ? fimProj - fimBase : null;
   const rows = T.map((t, i) => ({ t, i, k: c[i] }));
   const atrasadas = rows.filter((o) => o.k && !o.k.res && (+o.t.pct || 0) < 100 && o.k.fim != null && o.k.fim < sd);
-  const restam = fimProj != null ? Math.max(0, difUtil(cal, sd, fimProj) - 1) : 0;
+  const restam = fimProj != null ? Math.max(0, diasUteisApos(cal, sd, fimProj)) : 0;
   const cls = (d: number) => (d >= -0.5 ? 'good' : d >= -5 ? 'warn' : 'bad');
   const concl = rows.filter((o) => o.k && !o.k.res && (+o.t.pct || 0) >= 100).length;
   const totalFolhas = c.filter((k) => !k.res).length;
@@ -115,7 +115,7 @@ export default function Painel() {
           {lista.length ? (
             <table className="list"><thead><tr><th>Tarefa</th><th className="n">Término</th><th className="n">%</th><th className="n">Situação</th></tr></thead><tbody>
               {lista.map((o) => {
-                const at = (o.k.fim as number) < sd && (+o.t.pct || 0) < 100, dias = at ? difUtil(cal, o.k.fim, sd) - 1 : 0;
+                const at = (o.k.fim as number) < sd && (+o.t.pct || 0) < 100, dias = at ? diasUteisApos(cal, o.k.fim, sd) : 0;
                 return (
                   <tr key={o.t.id}><td>{o.t.nome || '-'}<br /><span style={{ color: 'var(--muted)' }}>{o.t.resp}</span></td>
                     <td className="n">{n2br(o.k.fim)}</td><td className="n">{pctFis(o.k.pct)}%</td>

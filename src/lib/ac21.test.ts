@@ -17,16 +17,20 @@ const db: DB = {
 };
 
 describe('contas do AC21', () => {
-  it('comprometido = itens (valor pago se já pago, senão o orçado) + todas as compras', () => {
-    // i1 pago 100 (orçado era 300) + i2 não orçado pago 50 + compras 200 e 80
-    expect(totalComprometido(db, db.obras[0])).toBe(100 + 50 + 200 + 80);
+  it('comprometido = itens (o maior entre orçado e pago, ou o pago se quitado) + todas as compras', () => {
+    // i1 orçado 300 com 100 pagos (pagamento parcial: continua 300) + i2 não orçado pago 50 + compras 200 e 80
+    expect(totalComprometido(db, db.obras[0])).toBe(300 + 50 + 200 + 80);
+    const quitado = { ...db, obras: [{ ...db.obras[0], itens: [{ ...db.obras[0].itens[0], quitado: true }, db.obras[0].itens[1]] }] };
+    expect(totalComprometido(quitado, quitado.obras[0])).toBe(100 + 50 + 200 + 80); // quitado por 100: vale o pago
   });
   it('item pago por mais ou por menos: vale o valor realmente pago; sem pagamento, o orçado', () => {
-    const o = (orcado: number, pago: number) => ({ ...db.obras[0], itens: [{ ...db.obras[0].itens[0], orcado, pago }] });
+    const o = (orcado: number, pago: number, quitado = false) => ({ ...db.obras[0], itens: [{ ...db.obras[0].itens[0], orcado, pago, quitado }] });
     const vazio = { ...db, compras: [] };
     expect(totalComprometido(vazio, o(500, 0))).toBe(500);
     expect(totalComprometido(vazio, o(500, 1000))).toBe(1000);
-    expect(totalComprometido(vazio, o(500, 400))).toBe(400);
+    expect(totalComprometido(vazio, o(500, 400))).toBe(500); // sinal: o restante continua comprometido
+    expect(totalComprometido(vazio, o(500, 400, true))).toBe(400); // quitado por menos: vale o pago
+    expect(totalComprometido(vazio, o(500, 1000, true))).toBe(1000);
     expect(acimaDoOrcado(o(500, 1000))).toEqual({ valor: 500, qtd: 1 });
     expect(acimaDoOrcado(o(500, 400)).qtd).toBe(0);
   });

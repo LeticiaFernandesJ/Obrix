@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { type DB, type Obra, dbVazio, fmt, fmtNum, hojeISO, r2, totalComprometido, totalPago, totalItens, pct, pctInt, situacaoVerba } from './ac21';
+import { type DB, type Obra, acimaDoOrcado, pagoDaCompra, restanteDaCompra, corPct, dbVazio, nivelPct, fmt, fmtNum, hojeISO, r2, totalComprometido, totalPago, totalItens, pct, pctInt, situacaoVerba } from './ac21';
 import { comprasDaNFe, lerNFe } from './nfe';
 import { type Estado, calcular, curvaPrevista, makeCal, novaTarefa, novoEstado, pctFis, pctPrevistoEm, pctRealAtual } from './schedule';
 import { calcularEVM } from './evm';
-import { diasEntre } from './financeiro';
+import { diasEntre, fluxoMensal, resumoFinanceiro } from './financeiro';
 import { n2iso, parseData } from './dates';
 
 afterEach(() => vi.useRealTimers());
@@ -171,5 +171,49 @@ describe('desempenho (EVM) com números conferidos à mão', () => {
     expect(e.idp).toBeCloseTo(0.5, 6); expect(e.idc).toBeCloseTo(250 / 300, 6);
     expect(e.eac).toBe(1200); expect(e.etc).toBe(900); expect(e.vac).toBe(-200); expect(e.vprazo).toBe(-250); expect(e.vcusto).toBe(-50);
     expect(e.nivelPrazo).toBe('critico');
+  });
+});
+
+describe('cenário completo conferido à mão (AC21 R$ 100.000)', () => {
+  const it0 = (id: number, tipo: 'orcado' | 'nao_orcado', orcado: number, pago: number) => ({ id, desc: 'i' + id, cat: 'x', tipo, orcado, pago, forn: '', nf: '', data: '', obs: '' });
+  const cp = (id: number, total: number, status: 'Pago' | 'Pendente' | 'Parcial', valorPago = 0) => ({ id, obraId: 1, desc: 'c', cat: 'x', forn: '', cnpj: '', nf: '', data: '', qtde: 1, unid: '', unit: total, total, status, obs: '', venc: '', valorPago });
+  const obra: Obra = { id: 1, nome: 'O', codigo: 'O', local: '', responsavel: '', inicio: '', fim: '', ac21: 100000, status: 'Em Andamento', obs: '',
+    itens: [it0(2, 'orcado', 30000, 0), it0(3, 'orcado', 20000, 25000), { ...it0(4, 'orcado', 10000, 8000), quitado: true }, it0(5, 'nao_orcado', 0, 5000)] };
+  const db: DB = { ...dbVazio(), obras: [obra], compras: [cp(6, 7000, 'Pago'), cp(7, 3000, 'Pendente'), cp(8, 4000, 'Parcial', 1000)] };
+  it('comprometido, pago, saldos e "a pagar" fecham entre si', () => {
+    // itens: 30.000 (ainda não pago, vale o orçado) + 25.000 (pago a mais) + 8.000 (quitado por menos) + 5.000 (não orçado) = 68.000; compras: 14.000
+    expect(totalComprometido(db, obra)).toBe(82000);
+    expect(totalPago(db, obra)).toBe(46000); // itens 38.000 + compra paga 7.000 + 1.000 já pagos da compra parcial
+    expect(obra.ac21 - totalComprometido(db, obra)).toBe(18000);
+    expect(obra.ac21 - totalPago(db, obra)).toBe(54000);
+    expect(totalComprometido(db, obra) - totalPago(db, obra)).toBe(36000); // a pagar = 30.000 do item + 3.000 + 3.000 que faltam da compra parcial
+    expect(acimaDoOrcado(obra)).toEqual({ valor: 5000, qtd: 1 });
+  });
+});
+
+describe('pagamento parcial', () => {
+  const base = { obraId: 1, desc: 'c', cat: 'x', forn: '', cnpj: '', nf: '', data: '2026-03-10', qtde: 1, unid: '', unit: 0, obs: '', venc: '2026-04-10' };
+  it('compra parcial: pago e restante fecham com o total e nunca passam dele', () => {
+    const c = (status: 'Pago' | 'Pendente' | 'Parcial', valorPago?: number) => ({ id: 1, ...base, total: 1000, status, valorPago });
+    expect([pagoDaCompra(c('Pago')), restanteDaCompra(c('Pago'))]).toEqual([1000, 0]);
+    expect([pagoDaCompra(c('Pendente', 300)), restanteDaCompra(c('Pendente', 300))]).toEqual([0, 1000]); // o valor só vale em "Parcial"
+    expect([pagoDaCompra(c('Parcial', 400)), restanteDaCompra(c('Parcial', 400))]).toEqual([400, 600]);
+    expect([pagoDaCompra(c('Parcial', 5000)), restanteDaCompra(c('Parcial', 5000))]).toEqual([1000, 0]);
+    expect([pagoDaCompra(c('Parcial')), restanteDaCompra(c('Parcial'))]).toEqual([0, 1000]);
+  });
+  it('financeiro: a pagar conta só o restante e o pago do mês conta o que já saiu', () => {
+    const lista = [{ id: 1, ...base, total: 1000, status: 'Parcial' as const, valorPago: 400 }, { id: 2, ...base, total: 500, status: 'Pendente' as const }, { id: 3, ...base, total: 200, status: 'Pago' as const }];
+    const r = resumoFinanceiro(lista, '2026-03-20');
+    expect(r.aPagar).toEqual({ n: 2, valor: 1100 }); expect(r.pagoNoMes).toEqual({ n: 2, valor: 600 });
+    const f = fluxoMensal(lista, '2026-03-20').find((x) => x.mes === '2026-04')!; expect(f.aPagar).toBe(1100);
+    expect(fluxoMensal(lista, '2026-03-20').find((x) => x.mes === '2026-03')!.pago).toBe(600);
+  });
+});
+
+describe('faixas de status iguais às do alerta de verba', () => {
+  it('verde até 89%, amarelo de 90% a 99%, vermelho a partir de 100%', () => {
+    expect([89, 90, 99, 100, 120].map((p) => nivelPct(p))).toEqual(['ok', 'warn', 'warn', 'danger', 'danger']);
+    expect([89, 90, 99, 100].map((p) => corPct(p))).toEqual(['var(--green)', 'var(--amber)', 'var(--amber)', 'var(--red)']);
+    expect(nivelPct(pctInt(2915790.59, 2923305))).toBe('warn'); // o caso do alerta falso: 99,74%
   });
 });

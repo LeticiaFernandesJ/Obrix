@@ -16,6 +16,7 @@ export function CompraModal({ compra, obraId, onClose }: Props) {
     qtde: compra?.qtde ? String(compra.qtde) : '', unid: compra?.unid ?? '',
     unit: compra?.unit ? String(compra.unit) : '', total: compra?.total ? String(compra.total) : '',
     status: (compra?.status ?? 'Pago') as StatusCompra, obs: compra?.obs ?? '',
+    valorPago: compra?.valorPago ? String(compra.valorPago) : '',
   });
   const set = (k: keyof typeof f, v: string | number) => setF((x) => ({ ...x, [k]: v }));
 
@@ -36,10 +37,12 @@ export function CompraModal({ compra, obraId, onClose }: Props) {
     const total = parseFloat(f.total) || 0;
     if (!(total > 0)) { toast('Informe um valor total maior que zero.'); return; }
     if (!f.obraId) { toast('Cadastre uma obra antes de registrar compras.'); return; }
+    const valorPago = f.status === 'Parcial' ? parseFloat(f.valorPago) || 0 : 0;
+    if (f.status === 'Parcial' && !(valorPago > 0 && valorPago < total)) { toast('Informe quanto já foi pago: mais que zero e menos que o total.'); return; }
     salvarCompra({
       obraId: Number(f.obraId), desc: f.desc.trim(), cat: f.cat, forn: f.forn.trim(), cnpj: f.cnpj.trim(), nf: f.nf.trim(),
       data: f.data, venc: f.venc, qtde: parseFloat(f.qtde) || 0, unid: f.unid.trim(), unit: parseFloat(f.unit) || 0, total,
-      status: f.status, obs: f.obs.trim(),
+      status: f.status, valorPago, obs: f.obs.trim(),
     }, compra?.id ?? null);
     toast(compra ? 'Compra atualizada.' : 'Compra registrada.');
     onClose();
@@ -72,6 +75,7 @@ export function CompraModal({ compra, obraId, onClose }: Props) {
           <select id="compramodal-12" value={f.status} onChange={(e) => set('status', e.target.value)}>
             <option value="Pago">Pago</option><option value="Pendente">Pendente</option><option value="Parcial">Parcialmente pago</option>
           </select></div>
+        {f.status === 'Parcial' && <div className="form-group"><label htmlFor="compramodal-pago">Valor já pago (R$) *</label><CampoDinheiro id="compramodal-pago" value={f.valorPago} onChange={(v) => set('valorPago', v)} /></div>}
         <div className="form-group form-full"><label htmlFor="compramodal-13">Observações</label><textarea id="compramodal-13" value={f.obs} onChange={(e) => set('obs', e.target.value)} placeholder="Notas sobre esta compra..." /></div>
       </div>
     </Modal>

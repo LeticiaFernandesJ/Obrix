@@ -1,4 +1,4 @@
-import { type DB, type Obra, totalPago } from './ac21';
+import { pagoDaCompra, type DB, type Obra, totalPago } from './ac21';
 import { hojeN, iso2n, n2brc, parseData } from './dates';
 import { type Estado, calcular, curvaPrevista, makeCal, pctPrevistoEm, pctRealAtual, realEm, serieReal } from './schedule';
 
@@ -55,7 +55,7 @@ export interface CurvaFin { rotulos: string[]; planejado: number[]; agregado: (n
 /** Quanto foi pago até cada dia: itens com data de pagamento e compras pagas; o que não tem data entra na data de status. */
 function pagamentosPorDia(obra: Obra, db: DB): { dia: number | null; valor: number }[] {
   const itens = obra.itens.filter((i) => Number(i.pago) > 0).map((i) => ({ dia: iso2n(i.data), valor: Number(i.pago) }));
-  const compras = db.compras.filter((c) => c.obraId === obra.id && c.status === 'Pago').map((c) => ({ dia: iso2n(c.data), valor: Number(c.total || 0) }));
+  const compras = db.compras.filter((c) => c.obraId === obra.id && pagoDaCompra(c) > 0).map((c) => ({ dia: iso2n(c.data), valor: pagoDaCompra(c) }));
   return [...itens, ...compras];
 }
 

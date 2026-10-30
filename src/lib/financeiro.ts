@@ -1,4 +1,4 @@
-import type { Compra } from './ac21';
+import { type Compra, pagoDaCompra, restanteDaCompra } from './ac21';
 
 /* =========================== CONTAS A PAGAR E FLUXO DE CAIXA ===========================
    Uma compra com status diferente de "Pago" é uma conta a pagar; o vencimento diz quando. */
@@ -30,7 +30,9 @@ export function textoSituacao(s: Situacao): string {
 }
 
 interface Soma { n: number; valor: number }
-const somar = (lista: Compra[]): Soma => ({ n: lista.length, valor: Math.round(lista.reduce((s, c) => s + Number(c.total || 0), 0) * 100) / 100 });
+/** Soma o que falta pagar (numa compra parcial, só o restante). */
+const somar = (lista: Compra[]): Soma => ({ n: lista.length, valor: Math.round(lista.reduce((s, c) => s + restanteDaCompra(c), 0) * 100) / 100 });
+const somarPago = (lista: Compra[]): Soma => ({ n: lista.length, valor: Math.round(lista.reduce((s, c) => s + pagoDaCompra(c), 0) * 100) / 100 });
 
 export interface ResumoFinanceiro {
   vencidas: Soma; hoje: Soma; proximos7: Soma; proximos30: Soma; semVencimento: Soma; aPagar: Soma; pagoNoMes: Soma;
@@ -46,7 +48,7 @@ export function resumoFinanceiro(compras: Compra[], hoje: string): ResumoFinance
     proximos30: com((s) => s.tipo === 'hoje' || ((s.tipo === 'proxima' || s.tipo === 'futura') && s.dias <= 30)),
     semVencimento: com((s) => s.tipo === 'sem_venc'),
     aPagar: somar(abertas),
-    pagoNoMes: somar(compras.filter((c) => c.status === 'Pago' && c.data.slice(0, 7) === mes)),
+    pagoNoMes: somarPago(compras.filter((c) => pagoDaCompra(c) > 0 && c.data.slice(0, 7) === mes)),
   };
 }
 
@@ -64,9 +66,9 @@ export function fluxoMensal(compras: Compra[], hoje: string, passado = 2, futuro
   }
   const por = new Map(out.map((x) => [x.mes, x]));
   compras.forEach((c) => {
-    const total = Number(c.total || 0);
-    if (c.status === 'Pago') { const x = por.get(c.data.slice(0, 7)); if (x) x.pago += total; }
-    else if (c.venc) { const x = por.get(c.venc.slice(0, 7)); if (x) x.aPagar += total; }
+    const pago = pagoDaCompra(c), resta = restanteDaCompra(c);
+    if (pago > 0) { const x = por.get(c.data.slice(0, 7)); if (x) x.pago += pago; }
+    if (resta > 0 && c.venc) { const x = por.get(c.venc.slice(0, 7)); if (x) x.aPagar += resta; }
   });
   out.forEach((x) => { x.aPagar = Math.round(x.aPagar * 100) / 100; x.pago = Math.round(x.pago * 100) / 100; });
   return out;

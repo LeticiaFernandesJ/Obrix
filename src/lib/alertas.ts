@@ -1,4 +1,4 @@
-import { type DB, estourou, fmt, hojeISO, obraFinalizada, pct, pctTxt, plural, situacaoVerba, totalComprometido, totalPago } from './ac21';
+import { restanteDaCompra, type DB, estourou, fmt, hojeISO, obraFinalizada, pct, pctTxt, plural, situacaoVerba, totalComprometido, totalPago } from './ac21';
 import { hojeN, parseData } from './dates';
 import { calcularEVM } from './evm';
 import { diasEntre } from './financeiro';
@@ -33,7 +33,7 @@ export function gerarAlertas(db: DB, cronos: Record<string, Estado>, hoje: strin
     /* contas a pagar */
     const abertas = db.compras.filter((c) => c.obraId === o.id && c.status !== 'Pago' && c.venc);
     const vencidas = abertas.filter((c) => diasEntre(hoje, c.venc) < 0);
-    const soma = (l: typeof abertas) => l.reduce((s, c) => s + Number(c.total || 0), 0);
+    const soma = (l: typeof abertas) => l.reduce((s, c) => s + restanteDaCompra(c), 0);
     if (vencidas.length) out.push({ id: `venc-${o.id}`, nivel: 'critico', titulo: 'Contas vencidas', texto: `${quem}: ${plural(vencidas.length, 'conta vencida', 'contas vencidas')}, ${fmt(soma(vencidas))}.`, rota: '/financeiro', obraId: o.id });
     const breve = abertas.filter((c) => { const d = diasEntre(hoje, c.venc); return d >= 0 && d <= 3; });
     if (breve.length) out.push({ id: `breve-${o.id}`, nivel: 'atencao', titulo: 'Contas vencendo', texto: `${quem}: ${plural(breve.length, 'conta vence', 'contas vencem')} em até 3 dias, ${fmt(soma(breve))}.`, rota: '/financeiro', obraId: o.id });

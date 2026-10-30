@@ -186,10 +186,12 @@
 @media (max-width: 480px) {
   .shell .action-row .btn { padding: 0 14px; }
 }
-.shell .metric-value { font-size: clamp(22px, 2.05vw, 30px); white-space: nowrap; }
-.shell .metric-value.sm { font-size: clamp(20px, 1.8vw, 26px); }
-@media (max-width: 1180px) { .shell .metric-value { font-size: 28px; } }
-@media (max-width: 860px) { .shell .metric-value { font-size: 30px; } }
+/* O valor em reais encolhe para caber na largura do próprio cartão (nunca fica cortado), em qualquer tela */
+.shell .metric { container-type: inline-size; }
+.shell .metric-value { font-size: clamp(15px, 10cqw, 30px); white-space: nowrap; }
+.shell .metric-value.sm { font-size: clamp(14px, 9cqw, 26px); }
+.shell .metrics.c5 .metric-head, .shell .metrics.c6 .metric-head { min-height: 56px; }
+.shell .metrics.c5 .metric-label, .shell .metrics.c6 .metric-label { font-size: 13.5px; }
 .shell .hist-user { font-style: normal; margin-left: 10px; padding: 2px 9px; border-radius: 20px; background: var(--gray-light); }
 .shell .hist-item { border-bottom-color: #f1ede8; padding: 14px 0; }
 .shell td.td-right { white-space: nowrap; }

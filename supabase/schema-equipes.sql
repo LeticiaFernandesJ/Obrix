@@ -244,6 +244,9 @@ create table if not exists public.compras (
 create index if not exists compras_obra_idx on public.compras (org_id, obra_id);
 -- fase 2: vencimento do pagamento (instalações anteriores recebem a coluna ao rodar o script de novo)
 alter table public.compras add column if not exists vencimento date;
+-- fase 3: pagamento parcial (compra "Parcial" guarda quanto já foi pago; item pode ser marcado como quitado)
+alter table public.compras add column if not exists valor_pago numeric(14,2) not null default 0 check (valor_pago >= 0);
+alter table public.itens add column if not exists quitado boolean not null default false;
 
 create table if not exists public.historico (
   org_id  uuid   not null references public.organizacoes(id) on delete cascade,

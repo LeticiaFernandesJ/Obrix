@@ -10,6 +10,8 @@ export type StatusCompra = 'Pago' | 'Pendente' | 'Parcial';
 export interface Item {
   id: number; desc: string; cat: string; tipo: TipoItem; orcado: number; pago: number;
   forn: string; nf: string; data: string; obs: string;
+  /** pago por completo: o comprometido passa a valer o valor pago, mesmo menor que o orçado. Sem a marca, um pagamento é só parte do orçado. */
+  quitado?: boolean;
 }
 export interface Obra {
   id: number; nome: string; codigo: string; local: string; responsavel: string;
@@ -20,6 +22,8 @@ export interface Compra {
   data: string; qtde: number; unid: string; unit: number; total: number; status: StatusCompra; obs: string;
   /** vencimento do pagamento (AAAA-MM-DD); vazio se não houver */
   venc: string;
+  /** quanto já foi pago, quando o status é "Parcial" */
+  valorPago?: number;
 }
 export interface Historico { id: number; ts: string; tipo: string; icone: string; texto: string; user: string }
 export interface DB { obras: Obra[]; compras: Compra[]; historico: Historico[]; nextId: number }
@@ -67,15 +71,32 @@ export function fmtTs(ts: string) {
 export const hojeISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
 /* =========================== CÁLCULOS =========================== */
+/** Quanto de uma compra já foi pago: tudo se "Pago"; o valor informado se "Parcial" (nunca mais que o total); nada se "Pendente". */
+export const pagoDaCompra = (c: Pick<Compra, 'status' | 'total' | 'valorPago'>) => {
+  const total = Number(c.total || 0);
+  if (c.status === 'Pago') return r2(total);
+  if (c.status === 'Parcial') return r2(Math.min(Math.max(0, Number(c.valorPago || 0)), total));
+  return 0;
+};
+/** O que ainda falta pagar de uma compra. */
+export const restanteDaCompra = (c: Pick<Compra, 'status' | 'total' | 'valorPago'>) => r2(Number(c.total || 0) - pagoDaCompra(c));
+
 export const totalOrc = (o: Obra) => r2(o.itens.reduce((s, i) => s + Number(i.orcado || 0), 0));
 export const totalItens = (o: Obra) => r2(o.itens.reduce((s, i) => s + Number(i.pago || 0), 0));
 export const totalCompras = (db: DB, o: Obra) =>
-  r2(db.compras.filter((c) => c.obraId === o.id && c.status === 'Pago').reduce((s, c) => s + Number(c.total || 0), 0));
+  r2(db.compras.filter((c) => c.obraId === o.id).reduce((s, c) => s + pagoDaCompra(c), 0));
 export const totalComprasTodas = (db: DB, o: Obra) =>
   r2(db.compras.filter((c) => c.obraId === o.id).reduce((s, c) => s + Number(c.total || 0), 0));
 export const totalPago = (db: DB, o: Obra) => r2(totalItens(o) + totalCompras(db, o));
-/** O que um item compromete: o valor orçado enquanto não foi pago; depois de pago, o valor realmente pago (maior ou menor). */
-export const comprometidoDoItem = (i: Item) => (Number(i.pago || 0) > 0 ? Number(i.pago) : Number(i.orcado || 0));
+/**
+ * O que um item compromete. Enquanto não está quitado, vale o maior entre o orçado e o pago: um pagamento parcial
+ * (sinal, medição) não diminui o compromisso, e gastar mais que o orçado aumenta. Quitado (pago por completo) vale
+ * o valor realmente pago, maior ou menor que o orçado.
+ */
+export const comprometidoDoItem = (i: Item) => {
+  const pago = Number(i.pago || 0), orcado = Number(i.orcado || 0);
+  return i.quitado && pago > 0 ? pago : Math.max(orcado, pago);
+};
 /** Itens orçados que custaram mais do que o previsto: quanto passou e em quantos itens. */
 export function acimaDoOrcado(o: Obra) {
   const l = o.itens.filter((i) => Number(i.orcado || 0) > 0 && Number(i.pago || 0) > Number(i.orcado) + 0.005);
@@ -114,9 +135,10 @@ export function porSituacao<T extends Pick<Obra, 'status'>>(obras: T[], s: Situa
 export const totalNaoOrc = (o: Obra) =>
   r2(o.itens.filter((i) => i.tipo === 'nao_orcado').reduce((s, i) => s + Number(i.pago || 0), 0));
 
-export const corPct = (p: number) => (p >= 95 ? 'var(--red)' : p >= 80 ? 'var(--amber)' : 'var(--green)');
+/* Mesmas faixas do alerta de verba: verde abaixo de 90%, amarelo de 90% até antes de 100%, vermelho a partir de 100% (esgotada ou estourada). */
+export const corPct = (p: number) => (p >= 100 ? 'var(--red)' : p >= 90 ? 'var(--amber)' : 'var(--green)');
 export type NivelStatus = 'danger' | 'warn' | 'ok';
-export const nivelPct = (p: number): NivelStatus => (p >= 95 ? 'danger' : p >= 80 ? 'warn' : 'ok');
+export const nivelPct = (p: number): NivelStatus => (p >= 100 ? 'danger' : p >= 90 ? 'warn' : 'ok');
 export const rotuloNivel: Record<NivelStatus, string> = { danger: 'Crítico', warn: 'Atenção', ok: 'OK' };
 export const badgeStatusObra = (s: StatusObra) => (s === 'Concluída' ? 'badge-ok' : s === 'Suspensa' ? 'badge-danger' : 'badge-blue');
 
@@ -152,13 +174,13 @@ export async function exportarExcel(db: DB) {
 }
 
 function sheetCompras(XLSX: XLSXLib, db: DB) {
-  const rows: unknown[][] = [['Descrição', 'Obra', 'Categoria', 'Fornecedor', 'CNPJ/CPF', 'NF', 'Data', 'Vencimento', 'Qtde', 'Unid', 'Unit. R$', 'Total R$', 'Status', 'Observações']];
+  const rows: unknown[][] = [['Descrição', 'Obra', 'Categoria', 'Fornecedor', 'CNPJ/CPF', 'NF', 'Data', 'Vencimento', 'Qtde', 'Unid', 'Unit. R$', 'Total R$', 'Valor pago R$', 'Status', 'Observações']];
   db.compras.forEach((c) => {
     const obra = db.obras.find((o) => o.id === c.obraId);
-    rows.push([c.desc, obra?.codigo || '', c.cat, c.forn, c.cnpj, c.nf, c.data, c.venc, c.qtde, c.unid, c.unit, c.total, c.status, c.obs]);
+    rows.push([c.desc, obra?.codigo || '', c.cat, c.forn, c.cnpj, c.nf, c.data, c.venc, c.qtde, c.unid, c.unit, c.total, pagoDaCompra(c), c.status, c.obs]);
   });
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [35, 16, 16, 22, 18, 14, 12, 12, 8, 8, 14, 14, 12, 30].map((wch) => ({ wch }));
+  ws['!cols'] = [35, 16, 16, 22, 18, 14, 12, 12, 8, 8, 14, 14, 14, 12, 30].map((wch) => ({ wch }));
   return ws;
 }
 
@@ -214,14 +236,14 @@ export function sanitizarDB(raw: unknown): DB | null {
     itens: (Array.isArray(o.itens) ? o.itens : []).filter((i) => i && typeof i === 'object').map((i: Partial<Item>) => ({
       id: uniq(i.id), desc: str(i.desc) || 'Item', cat: str(i.cat) || 'Outros',
       tipo: (i.tipo === 'nao_orcado' ? 'nao_orcado' : 'orcado') as TipoItem,
-      orcado: num(i.orcado), pago: num(i.pago), forn: str(i.forn), nf: str(i.nf), data: str(i.data), obs: str(i.obs),
+      orcado: num(i.orcado), pago: num(i.pago), ...(i.quitado === true ? { quitado: true } : {}), forn: str(i.forn), nf: str(i.nf), data: str(i.data), obs: str(i.obs),
     })),
   }));
   const obraIds = new Set(obras.map((o) => o.id));
   const compras: Compra[] = (Array.isArray(r.compras) ? r.compras : []).filter((c) => c && typeof c === 'object' && obraIds.has(num((c as Compra).obraId)))
     .map((c: Partial<Compra>) => ({
       id: uniq(c.id), obraId: num(c.obraId), desc: str(c.desc) || 'Compra', cat: str(c.cat) || 'Outros', forn: str(c.forn),
-      cnpj: str(c.cnpj), nf: str(c.nf), data: str(c.data), qtde: num(c.qtde), unid: str(c.unid), unit: num(c.unit), total: num(c.total), venc: str(c.venc),
+      cnpj: str(c.cnpj), nf: str(c.nf), data: str(c.data), qtde: num(c.qtde), unid: str(c.unid), unit: num(c.unit), total: num(c.total), ...(num(c.valorPago) > 0 ? { valorPago: num(c.valorPago) } : {}), venc: str(c.venc),
       status: (['Pago', 'Pendente', 'Parcial'].includes(str(c.status)) ? c.status : 'Pendente') as StatusCompra, obs: str(c.obs),
     }));
   const historico: Historico[] = (Array.isArray(r.historico) ? r.historico : []).filter((h) => h && typeof h === 'object')

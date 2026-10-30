@@ -69,13 +69,11 @@ export default function Dashboard() {
         <div className="metric">
           <div className="metric-head">
             <div className="metric-label">Comprometido</div>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              <div className="metric-hint">{pctTxt(pgComp)}% do AC21</div>
-              <div className="metric-icon mi-green"><TrendingUp size={18} /></div>
-            </div>
+            <div className="metric-icon mi-green"><TrendingUp size={18} /></div>
           </div>
           <div className="metric-value" style={{ color: corPct(pgComp) }}>{fmt(totComp)}</div>
           <div className="metric-sub">Itens (orçados ou não) + compras</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: corPct(pgComp), marginTop: 3 }}>{pctTxt(pgComp)}% do AC21</div>
           <div className="metric-bar"><div className="metric-bar-fill" style={{ width: Math.min(pgComp, 100) + '%', background: corPct(pgComp) }} /></div>
         </div>
         <div className="metric">

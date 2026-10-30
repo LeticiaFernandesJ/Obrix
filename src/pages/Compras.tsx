@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CheckCircle2, FileUp, Clock, FileSpreadsheet, Pencil, Plus, ShoppingBasket, Trash2, X } from 'lucide-react';
 import { useApp } from '../store/AppStore';
-import { CATS_COMPRA, exportarExcelCompras, fmt, fmtData, fmtNum, type Compra } from '../lib/ac21';
+import { pagoDaCompra, restanteDaCompra, r2, CATS_COMPRA, exportarExcelCompras, fmt, fmtData, fmtNum, type Compra } from '../lib/ac21';
 import { useDialogo } from '../components/Dialogo';
 import { CompraModal } from '../components/CompraModal';
 import { ImportarNFeModal } from '../components/ImportarNFeModal';
@@ -27,8 +27,8 @@ export default function Compras() {
     return true;
   });
   const pagina = useLimite(Object.values(f).join('|'));
-  const totPago = compras.filter((c) => c.status === 'Pago').reduce((s, c) => s + Number(c.total || 0), 0);
-  const totPend = compras.filter((c) => c.status !== 'Pago').reduce((s, c) => s + Number(c.total || 0), 0);
+  const totPago = r2(compras.reduce((s, c) => s + pagoDaCompra(c), 0));
+  const totPend = r2(compras.reduce((s, c) => s + restanteDaCompra(c), 0));
 
   return (
     <div className="content">
@@ -96,7 +96,7 @@ export default function Compras() {
                     <td className="td-right">{fmtNum(c.qtde)} {c.unid}</td>
                     <td className="td-right">{fmt(c.unit)}</td>
                     <td className="td-right" style={{ fontWeight: 600 }}>{fmt(c.total)}</td>
-                    <td><span className={'badge ' + badgeCompra(c.status)}>{c.status}</span></td>
+                    <td><span className={'badge ' + badgeCompra(c.status)}>{c.status}</span>{c.status === 'Parcial' && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>pago {fmt(pagoDaCompra(c))}</div>}</td>
                     <td><div style={{ display: 'flex', gap: 4 }}>{podeEditar && <>
                       <button className="btn btn-sm btn-icon" data-tip="Editar" aria-label="Editar" onClick={() => setModal({ c })}><Pencil size={14} /></button>
                       <button className="btn btn-sm btn-icon btn-danger" data-tip="Excluir" aria-label="Excluir" onClick={async () => {

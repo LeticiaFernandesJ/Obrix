@@ -3,7 +3,7 @@ import { AlertTriangle, CalendarClock, CalendarDays, Check, CheckCircle2, Pencil
 import { useApp } from '../store/AppStore';
 import { ChartCanvas, Empty, brMoneyTick, type TT } from '../components/ui';
 import { CompraModal } from '../components/CompraModal';
-import { fmt, fmtData, hojeISO, type Compra } from '../lib/ac21';
+import { restanteDaCompra, fmt, fmtData, hojeISO, type Compra } from '../lib/ac21';
 import { contasAbertas, fluxoMensal, resumoFinanceiro, situacaoConta, textoSituacao, type TipoSituacao } from '../lib/financeiro';
 
 const classeSituacao: Record<TipoSituacao, string> = {
@@ -63,7 +63,7 @@ export default function Financeiro() {
         <div className="metric">
           <div className="metric-head"><div className="metric-label">Pago neste mês</div><div className="metric-icon mi-green"><CheckCircle2 size={18} /></div></div>
           <div className="metric-value ok">{fmt(r.pagoNoMes.valor)}</div>
-          <div className="metric-sub">{r.pagoNoMes.n === 1 ? '1 compra paga' : `${r.pagoNoMes.n} compras pagas`}</div>
+          <div className="metric-sub">{r.pagoNoMes.n === 1 ? '1 compra com pagamento' : `${r.pagoNoMes.n} compras com pagamento`}</div>
         </div>
       </div>
 
@@ -107,7 +107,7 @@ export default function Financeiro() {
                     <td style={{ fontSize: 12 }}>{o ? o.codigo || o.nome : '-'}</td>
                     <td style={{ fontSize: 12 }}>{c.forn}</td>
                     <td style={{ fontSize: 12 }}>{c.nf || '-'}</td>
-                    <td className="td-right" style={{ fontWeight: 600 }}>{fmt(c.total)}</td>
+                    <td className="td-right" style={{ fontWeight: 600 }}>{fmt(restanteDaCompra(c))}{c.status === 'Parcial' && <div style={{ fontSize: 11, fontWeight: 400, color: 'var(--text3)' }}>de {fmt(c.total)}</div>}</td>
                     <td className="td-center">{podeEditar && (
                       <div style={{ display: 'inline-flex', gap: 6 }}>
                         <button className="btn btn-sm btn-success" onClick={() => pagar(c)}><Check size={13} /> Pago</button>
@@ -118,7 +118,7 @@ export default function Financeiro() {
                 );
               })}
             </tbody>
-            {abertas.length > 0 && <tfoot><tr><td colSpan={6}>TOTAL EM ABERTO</td><td className="td-right">{fmt(abertas.reduce((s, c) => s + Number(c.total || 0), 0))}</td><td /></tr></tfoot>}
+            {abertas.length > 0 && <tfoot><tr><td colSpan={6}>TOTAL EM ABERTO</td><td className="td-right">{fmt(abertas.reduce((s, c) => s + restanteDaCompra(c), 0))}</td><td /></tr></tfoot>}
           </table>
         </div>
       </div>

@@ -31,12 +31,13 @@ function ItemModal({ obra, item, onClose }: { obra: Obra; item: Item | null; onC
     orcado: item?.orcado ? String(item.orcado) : '', pago: item?.pago ? String(item.pago) : '',
     forn: item?.forn ?? '', nf: item?.nf ?? '', data: item?.data ?? '', obs: item?.obs ?? '',
   });
+  const [quitado, setQuitado] = useState(!!item?.quitado);
   const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
   const salvar = () => {
     if (!f.desc.trim()) { toast('Informe a descrição do item.'); return; }
     if ((parseFloat(f.orcado) || 0) < 0 || (parseFloat(f.pago) || 0) < 0) { toast('Os valores não podem ser negativos.'); return; }
     salvarItem(obra.id, {
-      desc: f.desc.trim(), cat: f.cat, tipo: f.tipo, orcado: parseFloat(f.orcado) || 0, pago: parseFloat(f.pago) || 0,
+      desc: f.desc.trim(), cat: f.cat, tipo: f.tipo, orcado: parseFloat(f.orcado) || 0, pago: parseFloat(f.pago) || 0, quitado: quitado && (parseFloat(f.pago) || 0) > 0,
       forn: f.forn.trim(), nf: f.nf.trim(), data: f.data, obs: f.obs.trim(),
     }, item?.id ?? null);
     toast(item ? 'Item atualizado.' : 'Item adicionado.');
@@ -53,6 +54,10 @@ function ItemModal({ obra, item, onClose }: { obra: Obra; item: Item | null; onC
         <div className="form-group"><label htmlFor="detalhe-3">Tipo de Item</label><select id="detalhe-3" value={f.tipo} onChange={(e) => set('tipo', e.target.value)}><option value="orcado">Orçado</option><option value="nao_orcado">Não Orçado</option></select></div>
         <div className="form-group"><label htmlFor="detalhe-4">Valor Orçado (R$)</label><CampoDinheiro id="detalhe-4" value={f.orcado} onChange={(v) => set('orcado', v)} /></div>
         <div className="form-group"><label htmlFor="detalhe-5">Valor Pago (R$)</label><CampoDinheiro id="detalhe-5" value={f.pago} onChange={(v) => set('pago', v)} /></div>
+        <label className="opcao form-full" htmlFor="detalhe-quitado">
+          <input id="detalhe-quitado" type="checkbox" checked={quitado} onChange={(e) => setQuitado(e.target.checked)} /> Item quitado (pago por completo)
+          <small style={{ display: 'block', color: 'var(--text3)' }}>Marcado: o comprometido passa a valer o valor pago, mesmo menor que o orçado. Desmarcado: um pagamento é só parte do orçado (sinal, medição) e o restante continua comprometido.</small>
+        </label>
         <div className="form-group"><label htmlFor="detalhe-6">Fornecedor</label><input id="detalhe-6" value={f.forn} onChange={(e) => set('forn', e.target.value)} placeholder="Nome do fornecedor" /></div>
         <div className="form-group"><label htmlFor="detalhe-7">Nº NF / Pedido</label><input id="detalhe-7" value={f.nf} onChange={(e) => set('nf', e.target.value)} placeholder="Ex: NF-2025-0042" /></div>
         <div className="form-group"><label htmlFor="detalhe-8">Data do Pagamento</label><input id="detalhe-8" type="date" value={f.data} onChange={(e) => set('data', e.target.value)} /></div>
@@ -86,7 +91,7 @@ export default function Detalhe() {
   const acima = acimaDoOrcado(o);
   const sl = o.ac21 - pg, slComp = o.ac21 - comp, sv = situacaoVerba(comp, o.ac21);
   const comprasObra = db.compras.filter((c) => c.obraId === o.id);
-  const nv = nivelPct(p);
+  const nv = nivelPct(pComp); // mesma base das outras telas: o que está comprometido do AC21
 
   const itens = o.itens.filter((i) => {
     if (f.cat && i.cat !== f.cat) return false;
@@ -191,7 +196,7 @@ export default function Detalhe() {
           <i style={{ width: Math.min(pComp, 100) + '%', background: corPct(pComp) + '55' }} />
           <i style={{ width: Math.min(p, 100) + '%', background: corPct(p) }} />
         </div>
-        <div style={{ fontSize: 11, marginTop: 8, color: 'var(--text3)' }}>Barra sólida = efetivamente pago &nbsp;|&nbsp; Barra clara = comprometido total (valor orçado do que ainda não foi pago + valor real do que já foi pago)</div>
+        <div style={{ fontSize: 11, marginTop: 8, color: 'var(--text3)' }}>Barra sólida = efetivamente pago &nbsp;|&nbsp; Barra clara = comprometido total (orçamentos + compras; o item quitado vale o valor pago)</div>
         {acima.qtd > 0 && <div style={{ fontSize: 12.5, marginTop: 8, color: 'var(--red)', fontWeight: 600 }}>Gasto acima do orçado: {fmt(acima.valor)} em {acima.qtd} {acima.qtd === 1 ? 'item' : 'itens'} (veja a coluna Saldo Item).</div>}
       </div>
 
@@ -234,7 +239,7 @@ export default function Detalhe() {
                       <td><span className="badge badge-gray">{it.cat}</span></td>
                       <td>{it.tipo === 'nao_orcado' ? <span className="badge badge-novo">Não Orçado</span> : <span className="badge badge-blue">Orçado</span>}</td>
                       <td className="td-right">{fmt(it.orcado)}</td>
-                      <td className="td-right" style={{ fontWeight: 600 }}>{fmt(it.pago)}</td>
+                      <td className="td-right" style={{ fontWeight: 600 }}>{fmt(it.pago)}{it.quitado && <div style={{ fontSize: 10.5, fontWeight: 500, color: 'var(--green)' }}>quitado</div>}</td>
                       <td className="td-right" style={{ color: diff < 0 ? 'var(--red)' : diff > 0 ? 'var(--green)' : 'var(--text3)' }}>
                         {diff !== 0 ? (diff < 0 ? '−' + fmt(Math.abs(diff)) : '+' + fmt(diff)) : '-'}</td>
                       <td style={{ fontSize: 12 }}>{it.forn || '-'}</td>

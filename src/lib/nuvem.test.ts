@@ -193,6 +193,31 @@ describe('responsável da equipe no banco', () => {
   });
 });
 
+describe('pagamento parcial na nuvem', () => {
+  it('quitado e valor pago vão e voltam pelas linhas', () => {
+    const d = db(); d.obras[0].itens[0].quitado = true; d.compras[0].status = 'Parcial'; d.compras[0].valorPago = 700;
+    const L = paraLinhas(d, {});
+    expect(L.itens[0].quitado).toBe(true); expect(L.compras[0].valor_pago).toBe(700);
+    const volta = deLinhas(JSON.parse(JSON.stringify(L)));
+    expect(volta.db.obras[0].itens[0].quitado).toBe(true); expect(volta.db.compras[0].valorPago).toBe(700);
+    expect(paraLinhas(db(), {}).itens[0].quitado).toBe(false); expect(paraLinhas(db(), {}).compras[0].valor_pago).toBe(0);
+  });
+  it('banco ainda sem as colunas novas: grava o resto em vez de travar a sincronização', async () => {
+    const chamadas: { t: string; col: boolean }[] = [];
+    const cliente = {
+      from: (t: string) => ({
+        upsert: async (rows: Record<string, unknown>[]) => {
+          const col = rows.some((r) => 'quitado' in r || 'valor_pago' in r); chamadas.push({ t, col });
+          return col ? { error: { message: `column "${t === 'itens' ? 'quitado' : 'valor_pago'}" of relation "${t}" does not exist` } } : { error: null };
+        },
+      }),
+    } as unknown as SupabaseClient;
+    await enviarMudancas(cliente, 'u', paraLinhas(db(), {}), snapVazio());
+    expect(chamadas.filter((c) => c.t === 'itens')).toEqual([{ t: 'itens', col: true }, { t: 'itens', col: false }]);
+    expect(chamadas.filter((c) => c.t === 'compras')).toEqual([{ t: 'compras', col: true }, { t: 'compras', col: false }]);
+  });
+});
+
 describe('cronograma por obra na nuvem', () => {
   it('mudar o cronograma de uma obra só envia as linhas dela; a outra não é tocada', async () => {
     const { cliente, log } = falso(); const snap = snapVazio();

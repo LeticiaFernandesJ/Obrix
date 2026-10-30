@@ -107,7 +107,7 @@ code { font-size: 12px; }
 .metrics.c4 { grid-template-columns: repeat(4, 1fr); }
 .metrics.c5 { grid-template-columns: repeat(5, 1fr); }
 .metrics.c6 { grid-template-columns: repeat(6, 1fr); }
-.metrics.c6 .metric-value.sm { font-size: clamp(15px, 1.25vw, 19px); overflow-wrap: anywhere; }
+@media (max-width: 1500px) { .metrics.c5, .metrics.c6 { grid-template-columns: repeat(3, 1fr); } }
 .metric {
   background: var(--surface); border: 1px solid var(--gray-border); border-radius: var(--radius-lg);
   padding: 16px 18px; box-shadow: var(--shadow); position: relative; min-width: 0;

@@ -3,7 +3,7 @@
 Sistema web (PWA) que reúne, em um só lugar:
 
 - **Controle de verbas AC21**: obras, itens orçados e não orçados, compras, histórico de alterações, relatórios e exportação para Excel.
-- **Como o AC21 é calculado**: **Comprometido** = tudo que foi lançado: enquanto um item não é pago vale o valor orçado, e depois de pago passa a valer o valor realmente pago (maior ou menor), mais todas as compras. Quando um item custa mais do que o orçado, a tela mostra o quanto passou; **Pago** = tudo que já foi pago. Há dois saldos: **AC21 − Comprometido** e **AC21 − Pago**. O aviso de verba só diz "estourou" quando o comprometido passa do AC21; com 100% exato aparece "sem saldo", e a partir de 90% "no limite". Percentuais abaixo de 100% nunca são arredondados para 100%.
+- **Como o AC21 é calculado**: **Comprometido** = tudo que foi lançado. Cada item vale o maior entre o orçado e o pago (um pagamento parcial, como um sinal, não diminui o compromisso); se o item for marcado como **quitado**, passa a valer o valor realmente pago, maior ou menor. As compras entram inteiras, pagas ou não. Numa compra **Parcial** você informa quanto já foi pago: só esse valor entra no pago, e o restante fica a pagar no Financeiro. Quando um item custa mais do que o orçado, a tela mostra o quanto passou; **Pago** = tudo que já foi pago. Há dois saldos: **AC21 − Comprometido** e **AC21 − Pago**. O aviso de verba só diz "estourou" quando o comprometido passa do AC21; com 100% exato aparece "sem saldo", e a partir de 90% "no limite". Percentuais abaixo de 100% nunca são arredondados para 100%.
 - **Obras ativas e finalizadas**: o painel e a lista de obras mostram por padrão só as obras **ativas** (em andamento, planejamento e suspensas). Escolha "Obras finalizadas" (status Concluída) ou "Todas as obras" no seletor. Obras finalizadas não geram alerta de verba.
 - **Cronograma de obra**: um por obra, com Gantt, dependências, caminho crítico, linha de base, curva S, painel para o PMO e envio por link ou arquivo.
 
@@ -53,7 +53,7 @@ Use **somente** a chave `anon`. Nunca coloque a `service_role` no front-end.
 
 Os arquivos em `supabase/legado/` são formatos antigos. O `schema-completo-v2.sql` só é usado pelo teste da migração.
 
-> **Atualizando uma instalação antiga:** rode de novo o `supabase/schema-equipes.sql` no SQL Editor. Ele é seguro para repetir e acrescenta o vencimento das compras e o nome completo dos membros.
+> **Atualizando uma instalação antiga:** rode de novo o `supabase/schema-equipes.sql` no SQL Editor. Ele é seguro para repetir e acrescenta o vencimento das compras, o nome completo dos membros e o pagamento parcial (valor já pago da compra e a marca de item quitado). Enquanto o script não for rodado, o app funciona, mas esses dois campos novos não são guardados na nuvem.
 
 ## Equipes e permissões
 

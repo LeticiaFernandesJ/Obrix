@@ -34,14 +34,14 @@ export function paraLinhas(db: DB, cronos: Record<string, Estado>): Linhas {
       inicio: data(o.inicio), fim: data(o.fim), ac21: o.ac21, status: o.status, obs: o.obs,
     });
     o.itens.forEach((i) => L.itens.push({
-      id: i.id, obra_id: o.id, descricao: i.desc, categoria: i.cat, tipo: i.tipo, orcado: i.orcado, pago: i.pago,
+      id: i.id, obra_id: o.id, descricao: i.desc, categoria: i.cat, tipo: i.tipo, orcado: i.orcado, pago: i.pago, quitado: i.quitado === true,
       fornecedor: i.forn, nf: i.nf, data: data(i.data), obs: i.obs,
     }));
   });
   const ids = new Set(db.obras.map((o) => o.id));
   db.compras.filter((c) => ids.has(c.obraId)).forEach((c) => L.compras.push({
     id: c.id, obra_id: c.obraId, descricao: c.desc, categoria: c.cat, fornecedor: c.forn, cnpj: c.cnpj, nf: c.nf,
-    data: data(c.data), vencimento: data(c.venc), qtde: c.qtde, unidade: c.unid, unitario: c.unit, total: c.total, status: c.status, obs: c.obs,
+    data: data(c.data), vencimento: data(c.venc), qtde: c.qtde, unidade: c.unid, unitario: c.unit, total: c.total, valor_pago: Number(c.valorPago || 0), status: c.status, obs: c.obs,
   }));
   db.historico.forEach((h) => L.historico.push({ id: h.id, ts: h.ts, tipo: h.tipo, icone: h.icone, texto: h.texto, usuario: h.user }));
 
@@ -74,7 +74,7 @@ export function deLinhas(L: Linhas): { db: DB; cronos: Record<string, Estado> } 
     const o = num(r.obra_id); const arr = itensPorObra.get(o) ?? [];
     arr.push({
       id: num(r.id), desc: str(r.descricao), cat: str(r.categoria), tipo: r.tipo === 'nao_orcado' ? 'nao_orcado' : 'orcado',
-      orcado: num(r.orcado), pago: num(r.pago), forn: str(r.fornecedor), nf: str(r.nf), data: str(r.data), obs: str(r.obs),
+      orcado: num(r.orcado), pago: num(r.pago), ...(r.quitado === true ? { quitado: true } : {}), forn: str(r.fornecedor), nf: str(r.nf), data: str(r.data), obs: str(r.obs),
     });
     itensPorObra.set(o, arr);
   });
@@ -85,7 +85,7 @@ export function deLinhas(L: Linhas): { db: DB; cronos: Record<string, Estado> } 
   }));
   const compras: Compra[] = L.compras.map((r) => ({
     id: num(r.id), obraId: num(r.obra_id), desc: str(r.descricao), cat: str(r.categoria), forn: str(r.fornecedor), cnpj: str(r.cnpj),
-    nf: str(r.nf), data: str(r.data), qtde: num(r.qtde), unid: str(r.unidade), unit: num(r.unitario), total: num(r.total), venc: str(r.vencimento),
+    nf: str(r.nf), data: str(r.data), qtde: num(r.qtde), unid: str(r.unidade), unit: num(r.unitario), total: num(r.total), ...(num(r.valor_pago) > 0 ? { valorPago: num(r.valor_pago) } : {}), venc: str(r.vencimento),
     status: r.status as Compra['status'], obs: str(r.obs),
   }));
   const historico: Historico[] = L.historico.map((r) => ({
@@ -254,6 +254,13 @@ export async function enviarMudancas(sb: SupabaseClient, orgId: string, L: Linha
       // banco ainda sem a coluna do responsável da equipe: grava sem ela (o nome continua indo no campo de texto)
       if (res.error && t === 'tarefas' && /responsavel_id/.test(res.error.message ?? '')) {
         res = await sb.from(t).upsert(linhas.map((r) => { const { responsavel_id: _ignorado, ...resto } = r as Row; return resto; }), opcoes);
+      }
+      // banco ainda sem as colunas do pagamento parcial (script SQL antigo): grava sem elas, o resto continua sincronizando
+      const colunaNova = t === 'itens' ? 'quitado' : t === 'compras' ? 'valor_pago' : '';
+      if (res.error && colunaNova && new RegExp(colunaNova).test(res.error.message ?? '')) {
+        const semColuna = linhas.map((r) => { const { [colunaNova]: _ignorada, ...resto } = r as Row; return resto; });
+        res = versionada ? await sb.from(t).upsert(semColuna, opcoes).select([...CHAVES[t], 'updated_at'].join(',')) : await sb.from(t).upsert(semColuna, opcoes);
+        if (res.error && versionada && /updated_at/.test(res.error.message ?? '')) res = await sb.from(t).upsert(semColuna, opcoes);
       }
       if (res.error) throw res.error;
       if (versionada) ((res.data ?? []) as unknown as Row[]).forEach((r) => { if (r.updated_at != null) ctrl!.versoes.set(chaveVersao(t, r), String(r.updated_at)); });

@@ -451,6 +451,28 @@ describe('cronogramas de obras diferentes não se misturam', () => {
   });
 });
 
+describe('pagamento parcial no banco', () => {
+  let org = '';
+  const sql = (txt: string) => como(C, () => db.exec(txt));
+  beforeAll(async () => {
+    org = (await linhas<{ org: string }>(C, `select public.criar_organizacao('Org Parcial') as org`))[0].org;
+    await sql(`insert into public.obras (org_id, id, nome) values ('${org}', 1, 'Obra');
+      insert into public.itens (org_id, id, obra_id, descricao, orcado, pago) values ('${org}', 2, 1, 'item', 500, 100);
+      insert into public.compras (org_id, id, obra_id, descricao, total, status) values ('${org}', 3, 1, 'compra', 1000, 'Parcial');`);
+  });
+  it('colunas novas têm valor padrão: item não quitado e compra sem valor pago', async () => {
+    const i = await linhas<{ quitado: boolean }>(C, `select quitado from public.itens where org_id = '${org}'`);
+    const c = await linhas<{ valor_pago: string }>(C, `select valor_pago from public.compras where org_id = '${org}'`);
+    expect(i[0].quitado).toBe(false); expect(Number(c[0].valor_pago)).toBe(0);
+  });
+  it('grava o valor já pago e a marca de quitado; valor negativo é recusado', async () => {
+    await sql(`update public.compras set valor_pago = 400 where org_id = '${org}' and id = 3; update public.itens set quitado = true where org_id = '${org}' and id = 2;`);
+    expect(Number((await linhas<{ v: string }>(C, `select valor_pago v from public.compras where org_id = '${org}'`))[0].v)).toBe(400);
+    expect((await linhas<{ q: boolean }>(C, `select quitado q from public.itens where org_id = '${org}'`))[0].q).toBe(true);
+    expect(await tenta(C, `update public.compras set valor_pago = -1 where org_id = '${org}' and id = 3`)).not.toBeNull();
+  });
+});
+
 describe('limite de organizações por conta', () => {
   it('cada conta cria no máximo 5 organizações (a migrada também conta)', async () => {
     let criadas = 0, erroFinal: string | null = null;
